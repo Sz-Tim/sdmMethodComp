@@ -1,0 +1,69 @@
+---
+title: "Exploration"
+author: "Tim Szewczyk"
+date: "2/16/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+pkgs <- c("tidyverse", "magrittr", "fields",
+          "maxent", "gbPopMod", "IPMpack", "ppmlasso")
+suppressMessages(invisible(lapply(pkgs, library, character.only=TRUE)))
+theme_set(theme_bw())
+```
+
+# Exploration of options for the simulation component
+
+## Species description: Life history, characteristics, relevant attributes
+The simulated species is fully described here. The object `sp_i` is a list containing three elements: one for each SDM approach. Each of these contains elements for the global parameters, relationships with environmental variables, and demographic matrices that are applicable or potentially applicable for that modeling strategy.
+```{r sp_i}
+set.seed(1)
+sp_i <- list(c_i=list(),
+             m1_i=list(),
+             m2_i=list())
+```
+
+
+## Landscape
+The landscape characteristics are aggregated here. It is a gridded landscape with climate and LULC data.
+```{r landscape}
+n.rows <- 10
+n.cols <- 10
+n.cell <- n.rows * n.cols
+env.df <- tibble(x=rep(1:n.cols, each=n.rows),
+                 y=rep(1:n.rows, times=n.cols),
+                 x_y=paste(x, y, sep="_"),
+                 temp_mean=rnorm(n.cell),
+                 temp_min=rnorm(n.cell),
+                 temp_max=rnorm(n.cell),
+                 prec_mean=rnorm(n.cell),
+                 prec_min=rnorm(n.cell),
+                 prec_max=rnorm(n.cell)) %>%
+  full_join(.[,3:9], by="x_y", suffix=c("", "_sq")) %>%
+  mutate_at(10:15, function(x) x*x)
+```
+
+
+## Correlative: MaxEnt
+```{r MaxEnt}
+
+```
+
+
+## Mechanistic: CA
+```{r CA}
+
+```
+
+
+## Mechanistic: IPM
+```{r IPM}
+
+
+```
+
+
+
+
+
