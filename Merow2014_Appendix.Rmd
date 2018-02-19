@@ -1,0 +1,447 @@
+---
+title: "Merow 2014 Appendix"
+author: "Tim Szewczyk"
+date: "2/16/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+pkgs <- c("tidyverse", "magrittr", "fields", "IPMpack")
+suppressMessages(invisible(lapply(pkgs, library, character.only=TRUE)))
+theme_set(theme_bw())
+```
+
+```{r App_A}
+d <- read.csv("data/Appendix_A_Simple_data.csv")
+# Appendix A from Merow 2014
+########
+## Fit regressions
+########
+  p <- NULL
+  # survival logistic regression
+  surv.reg <- glm(surv ~ size, family="binomial", data=d)
+  p$surv.int <- coef(surv.reg)[1]
+  p$surv.slope <- coef(surv.reg)[2]
+  
+  # growth linear regression
+  growth.reg <- gls(sizeNext ~ size + I(size^2), weights=varExp(), 
+                    na.action=na.omit, data=d)
+  p$growth.int <- coef(growth.reg)[1]
+  p$growth.slope <- coef(growth.reg)[2]
+  p$growth.sqrd <- coef(growth.reg)[3]
+  p$growth.sigma2 <- summary(growth.reg)$sigma^2
+  p$growth.sigma2.exp <- as.numeric(growth.reg$modelStruct$varStruct)
+  
+  # flower logistic regression
+  flower.reg <- glm(fec.flower ~ size, family="binomial", data=d)
+  p$flower.int <- coef(flower.reg)[1]
+  p$flower.slope <- coef(flower.reg)[2]
+  
+  # seed poisson regression
+  seed.reg <- glm(fec.seed ~ size, family="poisson", data=d[d$fec.flower==1,])
+  p$seed.int <- coef(seed.reg)[1]
+  p$seed.slope <- coef(seed.reg)[2]
+  
+  # recruit size distribution
+  p$recruit.size.mean <- mean(d$sizeNext[is.na(d$size)])
+  p$recruit.size.sd <- sd(d$sizeNext[is.na(d$size)])
+  
+  # establishment probability
+  p$establishment.prob <- sum(is.na(d$size))/sum(d$fec.seed, na.rm=TRUE)
+
+  par(mfrow=c(2,2), mar=c(4,4,2,1))
+  xx <- data.frame(size=seq(0, 8, by=.01))
+  plot(surv ~ size, data=d, col=rgb(0,0,0,0.5), 
+       xlab="Size (t)", ylab="Survival to t+1")
+  lines(xx$size, predict(surv.reg, xx, type="response"), col="red")
+  plot(sizeNext ~ size, data=d, col=rgb(0,0,0,0.5), 
+       xlab="Size (t)", ylab="Size (t+1)")
+  lines(xx$size, predict(growth.reg, xx), col="red")
+  plot(fec.seed ~ size, data=d, col=rgb(0,0,0,0.5), 
+       xlab="Size (t)", ylab="Seed number")
+  lines(xx$size, predict(seed.reg, xx, type="response"), col="red")
+  lines(xx$size, predict(flower.reg, xx, type="response")*
+          max(d$fec.seed, na.rm=TRUE), col="blue")
+  hist(d$sizeNext[is.na(d$size)], xlab="Recruit size", main="", freq=FALSE)
+  lines(xx$size, dnorm(xx$size, p$recruit.size.mean, p$recruit.size.sd),
+        col="red")
+
+  
+########
+## Life history functions
+########
+  # survival probability
+  s.x <- function(x, p) {
+    u <- exp(p$surv.int + p$surv.slope*x)
+    return(u / (1+u))
+  }
+  
+  # growth
+  g.yx <- function(xp, x, p) {
+    dnorm(xp, p$growth.int + p$growth.slope*x + p$growth.sqrd*x^2, 
+          sqrt(p$growth.sigma2 * exp(2*p$growth.sigma2.exp*x)))
+  }
+  
+  # reproduction
+  p.flower.x <- function(x, p) {
+    u <- exp(p$flower.int + p$flower.slope*x)
+    return(u/(1+u))
+  }
+  f.yx <- function(xp, x, p) {
+    p.flower.x(x, p)*
+      p$establishment.prob*
+      dnorm(xp, p$recruit.size.mean, p$recruit.size.sd)*
+      exp(p$seed.int + p$seed.slope*x)
+  }
+  
+########
+## Kernel creation
+########
+  min.size <- .9*min(c(d$size, d$sizeNext), na.rm=TRUE)
+  max.size <- 1.1*max(c(d$size, d$sizeNext), na.rm=TRUE)
+  n <- 100  # ncells in matrix
+  b <- min.size + c(0:n)*(max.size - min.size)/n  # boundary points
+  y <- 0.5*(b[1:n] + b[2:(n+1)])  # mesh points
+  h <- y[2] - y[1]  # step size
+  
+  G.mx <- h*outer(y, y, g.yx, p=p)
+  S.v <- s.x(y, p)
+  F.mx <- h*outer(y, y, f.yx, p=p)
+  P.mx <- G.mx
+  # Fix eviction of individuals below/above size limits
+  for(i in 1:(n/2)) {
+    G.mx[1,i] <- G.mx[1,i] + 1 - sum(G.mx[,i])
+    P.mx[,i] <- G.mx[,i]*S.v[i]
+  }
+  for(i in (n/2+1):n) {
+    G.mx[n,i] <- G.mx[n,i] + 1 - sum(G.mx[,i])
+    P.mx[,i] <- G.mx[,i]*S.v[i]
+  }
+  K.mx <- P.mx + F.mx
+  
+########
+## Summaries & plots
+########
+  lam <- Re(eigen(K.mx)$values[1])
+  w.eigen <- Re(eigen(K.mx)$vectors[,1])
+  stable.dist <- w.eigen/sum(w.eigen)
+  v.eigen <- Re(eigen(t(K.mx))$vectors[,1])
+  repro.val <- v.eigen/v.eigen[1]
+  v.dot.w <- sum(stable.dist*repro.val)*h
+  sens <- outer(repro.val, stable.dist)/v.dot.w
+  elas <- matrix(as.vector(sens)*as.vector(K.mx)/lam, nrow=n)
+  
+  par(mfrow=c(2,3), mar=c(4,5,2,2))
+  image.plot(y, y, t(K.mx),  
+             xlab="Size (t)", ylab="Size (t+1)", main="IPM matrix")
+  abline(a=0, b=1, lty=2)
+  contour(y, y, t(K.mx), add=TRUE, drawlabels=TRUE)
+  image.plot(y, y, t(elas), 
+             xlab="Size (t)", ylab="Size (t+1)", main="Elasticity")
+  image.plot(y, y, t(sens), 
+             xlab="Size (t)", ylab="Size (t+1)", main="Sensitivity")
+  plot(y, stable.dist, xlab="Size", type="l", main="Stable size distribution")
+  plot(y, repro.val, xlab="Size", type="l", main="Reproductive values")
+  plot(y, s.x(y, p), xlab="Size", ylab="Pr(surv)", main="Eviction")
+  lines(y, apply(P.mx, 2, sum), col="red")
+```
+
+```{r App_B}
+data("dataIPMpackSuccisa")
+Sp1 <- dataIPMpackSuccisa
+
+par(mfrow=c(3,2), mar=c(4,4,2,1)) 
+plot(Sp1$size, Sp1$surv, col=rgb(0,0,0,0.5), 
+     xlab="Size (t)", ylab="Survival to t+1")
+plot(Sp1$size, Sp1$sizeNext, col=rgb(0,0,0,0.5), 
+     xlab="Size (t)", ylab="Size (t+1)") 
+plot(Sp1$size, Sp1$fec1Bolt, col=rgb(0,0,0,0.5), 
+     xlab="Size (t)", ylab="Flowering probability")
+plot(Sp1$size, Sp1$fec2Stem, col=rgb(0,0,0,0.5), 
+     xlab="Size (t)", ylab="Stem Number")
+plot(Sp1$size, Sp1$fec3Head, col=rgb(0,0,0,0.5), 
+     xlab="Size (t)", ylab="Flower Head Number") 
+hist(Sp1$sizeNext[is.na(Sp1$size)], main="", xlab="Recruit Size")
+
+# size ranges
+x <- seq(0, 10, length.out=1001)
+x0 <- data.frame(size=x, size2=x*x)
+minSize <- min(Sp1$size, na.rm=TRUE) - 1
+maxSize <- max(Sp1$size, na.rm=TRUE) + 2
+
+########
+## survival and growth kernels
+########
+  par(mfrow=c(1,3))
+  survModelComp(dataf=Sp1, makePlot=TRUE, legendPos="bottomright")
+  so <- makeSurvObj(Sp1, surv ~ size)
+  growthModelComp(dataf=Sp1, makePlot=TRUE, legendPos="bottomright")
+  go <- makeGrowthObj(Sp1, sizeNext ~ size + size2)
+  P.mx <- makeIPMPmatrix(survObj=so, growObj=go, correction="constant",
+                            minSize=minSize, maxSize=maxSize)
+  
+  image.plot(P.mx@meshpoints, P.mx@meshpoints, t(P.mx), 
+             main="P: Survival & growth", xlab="Size (t)", ylab="Size (t+1)")
+  abline(a=0, b=1, lty=2)
+  diagnosticsPmatrix(P.mx, growObj=go, survObj=so, correction="constant")
+  
+########
+## fecundity kernel
+########
+  # flowering
+  fo1 <- makeFecObj(Sp1, Formula=fec1Bolt ~ 1, Family="binomial")
+  fo2 <- makeFecObj(Sp1, Formula=fec1Bolt ~ size, Family="binomial")
+  fo3 <- makeFecObj(Sp1, Formula=fec1Bolt ~ size + size2, Family="binomial")
+  par(mfrow=c(1,1))
+  fs <- order(Sp1$size)
+  fs.fec <- Sp1$fec1Bolt[fs]
+  fs.size <- Sp1$size[fs]
+  pfz <- tapply(fs.size, as.numeric(cut(fs.size, 21)), mean, na.rm=TRUE)
+  ps <- tapply(fs.fec, as.numeric(cut(fs.size, 21)), mean, na.rm=TRUE)
+  plot(as.numeric(pfz), as.numeric(ps), ylim=c(0,1), 
+       xlab="Size", ylab="Proportion flowering")
+  lines(x, predict(fo1@fitFec[[1]], newdata=x0, type="response"), col="red")
+  lines(x, predict(fo2@fitFec[[1]], newdata=x0, type="response"), col="green")
+  lines(x, predict(fo3@fitFec[[1]], newdata=x0, type="response"), col="blue")
+  legend("topleft", col=2:4, lty=1, xjust=1, bg="white",
+         legend=sprintf("%s: %s = %.1f", c("1", "size", "size + size2"), 
+                        c("AIC"), c(AIC(fo1@fitFec[[1]]), AIC(fo2@fitFec[[1]]),
+                                    AIC(fo3@fitFec[[1]]))))
+  # stem production
+  fo1 <- makeFecObj(Sp1, Formula=c(fec1Bolt~size+size2, fec2Stem~1), 
+                    Family=c("binomial", "poisson"), Transform=c("none", "-1"))
+  fo2 <- makeFecObj(Sp1, Formula=c(fec1Bolt~size+size2, fec2Stem~size), 
+                    Family=c("binomial", "poisson"), Transform=c("none", "-1"))
+  fo3 <- makeFecObj(Sp1, Formula=c(fec1Bolt~size+size2, fec2Stem~size+size2), 
+                    Family=c("binomial", "poisson"), Transform=c("none", "-1"))
+  fs <- order(Sp1$size)
+  fs.fec <- Sp1$fec2Stem[fs]
+  fs.size <- Sp1$size[fs]
+  pfz <- tapply(fs.size, as.numeric(cut(fs.size, 21)), mean, na.rm=TRUE)
+  ps <- tapply(fs.fec, as.numeric(cut(fs.size, 21)), mean, na.rm=TRUE)
+  plot(as.numeric(pfz), as.numeric(ps), 
+       xlab="Size", ylab="Number of stems")
+  lines(x, predict(fo1@fitFec[[2]], newdata=x0, type="response")+1, col="red")
+  lines(x, predict(fo2@fitFec[[2]], newdata=x0, type="response")+1, col="green")
+  lines(x, predict(fo3@fitFec[[2]], newdata=x0, type="response")+1, col="blue")
+  legend("topleft", col=2:4, lty=1, xjust=1, bg="white",
+         legend=sprintf("%s: %s = %.1f", c("1", "size", "size + size2"), 
+                        c("AIC"), c(AIC(fo1@fitFec[[2]]), AIC(fo2@fitFec[[2]]),
+                                    AIC(fo3@fitFec[[2]]))))
+  
+  # inflorescence count
+  fo1 <- makeFecObj(Sp1, Formula=c(fec1Bolt~size+size2, fec2Stem~1, 
+                                   fec3Head~1), 
+                    Family=c("binomial", "poisson", "poisson"), 
+                    Transform=c("none", "-1", "none"))
+  fo2 <- makeFecObj(Sp1, Formula=c(fec1Bolt~size+size2, fec2Stem~1, 
+                                   fec3Head~size), 
+                    Family=c("binomial", "poisson", "poisson"), 
+                    Transform=c("none", "-1", "none"))
+  fo3 <- makeFecObj(Sp1, Formula=c(fec1Bolt~size+size2, fec2Stem~1, 
+                                   fec3Head~size+size2), 
+                    Family=c("binomial", "poisson", "poisson"), 
+                    Transform=c("none", "-1", "none"))
+  fs <- order(Sp1$size)
+  fs.fec <- Sp1$fec3Head[fs]
+  fs.size <- Sp1$size[fs]
+  pfz <- tapply(fs.size, as.numeric(cut(fs.size, 21)), mean, na.rm=TRUE)
+  ps <- tapply(fs.fec, as.numeric(cut(fs.size, 21)), mean, na.rm=TRUE)
+  plot(as.numeric(pfz), as.numeric(ps), 
+       xlab="Size", ylab="Number of stems")
+  lines(x, predict(fo1@fitFec[[3]], newdata=x0, type="response"), col="red")
+  lines(x, predict(fo2@fitFec[[3]], newdata=x0, type="response"), col="green")
+  lines(x, predict(fo3@fitFec[[3]], newdata=x0, type="response"), col="blue")
+  legend("topleft", col=2:4, lty=1, xjust=1, bg="white",
+         legend=sprintf("%s: %s = %.1f", c("1", "size", "size + size2"), 
+                        c("AIC"), c(AIC(fo1@fitFec[[3]]), AIC(fo2@fitFec[[3]]),
+                                    AIC(fo3@fitFec[[3]]))))
+  
+  # final fecundity kernel
+  fo <- makeFecObj(Sp1, Formula=c(fec1Bolt~size+size2, fec2Stem~1, 
+                                  fec3Head~size), 
+                   Family=c("binomial", "poisson", "poisson"), 
+                   Transform=c("none", "-1", "none"),
+                   fecConstants=data.frame(seedsPerHead=50,
+                                           seedlingEstablishmentRate=0.02))
+  F.mx <- makeIPMFmatrix(fecObj=fo, minSize=minSize, maxSize=maxSize)
+  
+  image.plot(F.mx@meshpoints, F.mx@meshpoints, t(F.mx), 
+             main="F: Sexual reproduction", xlab="Size (t)", ylab="Size (t+1)")
+  
+  sens.out <- sensParams(growObj=go, survObj=so, fecObj=fo, 
+                         nBigMatrix=50, minSize=minSize, maxSize=maxSize)
+  barplot(sens.out$elas, las=2, cex.names=0.5)
+```
+
+```{r App_C}
+########
+## set up
+########
+  data("dataIPMpackHypericumCov"); help("dataIPMpackHypericumCov")
+  d <- dataIPMpackHypericumCov
+  d1 <- subset(d, !is.na(d$size) | d$ontogenyNext==1)
+  d1 <- subset(d1, d1$year %in% c(1994, 1996))
+  fec2 <- 13.78  # nSeeds per fruit
+  fec3 <- 0.001336  # pr(germinate_t)
+  fec4 <- 0.14  # surv(seedling_t_to_t+1)
+  goSB <- 0.08234528
+  staySB <- 0.671
+  d1 <- d1[,c("year", "size", "surv", "sizeNext", "fec0", "fec1")]
+  
+  # assign surviving individuals to 'continuous' stage
+  d1$stageNext <- d1$stage <- "continuous"
+  d1$stage[is.na(d1$size)] <- NA
+  d1$stageNext[d1$surv==0] <- "dead"
+  
+  # structure for transition between discrete (SB) & continuous (stem) stages
+  d1$number <- 1 
+  seedbank <- data.frame(year="All", 
+                         size=NA, surv=1, sizeNext=NA,
+                         fec0=NA, fec1=NA, 
+                         stage=c("seedbank", "seedbank", "continuous"),
+                         stageNext=c("seedbank", "continuous", "seedbank"),
+                         number=c(staySB, (1-staySB)*fec3*fec4, 1))
+  d1 <- rbind(d1, seedbank)
+  d1$stage <- as.factor(d1$stage)
+  d1$stageNext <- as.factor(d1$stageNext)
+
+########
+## construct kernels
+########
+  # 1994
+  d94 <- subset(d1, d1$year %in% c("1994", "All"))
+  minSize <- min(d1$size, na.rm=TRUE)
+  maxSize <- max(d1$size, na.rm=TRUE)
+  x <- seq(minSize, maxSize, length.out=1001)
+  x0 <- data.frame(size=x, size2=x^2, size3=x^3)
+  
+  # survival
+  survModelComp(dataf=d94[!is.na(d$size),], 
+                expVars=c(surv ~ 1, 
+                          surv ~ size, 
+                          surv ~ size + size2, 
+                          surv ~ size + size2 + size3), 
+                makePlot=TRUE, legendPos="bottomleft", mainTitle="Survival")
+  so94 <- makeSurvObj(d94, surv ~ size + I(size^2))
+  
+  # growth
+  growthModelComp(dataf=d94, 
+                  expVars=c(sizeNext ~ 1, 
+                            sizeNext ~ size, 
+                            sizeNext ~ size + size2, 
+                            sizeNext ~ size + size2 + size3),
+                  makePlot=TRUE, legendPos="bottomleft", mainTitle="Growth")
+  abline(a=0, b=1, lty=2)
+  go94 <- makeGrowthObj(d94, sizeNext ~ size)
+  
+  # P matrix
+  P.mx.94 <- makeIPMPmatrix(survObj=so94, growObj=go94, 
+                            minSize=minSize, maxSize=maxSize, 
+                            nBigMatrix=80, correction="constant")
+  image.plot(P.mx.94@meshpoints, P.mx.94@meshpoints, t(P.mx.94),
+             main="P.mx: Survival & growth", xlab="Size (t)", ylab="Size (t+1)")
+  abline(a=0, b=1, lty=2, col="white", lwd=2)
+  diagnosticsPmatrix(P.mx.94, growObj=go94, survObj=so94, correction="constant")
+
+  # fecundity
+  ## flowering probability
+  fec0.0_94 <- makeFecObj(d94, Formula=fec0~1, Family="binomial")
+  fec0.1_94 <- makeFecObj(d94, Formula=fec0~size, Family="binomial")
+  fec0.2_94 <- makeFecObj(d94, Formula=fec0~size+size2, Family="binomial")
+  fec0.3_94 <- makeFecObj(d94, Formula=fec0~size+size2+size3, Family="binomial")
+  fs <- order(d94$size); fs.fec0 <- d94$fec0[fs]; fs.size <- d94$size[fs]
+  pfz <- tapply(fs.size, as.numeric(cut(fs.size, 21)), mean, na.rm=TRUE)
+  ps <- tapply(fs.fec0, as.numeric(cut(fs.size, 21)), mean, na.rm=TRUE)
+  plot(as.numeric(pfz), as.numeric(ps), xlab="Size", ylab="Pr(flower)")
+    y0 <- predict(fec0.0_94@fitFec[[1]], newdata=x0)
+    lines(x, exp(y0)/(exp(y0) + 1), col=2)
+    y0 <- predict(fec0.1_94@fitFec[[1]], newdata=x0)
+    lines(x, exp(y0)/(exp(y0) + 1), col=3)
+    y0 <- predict(fec0.2_94@fitFec[[1]], newdata=x0)
+    lines(x, exp(y0)/(exp(y0) + 1), col=4)
+    y0 <- predict(fec0.3_94@fitFec[[1]], newdata=x0)
+    lines(x, exp(y0)/(exp(y0) + 1), col=5)
+    legend("bottomright", col=2:5, lty=1, xjust=1, bg="white",
+           legend=sprintf("%s: %s = %.1f", 
+                          c("1","size","size+size2","size+size2+size3"), 
+                          c("AIC"), 
+                          c(AIC(fec0.0_94@fitFec[[1]]), 
+                            AIC(fec0.1_94@fitFec[[1]]), 
+                            AIC(fec0.2_94@fitFec[[1]]), 
+                            AIC(fec0.3_94@fitFec[[1]]))))
+  ## fruit number per plant
+  fec1.0_94 <- makeFecObj(d94, Formula=fec1~1, Family="poisson")
+  fec1.1_94 <- makeFecObj(d94, Formula=fec1~size, Family="poisson")
+  fec1.2_94 <- makeFecObj(d94, Formula=fec1~size+size2, Family="poisson")
+  fec1.3_94 <- makeFecObj(d94, Formula=fec1~size+size2+size3, Family="poisson")
+  fs.fec1 <- d94$fec1[fs]
+  ps <- tapply(fs.fec1, as.numeric(cut(fs.size, 21)), mean, na.rm=TRUE)
+  plot(as.numeric(pfz), as.numeric(ps), xlab="Size", ylab="Fruits per plant")
+    y0 <- predict(fec1.0_94@fitFec[[1]], newdata=x0)
+    lines(x, exp(y0), col=2)
+    y0 <- predict(fec1.1_94@fitFec[[1]], newdata=x0)
+    lines(x, exp(y0), col=3)
+    y0 <- predict(fec1.2_94@fitFec[[1]], newdata=x0)
+    lines(x, exp(y0), col=4)
+    y0 <- predict(fec1.3_94@fitFec[[1]], newdata=x0)
+    lines(x, exp(y0), col=5)
+    legend("topleft", col=2:5, lty=1, xjust=1, bg="white",
+           legend=sprintf("%s: %s = %.1f", 
+                          c("1","size","size+size2","size+size2+size3"), 
+                          c("AIC"), 
+                          c(AIC(fec1.0_94@fitFec[[1]]), 
+                            AIC(fec1.1_94@fitFec[[1]]), 
+                            AIC(fec1.2_94@fitFec[[1]]), 
+                            AIC(fec1.3_94@fitFec[[1]]))))
+  
+  # F matrix
+  fo94 <- makeFecObj(d94, 
+                     Formula=c(fec0~size+size2+size3, fec1~size+size2+size3),
+                     Family=c("binomial", "poisson"), Transform=c("none", -1),
+                     meanOffspringSize=mean(d94[is.na(d94$size) & 
+                                                  !is.na(d94$sizeNext), 
+                                                "sizeNext"]),
+                     sdOffspringSize=sd(d94[is.na(d94$size) & 
+                                              !is.na(d94$sizeNext), 
+                                            "sizeNext"]),
+                     fecConstants=data.frame(fec2=fec2, fec3=fec3, fec4=fec4),
+                     offspringSplitter=data.frame(seedbank=goSB,
+                                                  continuous=(1-goSB)),
+                     vitalRatesPerOffspringType=data.frame(
+                       seedbank=c(1,1,1,0,0),
+                       continuous=c(1,1,1,1,1),
+                       row.names=paste0("fec", 0:4)))
+  F.mx.94 <- makeIPMFmatrix(fecObj=fo94, minSize=minSize, maxSize=maxSize,
+                            nBigMatrix=80, correction="constant")
+  image.plot(F.mx.94@meshpoints, F.mx.94@meshpoints, t(F.mx.94[-1, -1]), 
+             main="F.mx: Fecundity", xlab="Size (t)", ylab="Size (t-1)")
+  
+  # Stage transitions: discrete & continuous
+  dto94 <- makeDiscreteTrans(d94)
+  dummy94 <- as.matrix(fo94@offspringRel$coefficients[1], list(1, "seedbank"))
+  dto94@meanToCont <- as.matrix(dummy94, dimnames=c(1, "seedbank"))
+  dummy94 <- as.matrix(fo94@sdOffspringSize, dimnames=list(1, "seedbank"))
+  dto94@sdToCont <- as.matrix(dummy94, dimnames=c(1, "seedbank"))
+  dto94@discreteTrans[1,1] <- staySB + (1-staySB)*fec3*fec4
+  P.mx.94 <- makeIPMPmatrix(growObj=go94, survObj=so94, discreteTrans=dto94,
+                            minSize=minSize, maxSize=maxSize, nBigMatrix=80,
+                            correction="constant")
+  image.plot(P.mx.94@meshpoints, P.mx.94@meshpoints, t(P.mx.94[1:80, 1:80]),
+             main="P.mx: Survival & growth", xlab="Size (t)", ylab="Size (t+1)")
+  abline(a=0, b=1, lty=2, col="white", lwd=2)
+  
+  # Full kernel
+  IPM94 <- P.mx.94 + F.mx.94
+  Re(eigen(IPM94)$value[1])
+  sens.94 <- sens(IPM94)
+  image.plot(0:80, 0:80, t(sens.94),
+             main="Sensitivity", xlab="Size (t)", ylab="Size (t+1)")
+  elas.94 <- elas(IPM94)
+  image.plot(0:80, 0:80, t(elas.94),
+             main="Elasticity", xlab="SB & Size (t)", ylab="SB & Size (t+1)")
+```
+
+
+
