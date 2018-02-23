@@ -443,5 +443,275 @@ maxSize <- max(Sp1$size, na.rm=TRUE) + 2
              main="Elasticity", xlab="SB & Size (t)", ylab="SB & Size (t+1)")
 ```
 
+```{r App_E.1}
+########
+## simulate IPM matrices
+########
+  dff <- generateData()
+  gr1 <- makeGrowthObj(dff, sizeNext ~ size + size2)
+  sv1 <- makeSurvObj(dff, surv ~ size + size2)
+  fv1 <- makeFecObj(dff, Transform="log")
+  Pmat <- makeIPMPmatrix(nBigMatrix=100, minSize=-3, maxSize=14,
+                         growObj=gr1, survObj=sv1, correction="constant")
+  Fmat <- makeIPMFmatrix(nBigMatrix=100, minSize=-3, maxSize=14,
+                         fecObj=fv1, correction="constant")
+  IPM <- Pmat
+  IPM@.Data <- Pmat+Fmat  # retains Pmat meshpoints, etc
+  
+  w.eigen <- Re(eigen(IPM)$vectors[,1])
+  stable.dist <- w.eigen/sum(w.eigen)
+
+########
+## generate starting population
+#########
+  # size distribution
+  size0 <- runif(1000, min(IPM@meshpoints), max(IPM@meshpoints))
+  # IPM breakpoints = (mdpts - h/2):(max(mdpts) + h/2)
+  breakpoints <- c(IPM@meshpoints - (IPM@meshpoints[2] - IPM@meshpoints[1])/2,
+                   IPM@meshpoints[length(IPM@meshpoints)] +
+                     (IPM@meshpoints[2] - IPM@meshpoints[1])/2)
+  # bin size0 based on breakpoints
+  new.dist.i <- findInterval(size0, breakpoints, all.inside=TRUE)
+  loc.sizes <- table(new.dist.i)
+  new.dist.n0 <- rep(0, length(IPM@meshpoints))
+  new.dist.n0[as.numeric(names(loc.sizes))] <- loc.sizes
+
+########
+## project population forward
+########
+  tmax <- 10
+  storage <- matrix(NA, nrow=dim(Pmat)[1], ncol=tmax)
+  new.dist.n <- new.dist.n0
+  for(k in 1:tmax) {
+    new.dist.n <- IPM %*% new.dist.n
+    storage[,k] <- new.dist.n
+  }
+
+########
+## plots
+########
+  par(mfrow=c(2,2), mar=c(4,4,2,1))
+  image.plot(Pmat@meshpoints, Pmat@meshpoints, t(Pmat), 
+             main="P", xlab="Size (t)", ylab="Size (t+1)")
+  contour(Pmat@meshpoints, Pmat@meshpoints, t(Pmat), add=TRUE)
+  image.plot(Pmat@meshpoints, Pmat@meshpoints, t(Fmat), 
+             main="F", xlab="Size (t)", ylab="")
+  contour(Pmat@meshpoints, Pmat@meshpoints, t(Fmat), add=TRUE)
+  hist(size0, col="grey", xlim=range(Pmat@meshpoints), freq=FALSE,
+       xlab="Size (t=0)", ylab="", main="")
+  for(k in 1:tmax) {
+    lines(Pmat@meshpoints, storage[,k]/sum(storage[,k]), col=rgb(0,0,k/tmax,1))
+  }
+  lines(Pmat@meshpoints, stable.dist, col="red")
+  image.plot(1:tmax, Pmat@meshpoints, t(log(storage)), 
+             xlab="time", ylab="Size")
+  abline(v=1.5+(1*c(0:tmax)))
+  Re(eigen(IPM)$values[1])
+```
+
+```{r App_E.2}
+dff <- generateData()
+
+# good year
+gr1 <- makeGrowthObj(dff, Formula=sizeNext ~ size, 
+                     regType="constantVar", Family="gaussian")
+sv1 <- makeSurvObj(dff, Formula=surv ~ size + size2)
+fv1 <- makeFecObj(dff, Formula=list(fec~size), Transform="log")
+fv1@fitFec[[1]]$coefficients <- c(-1, 0.35)
+
+# bad year
+sv1 <- coerceSurvObj(survObj=sv1, coeff=c(-1, 1, 2))
+sv2 <- coerceSurvObj(survObj=sv1, coeff=c(-3, 0, -2))
+gr2 <- coerceGrowthObj(gr1, coeff=c(-3, -3), sd=1)
+
+# kernel
+Pmat1 <- makeIPMPmatrix(nBigMatrix=50, minSize=-2, maxSize=12,
+                        growObj=gr1, survObj=sv1)
+Pmat2 <- makeIPMPmatrix(nBigMatrix=50, minSize=-2, maxSize=12,
+                        growObj=gr2, survObj=sv2)
+Fmat <- makeIPMFmatrix(nBigMatrix=50, minSize=-2, maxSize=12, fecObj=fv1)
+IPM1 <- Pmat1 + Fmat
+IPM2 <- Pmat2 + Fmat
+
+# plots
+image.plot(Pmat1@meshpoints, Pmat1@meshpoints, t(Pmat1), main="good year")
+image.plot(Pmat1@meshpoints, Pmat1@meshpoints, t(Pmat2), main="bad year")
+
+exp(stochGrowthRateSampleList(list(IPM1, IPM2), nRunIn=1000, tMax=5000))
+
+nsim <- 100
+tmax <- 100
+IPM.ls <- list(IPM1, IPM2)
+nt0 <- abs(Re(eigen(IPM1)$vector[,1])*10)
+rt <- rtGood <- rtBad <- matrix(NA, nsim, tmax)
+for(j in 1:nsim) {
+  ntGood <- ntBad <- nt <- nt0
+  for(k in 1:tmax) {
+    sv.t <- coerceSurvObj(sv1, coeff=runif(3, -3, 3))
+    gr.t <- coerceGrowthObj(gr1, coeff=runif(2, -3, 3), sd=1)
+    Pmat.t <- makeIPMPmatrix(nBigMatrix=50, minSize=-2, maxSize=12,
+                        growObj=gr.t, survObj=sv.t)
+    IPM.t <- Pmat.t + Fmat
+    nt <- IPM.t %*% nt
+    rt[j,k] <- sum(nt)
+    ntGood <- IPM1 %*% ntGood
+    rtGood[j,k] <- sum(ntGood)
+    ntBad <- IPM2 %*% ntBad
+    rtBad[j,k] <- sum(ntBad)
+  }
+}
+
+par(mfrow=c(1,1), bty="l")
+matplot(t(rt), type="l", xlab="time", ylab="N", log="y", 
+        ylim=c(range(c(rtGood, rtBad))), lty=1, col=rgb(0,0,0,0.5))
+points(rtGood[1,], type="l", lwd=2, lty=2)
+points(rtBad[1,], type="l", lwd=2, lty=2)
+```
+
+```{r App_E.3}
+dff <- generateData()
+go <- makeGrowthObj(dff, sizeNext ~ size + size2 + covariate)
+so <- makeSurvObj(dff, surv ~ size + size2)
+eo <- makeEnvObj(dff)
+fo <- makeFecObj(dff, Formula=list(fec~size))
+
+Pmat <- makeCompoundPmatrix(nEnvClass=2, envMatrix=eo, 
+                            minSize=-3, maxSize=14, nBigMatrix=100,
+                            growObj=go, survObj=so, 
+                            correction="constant")
+image.plot(1:nrow(Pmat), 1:ncol(Pmat), t(log(Pmat)), axes=F, 
+           xlab="Size (t)", ylab="Size (t+1)")
+axis(1, at=1:nrow(Pmat), lab=round(rep(Pmat@meshpoints, Pmat@nEnvClass)))
+axis(2, at=1:nrow(Pmat), lab=round(rep(Pmat@meshpoints, Pmat@nEnvClass)))
+abline(h=length(Pmat@meshpoints)*(1:Pmat@nEnvClass))
+abline(v=length(Pmat@meshpoints)*(1:Pmat@nEnvClass))
+```
+
+```{r App_F}
+########
+## load data
+########
+  load("data/ActaeaRegDat.RData")
+  d <- ActaeaRegDat
+
+########
+## regressions
+########
+  g.lm <- lm(y ~ x + K, data=d)
+  s.lm <- glm(surv ~ x, family="binomial", data=d)
+  fl.lm <- glm(flow ~ x, family="binomial", data=d)
+  fr.lm <- glm(fruits ~ x, family="poisson", data=d)
+  
+  par(mfrow=c(2,2), mar=c(4,4,2,1))
+  xx <- data.frame(x=seq(2, 14, length.out=100), K=25)
+  plot(d$x, d$surv, col=rgb(0,0,0,0.1), xlab="Size (t)", ylab="Survival to t+1")
+  lines(xx$x, predict(s.lm, xx, type="response"), col="red", lwd=2)
+  plot(d$x, d$y, xlab="Size (t)", ylab="Size (t+1)")
+  lines(xx$x, predict(g.lm, xx, type="response"), col="red", lwd=2)
+  plot(d$x, d$flow, col=rgb(0,0,0,0.1), xlab="Size (t)", ylab="Pr(Flower)")
+  lines(xx$x, predict(fl.lm, xx, type="response"), col="red", lwd=2)
+  plot(d$x, d$fruits, xlab="Size (t)", ylab="Fruit number")
+  lines(xx$x, predict(fr.lm, xx, type="response"), col="red", lwd=2)  
+  
+  p <- rep(0, 15)
+  p <- list("s.b0"=coef(s.lm)[1], "s.bx"=coef(s.lm)[2], 
+         "g.b0"=coef(g.lm)[1], "g.bx"=coef(g.lm)[2], "g.bK"=coef(g.lm)[3],
+         "fl.b0"=coef(fl.lm)[1], "fl.bx"=coef(fl.lm)[2],
+         "fr.b0"=coef(fr.lm)[1], "fr.bx"=coef(fr.lm)[2],
+         "est.x.mn"=3.0721075, "est.x.sd"=1.448899,
+         "sd.xy"=1.155625, 
+         "est.sdlg"=0.0091550, "surv.sdlg"=0.2383389, 
+         "seed.pred"=0.195905)
+  
+########
+## define functions
+########
+  # survival probability
+  sx <- function(x, p) {
+    u <- exp(p$s.b0 + p$s.bx*x)
+    return(u/(1+u))
+  }
+  
+  # growth
+  gyx <- function(y, x, K, p) {
+    dnorm(y, p$g.b0 + p$g.bx*x + p$g.bK*K, p$sd.xy)
+  }
+  
+  # fecundity
+  fx <- function(x, p) {
+    # flowering probability
+    u <- exp(p$fl.b0 + p$fl.bx*x)
+    # fruits per flowering individual
+    n.fr <- exp(p$fr.b0 + p$fr.bx*x)
+    n.fr[n.fr<0] <- 0
+    n.seed.per.fruit <- p$seed.pred*0.38901 + (1 - p$seed.pred)*9.61368
+    return(u/(1+u)*n.fr*n.seed.per.fruit)
+  }
+  
+  # seedling survival and size distribution
+  py3 <- function(y, p) {
+    return(p$surv.sdlg * dnorm(y, p$est.x.mn, p$est.x.sd)/
+             (1-pnorm(minsize, p$est.x.mn, p$est.x.sd)))
+  }
+  
+  # iterator function
+  iter <- function(Nt) {
+    Nt1 <- array(0, dim=c(2+n.size)) 
+    Nt1[1] <- Nt1[1] + sum(FF %*% Nt[3:(n.size+2)])
+    Nt1 <- Nt1 + as.vector(P %*% Nt)
+    return(Nt1)
+  }
+
+########
+## construct kernel
+########
+  # define breakpoints, meshpoints, stepsize
+  n.size <- 100
+  tol <- 1.e-8
+  minsize <- 0.9234274; maxsize <- 15.27885
+  L <- minsize; U <- maxsize; n <- n.size
+  b <- L + c(0:n)*(U-L)/n
+  y <- 0.5*(b[1:n]+b[2:(n+1)])
+  h <- y[2]-y[1]
+  
+  # loop over forest succession (=approx(cells))
+  spruce <- 0
+  K.conc <- 0
+  for(k in 1:120) {
+    # spruce proportion & K concentration
+    spruce <- 1/(1+exp(-0.09*k+5))
+    K.conc <- exp(3.00932 - 0.53267*spruce)*1.722324
+    # kernel components
+      ## growth (including eviction correction)
+      G <- array(0, dim=c(n.size, n.size))
+      G <- h*outer(y, y, gyx, p=p, K=K.conc)
+      for(i in 1:(n.size/2)) G[1,i] <- G[1,i] + 1 - sum(G[,i])
+      for(i in (n.size/2+1):n.size) G[n.size,i] <- G[n.size,i] + 1 - sum(G[,i])
+      ## survival
+      S <- sx(y, p)
+      FF <- fx(y, p)*h
+      P <- array(0, dim=c(2+n.size, 2+n.size)) # [1,] = seed; [2,] = seedling
+      P[2,1] <- p$est.sdlg
+      P[3:(2+n.size),2] <- py3(y, p)
+      for(i in 3:(2+n.size)) P[i,3:(2+n.size)] <- S*G[(i-2),]
+      
+    # population iterations
+    Nt <- array(1, dim=c(2+n.size))
+    Nt <- Nt/sum(Nt)
+    qmax <- 1000; lam <- 1
+    while(qmax > tol) {
+      Nt1 <- iter(Nt)
+      qmax <- sum(abs(Nt1 - lam*Nt))
+      lam <- sum(Nt1)
+      Nt <- Nt1/lam
+    }
+    stable.dist <- Nt/sum(Nt)
+    stable.lam <- lam
+    cat("Year:", k, "Proportion spruce:", round(spruce,2), " Lambda:", lam, "\n")
+  }
+```
+
+
+
 
 
