@@ -21,7 +21,7 @@ lc.df <- read_csv("data/landcover_5km.csv") %>%
 The simulated species is fully described here. The object `sp_i` is a list containing elements for the global parameters, relationships with environmental variables, and demographic matrices that are applicable or potentially applicable for that modeling strategy. Parameters are abbreviated with the associated kernel component (e.g., `s_*` for survival, `g_*` for growth, etc) and the type of covariate (`*_z` for size, `*_x` for environmental covariates).
 ```{r sp_i}
 subsamp <- NA
-mean_abund <- 200
+mean_abund <- 2000
 regPlots <- F
 ipmPlots <- F
 n <- 100  # ncells in IPM matrix
@@ -35,9 +35,9 @@ sp_i <- list(p=list(s_z=c(-1.75, .75), # b1 + b2*z
                     g_x=c(1, -.1, 1.5, -.1), #b1*x1 + ...
                     g_sig=1, # growth ~ N(E, g_sig)
                     fl_z=c(-1.5, .1, .1), # b1 + b2*z + b3*z^2 + b4*z^3
-                    fl_x=c(1, -.01, -1, -.01, .05), # b1*x1 + ...
+                    fl_x=c(1, -.01, -1, -.01, .2), # b1*x1 + ...
                     seed_z=c(2, 0.5, -.03), # b1 + b2*z + b2*z^2
-                    seed_x=c(1, -.1, 1, -.1, .05), # b1*x1 + ...
+                    seed_x=c(1, -.1, 1, -.1, .2), # b1*x1 + ...
                     rcr_z=c(1.5, 0.4), # N(mean=rcrt1, sd=rcrt2)
                     p_est=0.02, # p(establishment)
                     rcr_SB=0.2, # p(recruit from seedbank)
@@ -72,7 +72,7 @@ env.df <- env.df[cells,]
 ########
 # set up storage objects
 p <- sp_i$p
-IPMs <- array(0, dim=c(n+1, n+1, n.cell))
+IPMs <- Ps <- Fs <- array(0, dim=c(n+1, n+1, n.cell))
 d <- vector("list", length=n.cell)
 lambdas <- B_1 <- rep(NA, n.cell)
 B <- rpois(n.cell, n_i)
@@ -110,7 +110,7 @@ for(i in 1:n.cell) {
   d[[i]]$fl <- rbinom(n_i[i], 1, E_fl)
   ## seed production
   E_seed <- d[[i]]$fl * 
-    exp((size.mx[,1:n_seedz] %*% p$seed_z + c(X_seed[i,] %*% p$seed_x)))
+    exp(size.mx[,1:n_seedz] %*% p$seed_z + c(X_seed[i,] %*% p$seed_x))
   d[[i]]$seed <- rpois(n_i[i], E_seed)
   d[[i]]$fl <- ifelse(d[[i]]$surv, d[[i]]$fl, NA)
   d[[i]]$seed <- ifelse(d[[i]]$fl==1, d[[i]]$seed, NA)
@@ -138,15 +138,14 @@ for(i in 1:n.cell) {
   for(k in 1:(n/2)) G.mx[1,k] <- G.mx[1,k] + 1 - sum(G.mx[,k])
   for(k in (n/2+1):n) G.mx[n,k] <- G.mx[n,k] + 1 - sum(G.mx[,k])
   ### fill P, F, and K
-  P.mx <- F.mx <- matrix(0, ncol=n+1, nrow=n+1)
-  for(k in z.i) P.mx[k,z.i] <- G.mx[k-1,]*S.v
-  P.mx[1,1] <- calc_staySB(p)
-  F.mx[z.i,z.i] <- h*outer(y, y, calc_rcrDir, p=p, n_seedz=n_seedz, n_flz=n_flz, 
-                           X.seed=X_seed[i,], X.fl=X_fl[i,])
-  F.mx[1,z.i] <- calc_addSB(y, p=p, n_seedz=n_seedz, n_flz=n_flz, 
+  for(k in z.i) Ps[k,z.i,i] <- G.mx[k-1,]*S.v
+  Ps[1,1,i] <- calc_staySB(p)
+  Fs[z.i,z.i,i] <- h*outer(y, y, calc_rcrDir, p=p, n_seedz=n_seedz,
+                             n_flz=n_flz, X.seed=X_seed[i,], X.fl=X_fl[i,])
+  Fs[1,z.i,i] <- calc_addSB(y, p=p, n_seedz=n_seedz, n_flz=n_flz, 
                             X.seed=X_seed[i,], X.fl=X_fl[i,])
-  F.mx[z.i,1] <- calc_rcrSB(y, p)
-  IPMs[,,i] <- P.mx + F.mx
+  Fs[z.i,1,i] <- calc_rcrSB(y, p)
+  IPMs[,,i] <- Ps[,,i] + Fs[,,i]
   
   #---- progress
   if(i %% 100 == 0) cat("Finished cell", i, "\n")
@@ -165,27 +164,31 @@ plot(density(log(lam.df$lambda))); abline(v=0, col="red", lty=2)
 if(regPlots) {
   par(mfrow=c(3,2), mar=c(4,4,2,1))
   xx <- tibble(size=seq(lo, hi, length.out=100), size2=size^2, size3=size^3)
+  mx <- cbind(1, as.matrix(xx))
   xxx <- seq(0, hi*.5, length.out=100)
   for(i in 1:n.cell) {
     z.t <- d[[i]][!is.na(d[[i]]$size),]; main.i <- paste("Cell", i)
     w1 <- Re(eigen(IPMs[,,i])$vectors[,1])[-1]; stable.dist1 <- w1/sum(w1)
     rcrt.z <- d[[i]]$sizeNext[is.na(d[[i]]$size) & !is.na(d[[i]]$sizeNext)]
-    plot(surv~size, data=d[[i]], ylim=c(0,1), pch=20, col=rgb(0,0,0,0.2),
+    plot(surv~size, data=z.t, ylim=c(0,1), pch=20, col=rgb(0,0,0,0.2),
          main=paste("Surv:", main.i), xlab="Size (t)", ylab="P(surv to t+1)")
-      points(z.t$size, E_surv, cex=0.2, col="red")
+      lines(mx[,2], antilogit(mx[,1:n_sz]%*%p$s_z + c(X_s[i,]%*%p$s_x)), col=2)
     plot(sizeNext~size, data=z.t, pch=20, col=rgb(0,0,0,0.2), 
          main=paste("Growth:", main.i), xlab="Size (t)", ylab="Size (t+1)")
-      points(z.t$size, E_grow, cex=0.2, col="red"); abline(a=0, b=1, lty=2)
+      lines(mx[,2], mx[,1:n_gz]%*%p$g_z + c(X_g[i,]%*%p$g_x), col=2)
+      abline(a=0, b=1, lty=2)
     plot(fl~size, data=z.t, pch=20, ylim=c(0,1), col=rgb(0,0,0,0.2),
          main=paste("P(Flower):", main.i), xlab="Size (t)", ylab="P(flower)")
-      points(z.t$size, E_fl, cex=0.2, col="red")
+      lines(mx[,2], antilogit(mx[,1:n_flz]%*%p$fl_z + c(X_fl[i,]%*%p$fl_x)),
+            col=2)
     plot(seed~size, data=z.t, pch=23-z.t$fl*3, col=rgb(0,0,0,0.2), 
          main=paste("nSeeds:", main.i), xlab="Size (t)", ylab="Number of seeds")
-      points(z.t$size, E_seed, cex=0.2, col="red")
-    plot(y, stable.dist1, ylab="", type="l", lwd=2, col="red", 
+      lines(mx[,2], exp(mx[,1:n_seedz]%*%p$seed_z + c(X_seed[i,]%*%p$seed_x)),
+            col=2)
+    plot(y, stable.dist1, ylab="", type="l", col=2, 
          main=paste("Stable size distribution:", main.i), xlab="Size (t)")
-    hist(d[[i]]$sizeNext[rcrt.i], main=paste("Recruit sizes:", main.i), 
-         xlab="Recruit size (t+1)", col="grey", freq=FALSE)
+    hist(d[[i]]$sizeNext[is.na(d[[i]]$size)], col="grey", freq=FALSE, 
+         main=paste("Recruit sizes:", main.i), xlab="Recruit size (t+1)")
       lines(xxx, dnorm(xxx, p$rcr_z[1], p$rcr_z[2]), col="red", lwd=2)
   }
 }
@@ -196,11 +199,11 @@ if(ipmPlots) {
     z.t <- d[[i]][!is.na(d[[i]]$size),]; main.i <- paste("Cell", i)
     z.t$y <- y[findInterval(z.t$size, y, all.inside=TRUE)]
     totSeeds <- group_by(z.t, y) %>% summarise(seed=sum(seed, na.rm=TRUE))
-    image.plot(x, x, t(P.mx), main=paste("P matrix:", main.i), 
+    image.plot(x, x, t(Ps[,,i]), main=paste("P matrix:", main.i), 
                xlab="Size (t)", ylab="Size (t+1)")
       points(sizeNext~size, data=z.t, pch=20, col=rgb(0,0,0,1/(n_i[i]^.25)))
       abline(a=0, b=1, col="white", lty=2)
-    image.plot(x, x, t(F.mx), main=paste("F matrix:", main.i), 
+    image.plot(x, x, t(Fs[,,i]), main=paste("F matrix:", main.i), 
                xlab="Size (t)", ylab="Size (t+1)")
       points(totSeeds$y, totSeeds$seed/max(totSeeds$seed)*hi*.9)
     image.plot(x, x, t(sens(IPMs[,,i])), main=paste("Sensitivity:", main.i), 
