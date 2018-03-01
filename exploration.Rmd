@@ -17,28 +17,32 @@ lc.df <- read_csv("data/landcover_5km.csv") %>%
 # Exploration of options for the simulation component
 
 ## Species description: Life history, characteristics, relevant attributes
-The simulated species is fully described here. The object `sp_i` is a list containing elements for the global parameters, relationships with environmental variables, and demographic matrices that are applicable or potentially applicable for that modeling strategy. Parameters are abbreviated with the associated kernel component (e.g., `s_` for survival, `g_` for growth, etc) and the type of covariate (`_z` for size, `_x` for environmental covariates).
+The simulated species is fully described here. The object `sp_i` is a list containing elements for the global parameters, relationships with environmental variables, and demographic matrices that are applicable or potentially applicable for that modeling strategy. Parameters are abbreviated with the associated kernel component (e.g., `s_*` for survival, `g_*` for growth, etc) and the type of covariate (`*_z` for size, `*_x` for environmental covariates).
 ```{r sp_i}
 #set.seed(20)
 subsamp <- NA
-mean_abund <- 2000
+mean_abund <- 500
 regPlots <- F
 ipmPlots <- F
 if(is.na(subsamp)) { cells <- 1:n_distinct(lc.df$CellID)
 } else { cells <- sample(1:n_distinct(lc.df$CellID), subsamp, replace=FALSE) }
 n.cell <- length(cells)
 n_i <- rpois(n.cell, mean_abund)
-sp_i <- list(p=list(s_z=c(-4, .75), # b1 + b2*z
-                    s_x=c(1, -.1, 1, -.1), # b1*x1 + ...
+sp_i <- list(p=list(s_z=c(-1.75, .75), # b1 + b2*z
+                    s_x=c(1, -.1, -.5, -.1), # b1*x1 + ...
                     g_z=c(.2, 2, -0.1), # b1 + b2*z + b3*z^2
-                    g_x=c(1, -.1, 1, -.1), #b1*x1 + ...
-                    g_sig=1, # N(E, sig)
-                    fl_z=c(-3, .6), # b1 + b2*z
-                    fl_x=c(1, -.01, 1, -.01), # b1*x1 + ...
+                    g_x=c(1, -.1, 1.5, -.1), #b1*x1 + ...
+                    g_sig=1, # growth ~ N(E, g_sig)
+                    fl_z=c(-1.5, .1, .1), # b1 + b2*z + b3*z^2 + b4*z^3
+                    fl_x=c(1, -.01, -1, -.01), # b1*x1 + ...
                     seed_z=c(2, 0.5, -.03), # b1 + b2*z + b2*z^2
                     seed_x=c(1, -.1, 1, -.1), # b1*x1 + ...
-                    rcrt=c(1.5, 0.4), #N(mean=rcrt1, sd=rcrt2)
-                    p_est=0.02))
+                    rcr_z=c(1.5, 0.4), # N(mean=rcrt1, sd=rcrt2)
+                    p_est=0.02, # p(establishment)
+                    rcr_SB=0.4, # p(recruit from seedbank)
+                    rcr_dir=0.5, # p(recruit directly)
+                    s_SB=0.3 # p(survive in seedbank additional year)
+                    ))
 ```
 
 ## Landscape
@@ -68,7 +72,8 @@ env.df <- env.df[cells,]
 # set up storage objects
 p <- sp_i$p
 d <- vector("list", length=n.cell)
-lambdas <- lambdas2 <- rep(NA, n.cell)
+lambdas <- lambdas2 <- B_1 <- rep(NA, n.cell)
+B <- rpois(n.cell, n_i)
 
 # set up environmental covariates
 n_sz <- length(p$s_z); n_sx <- length(p$s_x)
@@ -91,27 +96,42 @@ z_pow <- function(z.vec, n_z) {
     return(z)
   }
 }
-calc_surv <- function(z.v, n_sz, p, X.s) {
+calc_surv <- function(z.v, p, n_sz, X.s) {
   z <- z_pow(z.v, n_sz)
   u <- exp(z %*% p$s_z + c(t(X.s) %*% p$s_x))
   return(u / (1+u))
 }
-calc_grow <- function(z1, z.v, n_gz, p, X.g) {
+calc_grow <- function(z1, z.v, p, n_gz, X.g) {
   z <- z_pow(z.v, n_gz)
   g <- dnorm(z1, mean=z %*% p$g_z + c(t(X.g) %*% p$g_x), 
              sd=p$g_sig)
   return(g)
 }
-calc_flwr <- function(z.v, n_flz, p, X.fl) {
+calc_flwr <- function(z.v, p, n_flz, X.fl) {
   z <- z_pow(z.v, n_flz)
   u <- exp(z %*% p$fl_z + c(t(X.fl) %*% p$fl_x))
   return(u / (1+u))
 }
-calc_seed <- function(z1, z.v, n_seedz, n_flz, p, X.seed, X.fl) {
+calc_rcrDir <- function(z1, z.v, p, n_seedz, n_flz, X.seed, X.fl) {
   z <- z_pow(z.v, n_seedz)
-  calc_flwr(z.v, n_flz, p, X.fl) * p$p_est *
-      dnorm(z1, p$rcrt[1], p$rcrt[2]) *
-      exp(z %*% p$seed_z + c(t(X.seed) %*% p$seed_x))
+  calc_flwr(z.v, p, n_flz, X.fl) *
+    exp(z %*% p$seed_z + c(t(X.seed) %*% p$seed_x)) *
+    p$rcr_dir * 
+    p$p_est * 
+    dnorm(z1, p$rcr_z[1], p$rcr_z[2])
+}
+calc_rcrSB <- function(z1, p) {
+  p$s_SB * dnorm(z1, p$rcr_z[1], p$rcr_z[2])
+}
+calc_addSB <- function(z.v, p, n_seedz, n_flz, X.seed, X.fl) {
+  z <- z_pow(z.v, n_seedz)
+  calc_flwr(z.v, p, n_flz, X.fl) *
+    exp(z %*% p$seed_z + c(t(X.seed) %*% p$seed_x)) *
+    (1 - p$rcr_dir) *
+    p$s_SB
+}
+calc_staySB <- function(p) {
+  p$s_SB * (1 - p$rcr_SB)
 }
 
 ########
@@ -138,17 +158,23 @@ for(i in 1:n.cell) {
   d[[i]]$fl <- rbinom(n_i[i], 1, E_fl)
   
   ## seed production
-  E_seed <- d[[i]]$fl * exp((size.mx[,1:n_seedz] %*% p$seed_z + 
-                               c(X_seed[i,] %*% p$seed_x)))
+  E_seed <- d[[i]]$fl * exp((size.mx[,1:n_seedz] %*% p$seed_z 
+                             + c(X_seed[i,] %*% p$seed_x)))
   d[[i]]$seed <- rpois(n_i[i], E_seed)
-  d[[i]]$seed <- ifelse(d[[i]]$fl, d[[i]]$seed, NA)
-  seed.range <- range(d[[i]]$seed, na.rm=TRUE)
+  d[[i]]$fl <- ifelse(d[[i]]$surv, d[[i]]$fl, NA)
+  d[[i]]$seed <- ifelse(d[[i]]$fl==1, d[[i]]$seed, NA)
+  
+  ## seed bank
+  B_1[i] <- B[i] * p$s_SB * (1 - p$rcr_SB) + 
+    sum(d[[i]]$seed, na.rm=TRUE) * (1 - p$rcr_dir) * p$s_SB
   
   ## recruits
-  rcrt.n <- max(sum(d[[i]]$seed, na.rm=TRUE)*p$p_est, 2)
+  rcrt.n <- max((sum(d[[i]]$seed, na.rm=TRUE) * p$rcr_dir +
+                   B[i] * p$rcr_SB) * p$p_est, 
+                2) # need ≥ 2 for IPMpack estimate of rcr_z'_mn, rcr_z'_sd
   rcrt.i <- (n_i[i]+1):(n_i[i]+rcrt.n)
   d[[i]][rcrt.i,] <- NA
-  d[[i]]$sizeNext[rcrt.i] <- rnorm(rcrt.n, p$rcrt[1], p$rcrt[2])
+  d[[i]]$sizeNext[rcrt.i] <- rnorm(rcrt.n, p$rcr_z[1], p$rcr_z[2])
   
   # fill IPM matrices
   ## Manual: use assigned slopes
@@ -156,34 +182,70 @@ for(i in 1:n.cell) {
   b <- lo + c(0:n)*(hi - lo)/n  # boundary points
   y <- 0.5*(b[1:n] + b[2:(n+1)])  # mesh points
   h <- y[2] - y[1]  # step size
+  ### growth and survival
+  G.mx <- h*outer(y, y, calc_grow, p=p, n_gz=n_gz, X.g=X_g[i,])
+  S.v <- calc_surv(y, p=p, n_sz=n_sz, X.s=X_s[i,])
+  ### Fix eviction of individuals below/above size limits
+  for(k in 1:(n/2)) G.mx[1,k] <- G.mx[1,k] + 1 - sum(G.mx[,k])
+  for(k in (n/2+1):n) G.mx[n,k] <- G.mx[n,k] + 1 - sum(G.mx[,k])
+  ### fill P matrix
+  P.mx <- F.mx <- matrix(0, ncol=n+1, nrow=n+1)
+  for(k in 2:(n+1)) P.mx[k,2:(n+1)] <- G.mx[k-1,]*S.v
+  P.mx[1,1] <- calc_staySB(p)
   
-  G.mx <- h*outer(y, y, calc_grow, n_gz=n_gz, p=p, X.g=X_g[i,])
-  S.v <- calc_surv(y, n_sz, p, X_s[i,])
-  F.mx <- h*outer(y, y, calc_seed, n_seedz=n_seedz, p=p, n_flz=n_flz,
-                  X.seed=X_seed[i,], X.fl=X_fl[i,])
-  P.mx <- G.mx
-  for(k in 1:(n/2)) { # Fix eviction of individuals below/above size limits
-    G.mx[1,k] <- G.mx[1,k] + 1 - sum(G.mx[,k])
-    P.mx[,k] <- G.mx[,k]*S.v[k]
-  }
-  for(k in (n/2+1):n) {
-    G.mx[n,k] <- G.mx[n,k] + 1 - sum(G.mx[,k])
-    P.mx[,k] <- G.mx[,k]*S.v[k]
-  }
+  ### fecundity
+  F.mx[2:(n+1), 2:(n+1)] <- h*outer(y, y, calc_rcrDir, p=p, 
+                                    n_seedz=n_seedz, n_flz=n_flz, 
+                                    X.seed=X_seed[i,], X.fl=X_fl[i,])
+  F.mx[1,2:(n+1)] <- calc_addSB(y, p=p, n_seedz=n_seedz, n_flz=n_flz, 
+                                X.seed=X_seed[i,], X.fl=X_fl[i,])
+  F.mx[2:(n+1),1] <- calc_rcrSB(y, p)
+
+  ### final K
   IPM <- P.mx + F.mx
-  
-  ## IPMpack: estimate slopes from d[[i]]
+
+  # ## IPMpack: estimate slopes from d[[i]]
+  # ### set up seedbank transitions
+  # d[[i]]$stage <- d[[i]]$stageNext <- "continuous"
+  # d[[i]]$stage[is.na(d[[i]]$size)] <- NA
+  # d[[i]]$stageNext[d[[i]]$surv==0] <- "dead"
+  # d[[i]]$number <- 1 
+  # seedbank <- data.frame(size=NA, surv=1, sizeNext=NA,
+  #                        fl=NA, seed=NA, 
+  #                        stage=c("seedbank", "seedbank", "continuous"),
+  #                        stageNext=c("seedbank", "continuous", "seedbank"),
+  #                        number=c(p$s_SB, p$rcr_SB*p$p_est, (1-p$rcr_dir)))
+  # d[[i]] <- rbind(d[[i]], seedbank)
+  # d[[i]]$stage <- as.factor(d[[i]]$stage)
+  # d[[i]]$stageNext <- as.factor(d[[i]]$stageNext)
+  ### construct kernels
   so <- makeSurvObj(d[[i]], surv ~ size)
   go <- makeGrowthObj(d[[i]], sizeNext ~ size + size2)
   fo <- makeFecObj(d[[i]],
-                   Formula=c(fl~size, seed~size+size2),
+                   Formula=c(fl~size+size2, seed~size+size2),
                    Family=c("binomial", "poisson"),
                    Transform=c("none", "none"),
-                   fecConstants=data.frame(seedlingEstablishmentRate=p$p_est))
-  P.mx2 <- makeIPMPmatrix(growObj=go, survObj=so, minSize=lo, maxSize=hi,
-                         correction="constant")
+                   # meanOffspringSize=mean(
+                   #   d[[i]]$sizeNext[is.na(d[[i]]$size) &
+                   #                     !is.na(d[[i]]$sizeNext)]),
+                   # sdOffspringSize=sd(
+                   #   d[[i]]$sizeNext[is.na(d[[i]]$size) &
+                   #                     !is.na(d[[i]]$sizeNext)]),
+                   fecConstants=data.frame(seedlingEstablishmentRate=p$p_est)#,
+                   # offspringSplitter=data.frame(seedbank=(1-p$rcr_dir),
+                   #                              continuous=p$rcr_dir)
+                   )
   F.mx2 <- makeIPMFmatrix(fecObj=fo, minSize=lo, maxSize=hi,
                           correction="constant")
+  # D.mx2 <- makeDiscreteTrans(d[[i]])
+  # dummy <- as.matrix(fo@offspringRel$coefficients[1], list(1, "seedbank"))
+  # D.mx2@meanToCont <- as.matrix(dummy, dimnames=c(1, "seedbank"))
+  # dummy <- as.matrix(fo@sdOffspringSize, dimnames=list(1, "seedbank"))
+  # D.mx2@sdToCont <- as.matrix(dummy, dimnames=c(1, "seedbank"))
+  # D.mx2@discreteTrans[1,1] <- p$s_SB 
+  # D.mx2@discreteTrans[3,1] <- 1 - sum(D.mx2@discreteTrans[1:2,1])
+  P.mx2 <- makeIPMPmatrix(growObj=go, survObj=so, #discreteTrans=D.mx2,
+                            minSize=lo, maxSize=hi, correction="constant")
   IPM2 <- P.mx2 + F.mx2
   
   lambdas[i] <- Re(eigen(IPM)$values[1])
@@ -216,35 +278,45 @@ for(i in 1:n.cell) {
     yl <- range(c(stable.dist1, stable.dist2))
     plot(y, stable.dist1, ylab="", type="l", lwd=2, col="red", ylim=yl,
          main=paste("Stable size distribution:", main.i), xlab="Size (t)")
-    lines(y, stable.dist2, lwd=2, lty=2, col="blue")
+    lines(y, stable.dist2, col="blue")
     # plot(y, S.v); points(y, apply(P.mx, 2, sum), col="red", type="l")
     hist(d[[i]]$sizeNext[rcrt.i], main=paste("Recruit sizes:", main.i), 
          xlab="Recruit size (t+1)", col="grey", freq=FALSE)
       xxx <- seq(0, hi*.5, length.out=100)
-      lines(xxx, dnorm(xxx, p$rcrt[1], p$rcrt[2]), col="red")
+      rcrt.z <- d[[i]]$sizeNext[is.na(d[[i]]$size) & !is.na(d[[i]]$sizeNext)]
+      lines(xxx, dnorm(xxx, p$rcr_z[1], p$rcr_z[2]), col="red", lwd=2)
+      lines(xxx, dnorm(xxx, mean(rcrt.z), sd(rcrt.z)), col="blue")
   }
   if(ipmPlots) {
     par(mfrow=c(2,2), mar=c(4,4,2,1)); main.i <- paste("Cell", i)
+    if(length(y) != nrow(IPM)) {
+      x <- c(0, y)
+    } else {
+      x <- y
+    }
     # sens.mx <- sens(IPM2); elas.mx <- elas(IPM2)
     sens.mx <- sens(IPM); elas.mx <- elas(IPM)
-    image.plot(y, y, t(P.mx), main=main.i, xlab="Size (t)", ylab="Size (t+1)")
+    image.plot(x, x, t(IPM), main=main.i, xlab="Size (t)", ylab="Size (t+1)")
       points(sizeNext~size, data=z.t, pch=20, col=rgb(0,0,0,0.2))
       abline(a=0, b=1, col="white", lty=2)
-    image.plot(y, y, t(P.mx2), main=main.i, xlab="Size (t)", ylab="Size (t+1)")
+    image.plot(P.mx2@meshpoints, P.mx2@meshpoints, t(IPM2), 
+               main=main.i, xlab="Size (t)", ylab="Size (t+1)")
       points(sizeNext~size, data=z.t, pch=20, col=rgb(0,0,0,0.2))
       abline(a=0, b=1, col="white", lty=2)
-    image.plot(1:dim(sens.mx)[1], 1:dim(sens.mx)[1], t(sens.mx),
+    image.plot(x, x, t(sens.mx),
                main=paste("Sens:", main.i), xlab="Size (t)", ylab="Size (t+1)")
-    image.plot(1:dim(elas.mx)[1], 1:dim(elas.mx)[1], t(elas.mx),
+    image.plot(x, x, t(elas.mx),
                main=paste("Elas:", main.i), xlab="Size (t)", ylab="Size (t+1)")
   }
   if(i %% 100 == 0) cat("Finished cell", i, "\n")
 }
 lam.df <- env.df %>% add_column(lambda=lambdas, lambda2=lambdas2)
 ggplot(lam.df, aes(x=x, y=y, fill=log(lambdas))) + geom_tile() +
-  scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
+  scale_fill_gradient2(low="darkblue", mid="white", high="darkred", 
+                       midpoint=0, limits=log(range(c(lambdas, lambdas2))))
 ggplot(lam.df, aes(x=x, y=y, fill=log(lambdas2))) + geom_tile() +
-  scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
+  scale_fill_gradient2(low="darkblue", mid="white", high="darkred", 
+                       midpoint=0, limits=log(range(c(lambdas, lambdas2))))
 par(mfrow=c(2,2))
 plot(log(lambdas) ~ temp, data=lam.df); abline(h=0, col="red", lty=2)
 plot(log(lambdas) ~ prec, data=lam.df); abline(h=0, col="red", lty=2)
