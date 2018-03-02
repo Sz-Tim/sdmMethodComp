@@ -13,7 +13,7 @@ theme_set(theme_bw())
 source("code/fn_IPM.R"); source("code/fn_aux.R")
 lc.df <- read_csv("data/landcover_5km.csv") %>% 
   filter(!is.na(bio1_mean)) %>%
-  mutate(x=as.integer(as.factor(lc.df$left)),
+  mutate(x=as.integer(factor(.$left)),
          y=as.integer(factor(.$top,
                              levels=rev(levels(factor(.$top))))),
          x_y=paste(x, y, sep="_"))
@@ -45,7 +45,10 @@ sp_i <- list(p=list(s_z=c(-1.75, .75), # b1 + b2*z
                     p_est=0.02, # p(establishment)
                     rcr_SB=0.2, # p(recruit from seedbank)
                     rcr_dir=0.6, # p(recruit directly)
-                    s_SB=0.3 # p(survive in seedbank additional year)
+                    s_SB=0.3, # p(survive in seedbank additional year)
+                    p_emig=0.3, # p(seed emigrates)
+                    sdd_max=4, # max SDD distance in cells
+                    sdd_rate=0.8 # SDD dispersal rate
                     ))
 ```
 
@@ -59,11 +62,11 @@ env.rct <- as.tibble(expand.grid(x=1:max(lc.df$x),
          temp2=temp^2,
          prec=c(scale(lc.df$bio12_mean))[match(.$x_y, lc.df$x_y)],
          prec2=prec^2,
-         pOpn=c(scale(lc.df$nlcd1_mean))[match(.$x_y, lc.df$x_y)],
-         pOth=c(scale(lc.df$nlcd2_mean))[match(.$x_y, lc.df$x_y)],
-         pDec=c(scale(lc.df$nlcd3_mean))[match(.$x_y, lc.df$x_y)],
-         pEvg=c(scale(lc.df$nlcd4_mean))[match(.$x_y, lc.df$x_y)],
-         pMxd=c(scale(lc.df$nlcd5_mean))[match(.$x_y, lc.df$x_y)],
+         pOpn=lc.df$nlcd1_mean[match(.$x_y, lc.df$x_y)],
+         pOth=lc.df$nlcd2_mean[match(.$x_y, lc.df$x_y)],
+         pDec=lc.df$nlcd3_mean[match(.$x_y, lc.df$x_y)],
+         pEvg=lc.df$nlcd4_mean[match(.$x_y, lc.df$x_y)],
+         pMxd=lc.df$nlcd5_mean[match(.$x_y, lc.df$x_y)],
          inbd=!is.na(match(.$x_y, lc.df$x_y)),
          id=row_number(), 
          id.inbd=min_rank(na_if(inbd*id, 0)),
@@ -71,9 +74,15 @@ env.rct <- as.tibble(expand.grid(x=1:max(lc.df$x),
          lon=lc.df$left[match(.$x_y, lc.df$x_y)])
 env.rct[is.na(env.rct)] <- 0
 sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=env.rct, lc.col=8:12,
-                        g.p=list(sdd.max=4, sdd.rate=0.8, bird.hab=rep(1,5)))
-env.df <- filter(env.rct, inbd) %>% select(4:12, 1:3, 13:17)
+                        g.p=list(sdd.max=sp_i$p$sdd_max, 
+                                 sdd.rate=sp_i$p$sdd_rate, 
+                                 bird.hab=rep(1,5)))
+env.df <- filter(env.rct, inbd) %>% select(4:12, 1:3, 13:17) %>%
+  mutate(pOpn=c(scale(pOpn)), pOth=c(scale(pOth)), pDec=c(scale(pDec)),
+         pEvg=c(scale(pEvg)), pMxd=c(scale(pMxd)))
 rm(env.rct)
+## sdd.pr[,,2,] has indexes based on env.df$id -- NOT env.df$id.inbd
+ggplot(env.df, aes(x=lon, y=lat, fill=id %in% sdd.pr[,,2,546])) + geom_tile()
 ```
 
 ---
@@ -89,7 +98,9 @@ setup_IPM_matrix(n, z.rng, buffer=0.25, discrete=1)
 IPMs <- Ps <- Fs <- array(0, dim=c(n+1, n+1, n.cell))
 d <- vector("list", length=n.cell)
 B <- rpois(n.cell, n_i)
-B_1 <- rep(NA, n.cell)
+B_1 <- nSd <- D <- rep(NA, n.cell)
+sdd <- array(0, dim=dim(sdd.pr) + c(0,0,1,0)) # add layer for nEmig
+sdd[,,1:2,] <- sdd.pr
 
 # set up environmental covariates
 n_sz <- length(p$s_z); n_sx <- length(p$s_x)
@@ -142,19 +153,40 @@ for(i in 1:n.cell) {
   d[[i]]$seed <- rpois(n_i[i], E_seed)
   d[[i]]$fl <- ifelse(d[[i]]$surv, d[[i]]$fl, NA)
   d[[i]]$seed <- ifelse(d[[i]]$fl==1, d[[i]]$seed, NA)
-  ## seed bank
+  nSd[i] <- sum(d[[i]]$seed, na.rm=T)
+  ## seed bank: native
   B_1[i] <- B[i] * p$s_SB * (1 - p$rcr_SB) + 
-    sum(d[[i]]$seed, na.rm=T) * (1 - p$rcr_dir) * p$s_SB
-  ## recruits
-  rcrt.n <- max(ceiling((sum(d[[i]]$seed, na.rm=T) * p$rcr_dir * p$p_est +
-                   B[i] * p$rcr_SB * p$p_est)), 2) # ≥ 2 for IPMpack sd(rcr_z')
-  rcrt.i <- (n_i[i]+1):(n_i[i]+rcrt.n)
-  d[[i]][rcrt.i,] <- NA
-  d[[i]]$sizeNext[rcrt.i] <- rnorm(rcrt.n, p$rcr_z[1], p$rcr_z[2])
+    nSd[i] * (1 - p$p_emig) * (1 - p$rcr_dir) * p$s_SB
+  ## recruits: native
+  rcr.n <- max(ceiling(nSd[i] * (1 - p$p_emig) * p$rcr_dir * p$p_est +
+                   B[i] * p$rcr_SB * p$p_est), 2) # ≥ 2 for IPMpack sd(rcr_z')
+  rcr.i <- (1:rcr.n) + n_i[i]
+  d[[i]][rcr.i,] <- NA
+  d[[i]]$sizeNext[rcr.i] <- rnorm(rcr.n, p$rcr_z[1], p$rcr_z[2])
+  ## emigrants
+  sdd[,,3,i] <- nSd[i] * p$p_emig * sdd[,,1,i]
+}
+for(i in 1:n.cell) {
+  id.i <- env.df$id[i]
+  
+  #---- Truth: add immigrants
+  
+  
+  #---- generate data: add immigrants
+  # total immigrants
+  D[i] <- sum(sdd[,,3,][sdd[,,2,]==id.i])
+  # seed bank: immigrants
+  B_1[i] <- B_1[i] + D[i] * (1 - p$rcr_dir) * p$s_SB
+  # recruits: immigrants
+  rcr.imm <- max(ceiling(D[i] * p$rcr_dir * p$p_est), 2)
+  rcr.i <- (1:rcr.imm) + nrow(d[[i]])
+  d[[i]][rcr.i,] <- NA
+  d[[i]]$sizeNext[rcr.i] <- rnorm(rcr.imm, p$rcr_z[1], p$rcr_z[2])
 }
 IPMs <- Ps + Fs
 lam.df <- env.df
 lam.df$lambda <- apply(IPMs, 3, function(x) Re(eigen(x)$values[1]))
+lam.df %<>% add_column(nSd=nSd, B0=B, B1=B_1, D=D)
 
 ########
 ## plots
@@ -162,6 +194,13 @@ lam.df$lambda <- apply(IPMs, 3, function(x) Re(eigen(x)$values[1]))
 ggplot(lam.df, aes(x=lon, y=lat, fill=log(lambda))) + geom_tile() +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
 ggplot(lam.df, aes(x=lon, y=lat, fill=lambda>1)) + geom_tile()
+ggplot(lam.df, aes(x=lon, y=lat, fill=nSd)) + geom_tile()
+ggplot(lam.df, aes(x=lon, y=lat, fill=B1>B0)) + geom_tile()
+ggplot(lam.df, aes(x=lon, y=lat, fill=D)) + geom_tile()
+ggplot(lam.df, aes(x=lon, y=lat, fill=nSd*p$p_emig > D)) + geom_tile()
+ggplot(lam.df, aes(x=lon, y=lat, fill=nSd*(1-p$p_emig) > D)) + geom_tile()
+ggplot(lam.df, aes(x=lon, y=lat, fill=nSd*(1-p$p_emig) < D & lambda < 1)) +
+  geom_tile()
 par(mfrow=c(2,2))
 plot(log(lambda) ~ temp, data=lam.df); abline(h=0, col="red", lty=2)
 plot(log(lambda) ~ prec, data=lam.df); abline(h=0, col="red", lty=2)
@@ -173,7 +212,7 @@ if(regPlots) {
   xx <- tibble(size=seq(lo, hi, length.out=100), size2=size^2, size3=size^3)
   mx <- cbind(1, as.matrix(xx))
   xxx <- seq(0, hi*.5, length.out=100)
-  for(i in 1:n.cell) {
+  for(i in 1:20) {
     z.t <- d[[i]][!is.na(d[[i]]$size),]; main.i <- paste("Cell", i)
     w1 <- Re(eigen(IPMs[,,i])$vectors[,1])[-1]; stable.dist1 <- w1/sum(w1)
     rcrt.z <- d[[i]]$sizeNext[is.na(d[[i]]$size) & !is.na(d[[i]]$sizeNext)]
