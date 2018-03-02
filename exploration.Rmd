@@ -125,8 +125,7 @@ for(i in 1:n.cell) {
   d[[i]][rcrt.i,] <- NA
   d[[i]]$sizeNext[rcrt.i] <- rnorm(rcrt.n, p$rcr_z[1], p$rcr_z[2])
   
-  #---- fill IPM matrices
-  ## Underlying Truth: use assigned slopes
+  #---- Truth: use assigned slopes to fill IPM matrix
   b <- lo + c(0:n)*(hi - lo)/n  # boundary points
   y <- 0.5*(b[1:n] + b[2:(n+1)])  # mesh points
   h <- y[2] - y[1]  # step size
