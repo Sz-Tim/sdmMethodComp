@@ -5,10 +5,10 @@ date: "2/16/2018"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r setup, include=F}
+knitr::opts_chunk$set(echo = T)
 pkgs <- c("fields", "sevcheck", "gbPopMod", "IPMpack", "tidyverse", "magrittr")
-suppressMessages(invisible(lapply(pkgs, library, character.only=TRUE)))
+suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
 theme_set(theme_bw())
 source("code/fn_IPM.R"); source("code/fn_aux.R")
 lc.df <- read_csv("data/landcover_5km.csv") %>% 
@@ -20,22 +20,23 @@ lc.df <- read_csv("data/landcover_5km.csv") %>%
 ## Species description: Life history, characteristics, relevant attributes
 The simulated species is fully described here. The object `sp_i` is a list containing elements for the global parameters, relationships with environmental variables, and demographic matrices that are applicable or potentially applicable for that modeling strategy. Parameters are abbreviated with the associated kernel component (e.g., `s_*` for survival, `g_*` for growth, etc) and the type of covariate (`*_z` for size, `*_x` for environmental covariates).
 ```{r sp_i}
-subsamp <- NA
+subsamp <- 500
 mean_abund <- 2000
 regPlots <- F
 ipmPlots <- F
+z.rng <- c(1, 12)
 n <- 100  # ncells in IPM matrix
 if(is.na(subsamp)) { cells <- 1:n_distinct(lc.df$CellID)
-} else { cells <- sample(1:n_distinct(lc.df$CellID), subsamp, replace=FALSE) }
+} else { cells <- sample(1:n_distinct(lc.df$CellID), subsamp, replace=F) }
 n.cell <- length(cells)
 n_i <- rpois(n.cell, mean_abund)
 sp_i <- list(p=list(s_z=c(-1.75, .75), # b1 + b2*z
-                    s_x=c(1, -.1, -.5, -.1, .05), # b1*x1 + ...
+                    s_x=c(1, -.1, -.5, -.1, .05, -2, -.4, -.4), # b1*x1 + ...
                     g_z=c(.2, 2, -0.1), # b1 + b2*z + b3*z^2
                     g_x=c(1, -.1, 1.5, -.1), #b1*x1 + ...
                     g_sig=1, # growth ~ N(E, g_sig)
                     fl_z=c(-1.5, .1, .1), # b1 + b2*z + b3*z^2 + b4*z^3
-                    fl_x=c(1, -.01, -1, -.01, .2), # b1*x1 + ...
+                    fl_x=c(1, -.01, -1, -.01, .2, .2), # b1*x1 + ...
                     seed_z=c(2, 0.5, -.03), # b1 + b2*z + b2*z^2
                     seed_x=c(1, -.1, 1, -.1, .2), # b1*x1 + ...
                     rcr_z=c(1.5, 0.4), # N(mean=rcrt1, sd=rcrt2)
@@ -70,12 +71,13 @@ env.df <- env.df[cells,]
 ########
 ## set up
 ########
-# set up storage objects
+# set up storage & IPM matrix objects
 p <- sp_i$p
+setup_IPM_matrix(n, z.rng, buffer=0.25, discrete=1)
 IPMs <- Ps <- Fs <- array(0, dim=c(n+1, n+1, n.cell))
 d <- vector("list", length=n.cell)
-lambdas <- B_1 <- rep(NA, n.cell)
 B <- rpois(n.cell, n_i)
+B_1 <- rep(NA, n.cell)
 
 # set up environmental covariates
 n_sz <- length(p$s_z); n_sx <- length(p$s_x)
@@ -92,10 +94,24 @@ X_seed <- as.matrix(env.df[,1:n_seedx])
 ## loop through cells
 ########
 for(i in 1:n.cell) {
-  d[[i]] <- data.frame(size=runif(n=n_i[i], min=1, max=12))
-  lo <- min(d[[i]]$size)*0.75
-  hi <- max(d[[i]]$size)*1.25
+  d[[i]] <- data.frame(size=runif(n=n_i[i], min=z.rng[1], max=z.rng[2]))
   size.mx <- cbind(1, d[[i]]$size, d[[i]]$size^2, d[[i]]$size^3)
+  
+  #---- Truth: use assigned slopes to fill IPM matrix
+  ### growth and survival
+  G.mx <- h*outer(y, y, calc_grow, p=p, n_gz=n_gz, X.g=X_g[i,])
+  S.v <- calc_surv(y, p=p, n_sz=n_sz, X.s=X_s[i,])
+  ### Fix eviction of individuals below/above size limits
+  for(k in 1:(n/2)) G.mx[1,k] <- G.mx[1,k] + 1 - sum(G.mx[,k])
+  for(k in (n/2+1):n) G.mx[n,k] <- G.mx[n,k] + 1 - sum(G.mx[,k])
+  ### fill P and F matrices
+  for(k in z.i) Ps[k,z.i,i] <- G.mx[k-1,]*S.v
+  Ps[1,1,i] <- calc_staySB(p)
+  Fs[z.i,z.i,i] <- h*outer(y, y, calc_rcrDir, p=p, n_seedz=n_seedz,
+                             n_flz=n_flz, X.seed=X_seed[i,], X.fl=X_fl[i,])
+  Fs[1,z.i,i] <- calc_addSB(y, p=p, n_seedz=n_seedz, n_flz=n_flz, 
+                            X.seed=X_seed[i,], X.fl=X_fl[i,])
+  Fs[z.i,1,i] <- calc_rcrSB(y, p)
   
   #---- generate data
   ## survival
@@ -116,50 +132,30 @@ for(i in 1:n.cell) {
   d[[i]]$seed <- ifelse(d[[i]]$fl==1, d[[i]]$seed, NA)
   ## seed bank
   B_1[i] <- B[i] * p$s_SB * (1 - p$rcr_SB) + 
-    sum(d[[i]]$seed, na.rm=TRUE) * (1 - p$rcr_dir) * p$s_SB
+    sum(d[[i]]$seed, na.rm=T) * (1 - p$rcr_dir) * p$s_SB
   ## recruits
-  rcrt.n <- max((sum(d[[i]]$seed, na.rm=TRUE) * p$rcr_dir * p$p_est +
-                   B[i] * p$rcr_SB * p$p_est), 
-                2) # need ≥ 2 for IPMpack estimate of rcr_z'_mn, rcr_z'_sd
+  rcrt.n <- max((sum(d[[i]]$seed, na.rm=T) * p$rcr_dir * p$p_est +
+                   B[i] * p$rcr_SB * p$p_est), 2) # ≥ 2 for IPMpack sd(rcr_z')
   rcrt.i <- (n_i[i]+1):(n_i[i]+rcrt.n)
   d[[i]][rcrt.i,] <- NA
   d[[i]]$sizeNext[rcrt.i] <- rnorm(rcrt.n, p$rcr_z[1], p$rcr_z[2])
-  
-  #---- Truth: use assigned slopes to fill IPM matrix
-  b <- lo + c(0:n)*(hi - lo)/n  # boundary points
-  y <- 0.5*(b[1:n] + b[2:(n+1)])  # mesh points
-  h <- y[2] - y[1]  # step size
-  z.i <- 2:(n+1)  # continuous stage matrix indices
-  ### growth and survival
-  G.mx <- h*outer(y, y, calc_grow, p=p, n_gz=n_gz, X.g=X_g[i,])
-  S.v <- calc_surv(y, p=p, n_sz=n_sz, X.s=X_s[i,])
-  ### Fix eviction of individuals below/above size limits
-  for(k in 1:(n/2)) G.mx[1,k] <- G.mx[1,k] + 1 - sum(G.mx[,k])
-  for(k in (n/2+1):n) G.mx[n,k] <- G.mx[n,k] + 1 - sum(G.mx[,k])
-  ### fill P, F, and K
-  for(k in z.i) Ps[k,z.i,i] <- G.mx[k-1,]*S.v
-  Ps[1,1,i] <- calc_staySB(p)
-  Fs[z.i,z.i,i] <- h*outer(y, y, calc_rcrDir, p=p, n_seedz=n_seedz,
-                             n_flz=n_flz, X.seed=X_seed[i,], X.fl=X_fl[i,])
-  Fs[1,z.i,i] <- calc_addSB(y, p=p, n_seedz=n_seedz, n_flz=n_flz, 
-                            X.seed=X_seed[i,], X.fl=X_fl[i,])
-  Fs[z.i,1,i] <- calc_rcrSB(y, p)
-  IPMs[,,i] <- Ps[,,i] + Fs[,,i]
-  
-  #---- progress
-  if(i %% 100 == 0) cat("Finished cell", i, "\n")
 }
+IPMs <- Ps + Fs
 lam.df <- env.df
 lam.df$lambda <- apply(IPMs, 3, function(x) Re(eigen(x)$values[1]))
+
+########
+## plots
+########
 ggplot(lam.df, aes(x=x, y=y, fill=log(lambda))) + geom_tile() +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
+ggplot(lam.df, aes(x=x, y=y, fill=lambda>1)) + geom_tile()
 par(mfrow=c(2,2))
 plot(log(lambda) ~ temp, data=lam.df); abline(h=0, col="red", lty=2)
 plot(log(lambda) ~ prec, data=lam.df); abline(h=0, col="red", lty=2)
-plot(log(lambda) ~ pOpn, data=lam.df); abline(h=0, col="red", lty=2)
+plot(log(lambda) ~ pOth, data=lam.df); abline(h=0, col="red", lty=2)
 plot(density(log(lam.df$lambda))); abline(v=0, col="red", lty=2)
 
-# Plots
 if(regPlots) {
   par(mfrow=c(3,2), mar=c(4,4,2,1))
   xx <- tibble(size=seq(lo, hi, length.out=100), size2=size^2, size3=size^3)
@@ -186,7 +182,7 @@ if(regPlots) {
             col=2)
     plot(y, stable.dist1, ylab="", type="l", col=2, 
          main=paste("Stable size distribution:", main.i), xlab="Size (t)")
-    hist(d[[i]]$sizeNext[is.na(d[[i]]$size)], col="grey", freq=FALSE, 
+    hist(d[[i]]$sizeNext[is.na(d[[i]]$size)], col="grey", freq=F, 
          main=paste("Recruit sizes:", main.i), xlab="Recruit size (t+1)")
       lines(xxx, dnorm(xxx, p$rcr_z[1], p$rcr_z[2]), col="red", lwd=2)
   }
@@ -196,8 +192,8 @@ if(ipmPlots) {
   x <- c(0, y)
   for(i in 1:n.cell) {
     z.t <- d[[i]][!is.na(d[[i]]$size),]; main.i <- paste("Cell", i)
-    z.t$y <- y[findInterval(z.t$size, y, all.inside=TRUE)]
-    totSeeds <- group_by(z.t, y) %>% summarise(seed=sum(seed, na.rm=TRUE))
+    z.t$y <- y[findInterval(z.t$size, y, all.inside=T)]
+    totSeeds <- group_by(z.t, y) %>% summarise(seed=sum(seed, na.rm=T))
     image.plot(x, x, t(Ps[,,i]), main=paste("P matrix:", main.i), 
                xlab="Size (t)", ylab="Size (t+1)")
       points(sizeNext~size, data=z.t, pch=20, col=rgb(0,0,0,1/(n_i[i]^.25)))
@@ -320,7 +316,7 @@ for(i in 1:ncell) {
          main=paste("Stable size distribution:", main.i), xlab="Size (t)")
     # lines(y, stable.dist2, col="blue")
     hist(d[[i]]$sizeNext[rcrt.i], main=paste("Recruit sizes:", main.i), 
-         xlab="Recruit size (t+1)", col="grey", freq=FALSE)
+         xlab="Recruit size (t+1)", col="grey", freq=F)
       xxx <- seq(0, hi*.5, length.out=100)
       rcrt.z <- d[[i]]$sizeNext[is.na(d[[i]]$size) & !is.na(d[[i]]$sizeNext)]
       lines(xxx, dnorm(xxx, p$rcr_z[1], p$rcr_z[2]), col="red", lwd=2)
