@@ -12,7 +12,11 @@ suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
 theme_set(theme_bw())
 source("code/fn_IPM.R"); source("code/fn_aux.R")
 lc.df <- read_csv("data/landcover_5km.csv") %>% 
-  filter(!is.na(bio1_mean))
+  filter(!is.na(bio1_mean)) %>%
+  mutate(x=as.integer(as.factor(lc.df$left)),
+         y=as.integer(factor(.$top,
+                             levels=rev(levels(factor(.$top))))),
+         x_y=paste(x, y, sep="_"))
 ```
 
 # Exploration of options for the simulation component
@@ -20,20 +24,18 @@ lc.df <- read_csv("data/landcover_5km.csv") %>%
 ## Species description: Life history, characteristics, relevant attributes
 The simulated species is fully described here. The object `sp_i` is a list containing elements for the global parameters, relationships with environmental variables, and demographic matrices that are applicable or potentially applicable for that modeling strategy. Parameters are abbreviated with the associated kernel component (e.g., `s_*` for survival, `g_*` for growth, etc) and the type of covariate (`*_z` for size, `*_x` for environmental covariates).
 ```{r sp_i}
-subsamp <- 500
 mean_abund <- 2000
 regPlots <- F
 ipmPlots <- F
 z.rng <- c(1, 12)
 n <- 100  # ncells in IPM matrix
-if(is.na(subsamp)) { cells <- 1:n_distinct(lc.df$CellID)
-} else { cells <- sample(1:n_distinct(lc.df$CellID), subsamp, replace=F) }
+cells <- 1:n_distinct(lc.df$CellID)
 n.cell <- length(cells)
 n_i <- rpois(n.cell, mean_abund)
 sp_i <- list(p=list(s_z=c(-1.75, .75), # b1 + b2*z
                     s_x=c(1, -.1, -.5, -.1, .05, -2, -.4, -.4), # b1*x1 + ...
                     g_z=c(.2, 2, -0.1), # b1 + b2*z + b3*z^2
-                    g_x=c(1, -.1, 1.5, -.1), #b1*x1 + ...
+                    g_x=c(1, -.1, 1.5, -.1, .1, -2), #b1*x1 + ...
                     g_sig=1, # growth ~ N(E, g_sig)
                     fl_z=c(-1.5, .1, .1), # b1 + b2*z + b3*z^2 + b4*z^3
                     fl_x=c(1, -.01, -1, -.01, .2, .2), # b1*x1 + ...
@@ -50,18 +52,28 @@ sp_i <- list(p=list(s_z=c(-1.75, .75), # b1 + b2*z
 ## Landscape
 The landscape characteristics are aggregated here. It is a gridded landscape with climate and LULC data.
 ```{r landscape}
-env.df <- tibble(temp=c(scale(lc.df$bio1_mean)),
-                 temp2=temp^2,
-                 prec=c(scale(lc.df$bio12_mean)),
-                 prec2=prec^2,
-                 pOpn=c(scale(lc.df$nlcd1_mean)),
-                 pOth=c(scale(lc.df$nlcd2_mean)),
-                 pDec=c(scale(lc.df$nlcd3_mean)),
-                 pEvg=c(scale(lc.df$nlcd4_mean)),
-                 pMxd=c(scale(lc.df$nlcd5_mean)),
-                 x=lc.df$left,
-                 y=lc.df$top)
-env.df <- env.df[cells,]
+env.rct <- as.tibble(expand.grid(x=1:max(lc.df$x),
+                                 y=1:max(lc.df$y))) %>%
+  mutate(x_y=paste(x, y, sep="_")) %>%
+  mutate(temp=c(scale(lc.df$bio1_mean))[match(.$x_y, lc.df$x_y)],
+         temp2=temp^2,
+         prec=c(scale(lc.df$bio12_mean))[match(.$x_y, lc.df$x_y)],
+         prec2=prec^2,
+         pOpn=c(scale(lc.df$nlcd1_mean))[match(.$x_y, lc.df$x_y)],
+         pOth=c(scale(lc.df$nlcd2_mean))[match(.$x_y, lc.df$x_y)],
+         pDec=c(scale(lc.df$nlcd3_mean))[match(.$x_y, lc.df$x_y)],
+         pEvg=c(scale(lc.df$nlcd4_mean))[match(.$x_y, lc.df$x_y)],
+         pMxd=c(scale(lc.df$nlcd5_mean))[match(.$x_y, lc.df$x_y)],
+         inbd=!is.na(match(.$x_y, lc.df$x_y)),
+         id=row_number(), 
+         id.inbd=min_rank(na_if(inbd*id, 0)),
+         lat=lc.df$top[match(.$x_y, lc.df$x_y)],
+         lon=lc.df$left[match(.$x_y, lc.df$x_y)])
+env.rct[is.na(env.rct)] <- 0
+sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=env.rct, lc.col=8:12,
+                        g.p=list(sdd.max=4, sdd.rate=0.8, bird.hab=rep(1,5)))
+env.df <- filter(env.rct, inbd) %>% select(4:12, 1:3, 13:17)
+rm(env.rct)
 ```
 
 ---
@@ -134,8 +146,8 @@ for(i in 1:n.cell) {
   B_1[i] <- B[i] * p$s_SB * (1 - p$rcr_SB) + 
     sum(d[[i]]$seed, na.rm=T) * (1 - p$rcr_dir) * p$s_SB
   ## recruits
-  rcrt.n <- max((sum(d[[i]]$seed, na.rm=T) * p$rcr_dir * p$p_est +
-                   B[i] * p$rcr_SB * p$p_est), 2) # ≥ 2 for IPMpack sd(rcr_z')
+  rcrt.n <- max(ceiling((sum(d[[i]]$seed, na.rm=T) * p$rcr_dir * p$p_est +
+                   B[i] * p$rcr_SB * p$p_est)), 2) # ≥ 2 for IPMpack sd(rcr_z')
   rcrt.i <- (n_i[i]+1):(n_i[i]+rcrt.n)
   d[[i]][rcrt.i,] <- NA
   d[[i]]$sizeNext[rcrt.i] <- rnorm(rcrt.n, p$rcr_z[1], p$rcr_z[2])
@@ -147,9 +159,9 @@ lam.df$lambda <- apply(IPMs, 3, function(x) Re(eigen(x)$values[1]))
 ########
 ## plots
 ########
-ggplot(lam.df, aes(x=x, y=y, fill=log(lambda))) + geom_tile() +
+ggplot(lam.df, aes(x=lon, y=lat, fill=log(lambda))) + geom_tile() +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
-ggplot(lam.df, aes(x=x, y=y, fill=lambda>1)) + geom_tile()
+ggplot(lam.df, aes(x=lon, y=lat, fill=lambda>1)) + geom_tile()
 par(mfrow=c(2,2))
 plot(log(lambda) ~ temp, data=lam.df); abline(h=0, col="red", lty=2)
 plot(log(lambda) ~ prec, data=lam.df); abline(h=0, col="red", lty=2)
