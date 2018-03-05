@@ -46,8 +46,8 @@ sp_i <- list(p=list(s_z=c(-1.75, .75), # b1 + b2*z
                     rcr_SB=0.2, # p(recruit from seedbank)
                     rcr_dir=0.6, # p(recruit directly)
                     s_SB=0.3, # p(survive in seedbank additional year)
-                    p_emig=0.3, # p(seed emigrates)
-                    sdd_max=4, # max SDD distance in cells
+                    p_emig=0.999, # p(seed emigrates)
+                    sdd_max=3, # max SDD distance in cells
                     sdd_rate=0.8 # SDD dispersal rate
                     ))
 ```
@@ -82,7 +82,7 @@ env.df <- filter(env.rct, inbd) %>% select(4:12, 1:3, 13:17) %>%
          pEvg=c(scale(pEvg)), pMxd=c(scale(pMxd)))
 rm(env.rct)
 ## sdd.pr[,,2,] has indexes based on env.df$id -- NOT env.df$id.inbd
-ggplot(env.df, aes(x=lon, y=lat, fill=id %in% sdd.pr[,,2,546])) + geom_tile()
+# ggplot(env.df, aes(x=lon, y=lat, fill=id %in% sdd.pr[,,2,760])) + geom_tile()
 ```
 
 ---
@@ -132,7 +132,7 @@ for(i in 1:n.cell) {
   Ps[1,1,i] <- calc_staySB(p)
   Fs[z.i,z.i,i] <- h*outer(y, y, calc_rcrDir, p=p, n_seedz=n_seedz,
                              n_flz=n_flz, X.seed=X_seed[i,], X.fl=X_fl[i,])
-  Fs[1,z.i,i] <- calc_addSB(y, p=p, n_seedz=n_seedz, n_flz=n_flz, 
+  Fs[1,z.i,i] <- calc_DirSB(y, p=p, n_seedz=n_seedz, n_flz=n_flz, 
                             X.seed=X_seed[i,], X.fl=X_fl[i,])
   Fs[z.i,1,i] <- calc_rcrSB(y, p)
   
@@ -151,7 +151,7 @@ for(i in 1:n.cell) {
   E_seed <- d[[i]]$fl * 
     exp(size.mx[,1:n_seedz] %*% p$seed_z + c(X_seed[i,] %*% p$seed_x))
   d[[i]]$seed <- rpois(n_i[i], E_seed)
-  d[[i]]$fl <- ifelse(d[[i]]$surv, d[[i]]$fl, NA)
+  # d[[i]]$fl <- ifelse(d[[i]]$surv, d[[i]]$fl, NA)
   d[[i]]$seed <- ifelse(d[[i]]$fl==1, d[[i]]$seed, NA)
   nSd[i] <- sum(d[[i]]$seed, na.rm=T)
   ## seed bank: native
@@ -167,14 +167,24 @@ for(i in 1:n.cell) {
   sdd[,,3,i] <- nSd[i] * p$p_emig * sdd[,,1,i]
 }
 for(i in 1:n.cell) {
-  id.i <- env.df$id[i]
+  sdd.i <- env.df$id[i] # full rectangle grid id for SDD indexes
   
   #---- Truth: add immigrants
-  
+  n.sdd <- nrow(which(sdd[,,2,]==sdd.i, arr.ind=TRUE))
+  sdd.j <- which(sdd[,,2,]==sdd.i, arr.ind=TRUE)[,3]
+  p.ij <- sdd[,,1,sdd.j][sdd[,,2,sdd.j]==sdd.i]
+  for(j in 1:n.sdd) {
+    Fs[z.i,z.i,i] <- Fs[z.i, z.i,i] + 
+      h*outer(y, y, calc_rcrImm, p=p, p.ij[j], n_seedz=n_seedz, n_flz=n_flz,
+              X.seed=X_seed[sdd.j[j],], X.fl=X_fl[sdd.j[j],])
+    Fs[1,z.i,i] <- Fs[1,z.i,i] + 
+      calc_ImmSB(y, p=p, p.ij[j], n_seedz=n_seedz, n_flz=n_flz,
+                            X.seed=X_seed[sdd.j[j],], X.fl=X_fl[sdd.j[j],])
+  }
   
   #---- generate data: add immigrants
   # total immigrants
-  D[i] <- sum(sdd[,,3,][sdd[,,2,]==id.i])
+  D[i] <- sum(sdd[,,3,][sdd[,,2,]==sdd.i])
   # seed bank: immigrants
   B_1[i] <- B_1[i] + D[i] * (1 - p$rcr_dir) * p$s_SB
   # recruits: immigrants
