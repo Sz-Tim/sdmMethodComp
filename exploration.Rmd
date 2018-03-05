@@ -24,32 +24,32 @@ lc.df <- read_csv("data/landcover_5km.csv") %>%
 ## Species description: Life history, characteristics, relevant attributes
 The simulated species is fully described here. The object `sp_i` is a list containing elements for the global parameters, relationships with environmental variables, and demographic matrices that are applicable or potentially applicable for that modeling strategy. Parameters are abbreviated with the associated kernel component (e.g., `s_*` for survival, `g_*` for growth, etc) and the type of covariate (`*_z` for size, `*_x` for environmental covariates).
 ```{r sp_i}
-mean_abund <- 2000
+mean_abund <- 200
 regPlots <- F
 ipmPlots <- F
 z.rng <- c(1, 12)
-n <- 100  # ncells in IPM matrix
+n <- 50  # ncells in IPM matrix
 cells <- 1:n_distinct(lc.df$CellID)
 n.cell <- length(cells)
 n_i <- rpois(n.cell, mean_abund)
 sp_i <- list(p=list(s_z=c(-1.75, .75), # b1 + b2*z
-                    s_x=c(1, -.1, -.5, -.1, .05, -2, -.4, -.4), # b1*x1 + ...
+                    s_x=c(1, -.1, -.5, -.1, .05, -2, -.4), # b1*x1 + ...
                     g_z=c(.2, 2, -0.1), # b1 + b2*z + b3*z^2
                     g_x=c(1, -.1, 1.5, -.1, .1, -2), #b1*x1 + ...
                     g_sig=1, # growth ~ N(E, g_sig)
                     fl_z=c(-1.5, .1, .1), # b1 + b2*z + b3*z^2 + b4*z^3
-                    fl_x=c(1, -.01, -1, -.01, .2, .2), # b1*x1 + ...
+                    fl_x=c(1, -.01, -1, -.01, 0, .2), # b1*x1 + ...
                     seed_z=c(2, 0.5, -.03), # b1 + b2*z + b2*z^2
                     seed_x=c(1, -.1, 1, -.1, .2), # b1*x1 + ...
                     rcr_z=c(1.5, 0.4), # N(mean=rcrt1, sd=rcrt2)
                     p_est=0.02, # p(establishment)
                     rcr_SB=0.2, # p(recruit from seedbank)
                     rcr_dir=0.6, # p(recruit directly)
-                    s_SB=0.3, # p(survive in seedbank additional year)
-                    p_emig=0.999, # p(seed emigrates)
-                    sdd_max=3, # max SDD distance in cells
+                    s_SB=0.1, # p(survive in seedbank additional year)
+                    sdd_max=5, # max SDD distance in cells
                     sdd_rate=0.8 # SDD dispersal rate
                     ))
+sp_i$p$p_emig <- pexp(0.5, sp_i$p$sdd_rate, lower.tail=F) # p(seed emigrates)
 ```
 
 ## Landscape
