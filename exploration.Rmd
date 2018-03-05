@@ -172,14 +172,15 @@ for(i in 1:n.cell) {
   #---- Truth: add immigrants
   sdd.j <- which(sdd[,,2,]==sdd.i, arr.ind=TRUE)[,3]
   p.ij <- sdd[,,1,sdd.j][sdd[,,2,sdd.j]==sdd.i]
-  Fs[z.i,z.i,i] <- Fs[z.i,z.i,i] + 
-    Reduce(`+`, map2(sdd.j, p.ij, 
+  imm.rcr <- map2(sdd.j, p.ij, 
                      ~h*outer(y, y, calc_rcrImm, p=p, .y, n_seedz=n_seedz,
-                              n_flz=n_flz, X.seed=X_seed[.x,], X.fl=X_fl[.x,])))
-  Fs[1,z.i,i] <- Fs[1,z.i,i] + 
-    Reduce(`+`, map2(sdd.j, p.ij,
+                              n_flz=n_flz, X.seed=X_seed[.x,], X.fl=X_fl[.x,]))
+  Fs[z.i,z.i,i] <- Fs[z.i,z.i,i] + Reduce(`+`, imm.rcr)
+  imm.sb <- map2(sdd.j, p.ij,
                      ~calc_ImmSB(y, p=p, .y, n_seedz=n_seedz, n_flz=n_flz,
-                                 X.seed=X_seed[.x,], X.fl=X_fl[.x,])))
+                                 X.seed=X_seed[.x,], X.fl=X_fl[.x,]))
+  Fs[1,z.i,i] <- Fs[1,z.i,i] + 
+    Reduce(`+`, imm.sb)
   
   #---- generate data: add immigrants
   # total immigrants
@@ -204,8 +205,8 @@ ggplot(lam.df, aes(x=lon, y=lat, fill=log(lambda))) + geom_tile() +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
 ggplot(lam.df, aes(x=lon, y=lat, fill=lambda>1)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=nSd)) + geom_tile()
-ggplot(lam.df, aes(x=lon, y=lat, fill=B1>B0)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=D)) + geom_tile()
+ggplot(lam.df, aes(x=lon, y=lat, fill=B1>B0)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=nSd*p$p_emig > D)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=nSd*(1-p$p_emig) > D)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=nSd*(1-p$p_emig) < D & lambda < 1)) +
