@@ -46,8 +46,8 @@ sp_i <- list(p=list(s_z=c(-1.75, .75), # b1 + b2*z
                     rcr_SB=0.2, # p(recruit from seedbank)
                     rcr_dir=0.6, # p(recruit directly)
                     s_SB=0.1, # p(survive in seedbank additional year)
-                    sdd_max=5, # max SDD distance in cells
-                    sdd_rate=0.8 # SDD dispersal rate
+                    sdd_max=3, # max SDD distance in cells
+                    sdd_rate=1.5 # SDD dispersal rate
                     ))
 sp_i$p$p_emig <- pexp(0.5, sp_i$p$sdd_rate, lower.tail=F) # p(seed emigrates)
 ```
