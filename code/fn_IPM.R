@@ -20,8 +20,11 @@
 #        p_est=0.02,  # p(establishment)
 #        rcr_SB=0.2,  # p(recruit from seedbank)
 #        rcr_dir=0.6,  # p(recruit directly)
-#        s_SB=0.3  # p(survive in seedbank additional year)
-# )
+#        s_SB=0.3,  # p(survive in seedbank additional year)
+#        p_emig=0.3,  # p(seed emigrates)
+#        sdd_max=2,  # max SDD distance in cells
+#        sdd_rate=0.8  # SDD dispersal rate
+#        )
 #
 # The function `z_pow()` takes a vector of sizes (z) and the number of size 
 # slopes for each function, returning a design matrix with the correct number 
@@ -56,7 +59,7 @@ calc_flwr <- function(z.v, p, n_flz, X.fl) {
 }
 
 
-##-- Seeds
+##-- Seed production
 ##   nSeeds ~ exp(size + environment)
 calc_seeds <- function(z.v, p, n_seeds, X.seed) {
   z <- z_pow(z.v, n_seedz)
@@ -64,12 +67,13 @@ calc_seeds <- function(z.v, p, n_seeds, X.seed) {
 }
 
 
-##-- Recruits (direct)
-##   z' ~ P(fl) * nSeeds * P(rcrDir) * P(estab) * N(mn, sd)
-calc_rcrDir <- function(z1, z.v, p, n_seedz, n_flz, X.seed, X.fl, SB=FALSE) {
+##-- Recruits (direct, native)
+##   z.ii' ~ P(fl.i) * nSeeds.i (1-p.emig) * P(rcrDir) * P(estab) * N(mn, sd)
+calc_rcrDir <- function(z1, z.v, p, n_seedz, n_flz, X.seed, X.fl) {
   calc_flwr(z.v, p, n_flz, X.fl) *
     calc_seeds(z.v, p, n_seedz, X.seed) *
-    ifelse(SB, p$rcr_dir, 1) * 
+    (1 - p$p_emig) *
+    p$rcr_dir * 
     p$p_est * 
     dnorm(z1, p$rcr_z[1], p$rcr_z[2])
 }
@@ -82,12 +86,39 @@ calc_rcrSB <- function(z1, p) {
 }
 
 
-##-- Add to seedbank
-##   B(z) ~ P(fl) * nSeeds * (1-P(rcrDir)) * P(s.SB)
-calc_addSB <- function(z.v, p, n_seedz, n_flz, X.seed, X.fl) {
+##-- Recruits (direct, immigrant)
+##   z.ij' ~ P(fl).j * nSeeds.j * p.emig * P(rcrDir) * P(estab) * N(mn, sd)
+calc_rcrImm <- function(z1, z.v, p, p_ij, n_seedz, n_flz, X.seed, X.fl) {
+  calc_flwr(z.v, p, n_flz, X.fl) *
+    calc_seeds(z.v, p, n_seedz, X.seed) *
+    p$p_emig *
+    p_ij *
+    p$rcr_dir * 
+    p$p_est * 
+    dnorm(z1, p$rcr_z[1], p$rcr_z[2])
+}
+
+
+##-- Add to seedbank (native)
+##   B(z).ii ~ P(fl).i * nSeeds.i * (1-P(rcrDir)) * P(s.SB)
+calc_DirSB <- function(z.v, p, n_seedz, n_flz, X.seed, X.fl) {
   z <- z_pow(z.v, n_seedz)
   calc_flwr(z.v, p, n_flz, X.fl) *
-    exp(z %*% p$seed_z + c(t(X.seed) %*% p$seed_x)) *
+    calc_seeds(z.v, p, n_seedz, X.seed) *
+    (1 - p$p_emig) *
+    (1 - p$rcr_dir) *
+    p$s_SB
+}
+
+
+##-- Add to seedbank (immigrant)
+##  B(z).ij ~ P(fl).j * nSeeds.j * (1-P(rcrDir)) * P(s.SB)
+calc_ImmSB <- function(z.v, p, p_ij, n_seedz, n_flz, X.seed, X.fl) {
+  z <- z_pow(z.v, n_seedz)
+  calc_flwr(z.v, p, n_flz, X.fl) *
+    calc_seeds(z.v, p, n_seedz, X.seed) *
+    p$p_emig *
+    p_ij *
     (1 - p$rcr_dir) *
     p$s_SB
 }
@@ -98,3 +129,4 @@ calc_addSB <- function(z.v, p, n_seedz, n_flz, X.seed, X.fl) {
 calc_staySB <- function(p) {
   p$s_SB * (1 - p$rcr_SB)
 }
+
