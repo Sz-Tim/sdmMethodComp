@@ -193,7 +193,8 @@ for(i in 1:n.cell) {
 IPMs <- Ps + Fs
 lam.df <- env.df
 lam.df$lambda <- apply(IPMs, 3, function(x) Re(eigen(x)$values[1]))
-lam.df %<>% add_column(nSd=nSd, B0=B, B1=B_1, D=D)
+lam.df %<>% add_column(nSd=nSd, B0=B, B1=B_1, D=D) %>%
+  mutate(nSdStay=nSd*(1-p$p_emig), nSdLeave=nSd*p$p_emig)
 
 ########
 ## plots
@@ -204,9 +205,11 @@ ggplot(lam.df, aes(x=lon, y=lat, fill=lambda>1)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=nSd)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=D)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=B1>B0)) + geom_tile()
+ggplot(lam.df, aes(x=lon, y=lat, fill=(D-nSdStay)/nSdStay)) + geom_tile() +
+  scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
 ggplot(lam.df, aes(x=lon, y=lat, fill=nSd*p$p_emig > D)) + geom_tile()
-ggplot(lam.df, aes(x=lon, y=lat, fill=nSd*(1-p$p_emig) > D)) + geom_tile()
-ggplot(lam.df, aes(x=lon, y=lat, fill=nSd*(1-p$p_emig) < D & lambda < 1)) +
+ggplot(lam.df, aes(x=lon, y=lat, fill=nSdStay > D)) + geom_tile()
+ggplot(lam.df, aes(x=lon, y=lat, fill=nSdStay < D & lambda < 1)) +
   geom_tile()
 par(mfrow=c(2,2))
 plot(log(lambda) ~ temp, data=lam.df); abline(h=0, col="red", lty=2)
