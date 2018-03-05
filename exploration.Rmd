@@ -81,7 +81,7 @@ env.df <- filter(env.rct, inbd) %>% select(4:12, 1:3, 13:17) %>%
   mutate(pOpn=c(scale(pOpn)), pOth=c(scale(pOth)), pDec=c(scale(pDec)),
          pEvg=c(scale(pEvg)), pMxd=c(scale(pMxd)))
 rm(env.rct)
-## sdd.pr[,,2,] has indexes based on env.df$id -- NOT env.df$id.inbd
+# sdd.pr[,,2,] has indexes based on env.df$id -- NOT env.df$id.inbd
 # ggplot(env.df, aes(x=lon, y=lat, fill=id %in% sdd.pr[,,2,760])) + geom_tile()
 ```
 
