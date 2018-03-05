@@ -170,17 +170,16 @@ for(i in 1:n.cell) {
   sdd.i <- env.df$id[i] # full rectangle grid id for SDD indexes
   
   #---- Truth: add immigrants
-  n.sdd <- nrow(which(sdd[,,2,]==sdd.i, arr.ind=TRUE))
   sdd.j <- which(sdd[,,2,]==sdd.i, arr.ind=TRUE)[,3]
   p.ij <- sdd[,,1,sdd.j][sdd[,,2,sdd.j]==sdd.i]
-  for(j in 1:n.sdd) {
-    Fs[z.i,z.i,i] <- Fs[z.i, z.i,i] + 
-      h*outer(y, y, calc_rcrImm, p=p, p.ij[j], n_seedz=n_seedz, n_flz=n_flz,
-              X.seed=X_seed[sdd.j[j],], X.fl=X_fl[sdd.j[j],])
-    Fs[1,z.i,i] <- Fs[1,z.i,i] + 
-      calc_ImmSB(y, p=p, p.ij[j], n_seedz=n_seedz, n_flz=n_flz,
-                            X.seed=X_seed[sdd.j[j],], X.fl=X_fl[sdd.j[j],])
-  }
+  Fs[z.i,z.i,i] <- Fs[z.i,z.i,i] + 
+    Reduce(`+`, map2(sdd.j, p.ij, 
+                     ~h*outer(y, y, calc_rcrImm, p=p, .y, n_seedz=n_seedz,
+                              n_flz=n_flz, X.seed=X_seed[.x,], X.fl=X_fl[.x,])))
+  Fs[1,z.i,i] <- Fs[1,z.i,i] + 
+    Reduce(`+`, map2(sdd.j, p.ij,
+                     ~calc_ImmSB(y, p=p, .y, n_seedz=n_seedz, n_flz=n_flz,
+                                 X.seed=X_seed[.x,], X.fl=X_fl[.x,])))
   
   #---- generate data: add immigrants
   # total immigrants
