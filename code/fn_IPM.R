@@ -67,14 +67,13 @@ calc_seeds <- function(z.v, p, n_seeds, X.seed) {
 }
 
 
-##-- Recruits (direct, native)
-##   z.ii' ~ P(fl.i) * nSeeds.i (1-p.emig) * P(rcrDir) * P(estab) * N(mn, sd)
+##-- Recruits (direct)
+##   z' ~ P(fl) * nSeeds * P(rcrDir) * P(estab) * N(mn, sd)
 calc_rcrDir <- function(z1, z.v, p, n_seedz, n_flz, X.seed, X.fl) {
   calc_flwr(z.v, p, n_flz, X.fl) *
     calc_seeds(z.v, p, n_seedz, X.seed) *
-    (1 - p$p_emig) *
-    p$rcr_dir * 
-    p$p_est * 
+    p$rcr_dir *
+    p$p_est *
     dnorm(z1, p$rcr_z[1], p$rcr_z[2])
 }
 
@@ -86,39 +85,12 @@ calc_rcrSB <- function(z1, p) {
 }
 
 
-##-- Recruits (direct, immigrant)
-##   z.ij' ~ P(fl).j * nSeeds.j * p.emig * P(rcrDir) * P(estab) * N(mn, sd)
-calc_rcrImm <- function(z1, z.v, p, p_ij, n_seedz, n_flz, X.seed, X.fl) {
-  calc_flwr(z.v, p, n_flz, X.fl) *
-    calc_seeds(z.v, p, n_seedz, X.seed) *
-    p$p_emig *
-    p_ij *
-    p$rcr_dir * 
-    p$p_est * 
-    dnorm(z1, p$rcr_z[1], p$rcr_z[2])
-}
-
-
-##-- Add to seedbank (native)
-##   B(z).ii ~ P(fl).i * nSeeds.i * (1-P(rcrDir)) * P(s.SB)
-calc_DirSB <- function(z.v, p, n_seedz, n_flz, X.seed, X.fl) {
+##-- Add to seedbank
+##   B(z) ~ P(fl) * nSeeds * (1-P(rcrDir)) * P(s.SB)
+calc_addSB <- function(z.v, p, n_seedz, n_flz, X.seed, X.fl) {
   z <- z_pow(z.v, n_seedz)
   calc_flwr(z.v, p, n_flz, X.fl) *
     calc_seeds(z.v, p, n_seedz, X.seed) *
-    (1 - p$p_emig) *
-    (1 - p$rcr_dir) *
-    p$s_SB
-}
-
-
-##-- Add to seedbank (immigrant)
-##  B(z).ij ~ P(fl).j * nSeeds.j * (1-P(rcrDir)) * P(s.SB)
-calc_ImmSB <- function(z.v, p, p_ij, n_seedz, n_flz, X.seed, X.fl) {
-  z <- z_pow(z.v, n_seedz)
-  calc_flwr(z.v, p, n_flz, X.fl) *
-    calc_seeds(z.v, p, n_seedz, X.seed) *
-    p$p_emig *
-    p_ij *
     (1 - p$rcr_dir) *
     p$s_SB
 }
@@ -129,4 +101,5 @@ calc_ImmSB <- function(z.v, p, p_ij, n_seedz, n_flz, X.seed, X.fl) {
 calc_staySB <- function(p) {
   p$s_SB * (1 - p$rcr_SB)
 }
+
 

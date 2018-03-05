@@ -95,7 +95,7 @@ rm(env.rct)
 # set up storage & IPM matrix objects
 p <- sp_i$p
 setup_IPM_matrix(n, z.rng, buffer=0.25, discrete=1)
-IPMs <- Ps <- Fs <- array(0, dim=c(n+1, n+1, n.cell))
+IPMs <- Ps <- Fs <- Fb <- array(0, dim=c(n+1, n+1, n.cell))
 d <- vector("list", length=n.cell)
 B <- rpois(n.cell, n_i)
 B_1 <- nSd <- D <- rep(NA, n.cell)
@@ -130,10 +130,13 @@ for(i in 1:n.cell) {
   ### fill P and F matrices
   for(k in z.i) Ps[k,z.i,i] <- G.mx[k-1,]*S.v
   Ps[1,1,i] <- calc_staySB(p)
-  Fs[z.i,z.i,i] <- h*outer(y, y, calc_rcrDir, p=p, n_seedz=n_seedz,
-                             n_flz=n_flz, X.seed=X_seed[i,], X.fl=X_fl[i,])
-  Fs[1,z.i,i] <- calc_DirSB(y, p=p, n_seedz=n_seedz, n_flz=n_flz, 
+  ### store seed production
+  Fb[z.i,z.i,i] <- outer(y, y, calc_rcrDir, p=p, n_seedz=n_seedz, n_flz=n_flz, 
+                         X.seed=X_seed[i,], X.fl=X_fl[i,])
+  Fb[1,z.i,i] <- calc_addSB(y, p=p, n_seedz=n_seedz, n_flz=n_flz, 
                             X.seed=X_seed[i,], X.fl=X_fl[i,])
+  Fs[z.i,z.i,i] <- h * (1 - p$p_emig) * Fb[z.i,z.i,i]
+  Fs[1,z.i,i] <- (1 - p$p_emig) * Fb[1,z.i,i]
   Fs[z.i,1,i] <- calc_rcrSB(y, p)
   
   #---- generate data
@@ -172,15 +175,9 @@ for(i in 1:n.cell) {
   #---- Truth: add immigrants
   sdd.j <- which(sdd[,,2,]==sdd.i, arr.ind=TRUE)[,3]
   p.ij <- sdd[,,1,sdd.j][sdd[,,2,sdd.j]==sdd.i]
-  imm.rcr <- map2(sdd.j, p.ij, 
-                     ~h*outer(y, y, calc_rcrImm, p=p, .y, n_seedz=n_seedz,
-                              n_flz=n_flz, X.seed=X_seed[.x,], X.fl=X_fl[.x,]))
-  Fs[z.i,z.i,i] <- Fs[z.i,z.i,i] + Reduce(`+`, imm.rcr)
-  imm.sb <- map2(sdd.j, p.ij,
-                     ~calc_ImmSB(y, p=p, .y, n_seedz=n_seedz, n_flz=n_flz,
-                                 X.seed=X_seed[.x,], X.fl=X_fl[.x,]))
-  Fs[1,z.i,i] <- Fs[1,z.i,i] + 
-    Reduce(`+`, imm.sb)
+  Fs[z.i,z.i,i] <- Fs[z.i,z.i,i] + 
+    Reduce(`+`, map2(sdd.j, p$p_emig*p.ij, ~(Fb[z.i,z.i,.x] * .y)))
+  Fs[1,z.i,i] <- Fs[1,z.i,i] + Fb[1,z.i,sdd.j] %*% (p$p_emig*p.ij)
   
   #---- generate data: add immigrants
   # total immigrants
