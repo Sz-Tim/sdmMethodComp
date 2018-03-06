@@ -275,7 +275,11 @@ if(ipmPlots) {
 The simulated species *S* is sampled appropriately in order to fit each SDM model. The observed datasets,*O*, may be random or intentionally biased to mimic common issues with empirical data.
 ### Correlative: MaxEnt
 ```{r O_Mx}
-
+library(dismo)
+Mx.n <- 100
+Mx.P <- sample((1:nrow(lam.df))[lam.df$lambda > 1], Mx.n, replace=T)
+pres <- 1:nrow(lam.df) %in% Mx.P
+Mx.out <- maxent(x=lam.df[c("temp", "prec")], p=pres)
 ```
 ### Mechanistic: CA
 ```{r O_CA}
