@@ -25,8 +25,9 @@ lc.df <- read_csv("data/landcover_5km.csv") %>%
 The simulated species is fully described here. The object `sp_i` is a list containing elements for the global parameters, relationships with environmental variables, and demographic matrices that are applicable or potentially applicable for that modeling strategy. Parameters are abbreviated with the associated kernel component (e.g., `s_*` for survival, `g_*` for growth, etc) and the type of covariate (`*_z` for size, `*_x` for environmental covariates).
 ```{r sp_i}
 mean_abund <- 200
-regPlots <- F
-ipmPlots <- F
+regPlots <- T
+ipmPlots <- T
+nPlots <- 5
 z.rng <- c(1, 12)
 n <- 50  # ncells in IPM matrix
 cells <- 1:n_distinct(lc.df$CellID)
@@ -45,9 +46,9 @@ sp_i <- list(p=list(s_z=c(-1.75, .75), # b1 + b2*z
                     p_est=0.02, # p(establishment)
                     rcr_SB=0.2, # p(recruit from seedbank)
                     rcr_dir=0.6, # p(recruit directly)
-                    s_SB=0.1, # p(survive in seedbank additional year)
-                    sdd_max=3, # max SDD distance in cells
-                    sdd_rate=1.5 # SDD dispersal rate
+                    s_SB=0.3, # p(survive in seedbank additional year)
+                    sdd_max=7, # max SDD distance in cells
+                    sdd_rate=1 # SDD dispersal rate
                     ))
 sp_i$p$p_emig <- pexp(0.5, sp_i$p$sdd_rate, lower.tail=F) # p(seed emigrates)
 ```
@@ -131,8 +132,8 @@ for(i in 1:n.cell) {
   for(k in z.i) Ps[k,z.i,i] <- G.mx[k-1,]*S.v
   Ps[1,1,i] <- calc_staySB(p)
   ### store seed production
-  Fb[z.i,z.i,i] <- h * outer(y, y, calc_rcrDir, p=p, n_seedz=n_seedz, n_flz=n_flz, 
-                         X.seed=X_seed[i,], X.fl=X_fl[i,])
+  Fb[z.i,z.i,i] <- h * outer(y, y, calc_rcrDir, p=p, n_seedz=n_seedz, 
+                             n_flz=n_flz, X.seed=X_seed[i,], X.fl=X_fl[i,])
   Fb[1,z.i,i] <- h * calc_addSB(y, p=p, n_seedz=n_seedz, n_flz=n_flz, 
                             X.seed=X_seed[i,], X.fl=X_fl[i,])
   Fs[z.i,z.i,i] <- (1 - p$p_emig) * Fb[z.i,z.i,i]
@@ -216,12 +217,13 @@ plot(log(lambda) ~ prec, data=lam.df); abline(h=0, col="red", lty=2)
 plot(log(lambda) ~ pOth, data=lam.df); abline(h=0, col="red", lty=2)
 plot(density(log(lam.df$lambda))); abline(v=0, col="red", lty=2)
 
+sample.cells <- sample.int(n.cell, nPlots)
 if(regPlots) {
   par(mfrow=c(3,2), mar=c(4,4,2,1))
   xx <- tibble(size=seq(lo, hi, length.out=100), size2=size^2, size3=size^3)
   mx <- cbind(1, as.matrix(xx))
   xxx <- seq(0, hi*.5, length.out=100)
-  for(i in 1:20) {
+  for(i in sample.cells) {
     z.t <- d[[i]][!is.na(d[[i]]$size),]; main.i <- paste("Cell", i)
     w1 <- Re(eigen(IPMs[,,i])$vectors[,1])[-1]; stable.dist1 <- w1/sum(w1)
     rcrt.z <- d[[i]]$sizeNext[is.na(d[[i]]$size) & !is.na(d[[i]]$sizeNext)]
@@ -250,7 +252,7 @@ if(regPlots) {
 if(ipmPlots) {
   par(mfrow=c(2,2), mar=c(4,4,2,1))
   x <- c(0, y)
-  for(i in 1:n.cell) {
+  for(i in sample.cells) {
     z.t <- d[[i]][!is.na(d[[i]]$size),]; main.i <- paste("Cell", i)
     z.t$y <- y[findInterval(z.t$size, y, all.inside=T)]
     totSeeds <- group_by(z.t, y) %>% summarise(seed=sum(seed, na.rm=T))
