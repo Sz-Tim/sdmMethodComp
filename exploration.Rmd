@@ -131,11 +131,11 @@ for(i in 1:n.cell) {
   for(k in z.i) Ps[k,z.i,i] <- G.mx[k-1,]*S.v
   Ps[1,1,i] <- calc_staySB(p)
   ### store seed production
-  Fb[z.i,z.i,i] <- outer(y, y, calc_rcrDir, p=p, n_seedz=n_seedz, n_flz=n_flz, 
+  Fb[z.i,z.i,i] <- h * outer(y, y, calc_rcrDir, p=p, n_seedz=n_seedz, n_flz=n_flz, 
                          X.seed=X_seed[i,], X.fl=X_fl[i,])
-  Fb[1,z.i,i] <- calc_addSB(y, p=p, n_seedz=n_seedz, n_flz=n_flz, 
+  Fb[1,z.i,i] <- h * calc_addSB(y, p=p, n_seedz=n_seedz, n_flz=n_flz, 
                             X.seed=X_seed[i,], X.fl=X_fl[i,])
-  Fs[z.i,z.i,i] <- h * (1 - p$p_emig) * Fb[z.i,z.i,i]
+  Fs[z.i,z.i,i] <- (1 - p$p_emig) * Fb[z.i,z.i,i]
   Fs[1,z.i,i] <- (1 - p$p_emig) * Fb[1,z.i,i]
   Fs[z.i,1,i] <- calc_rcrSB(y, p)
   
@@ -176,7 +176,7 @@ for(i in 1:n.cell) {
   sdd.j <- which(sdd[,,2,]==sdd.i, arr.ind=TRUE)
   p.ij <- sdd[,,1,][sdd.j]
   Fs[z.i,z.i,i] <- Fs[z.i,z.i,i] + 
-    h * Reduce(`+`, map2(sdd.j[,3], p$p_emig*p.ij, ~(Fb[z.i,z.i,.x] * .y)))
+    Reduce(`+`, map2(sdd.j[,3], p$p_emig*p.ij, ~(Fb[z.i,z.i,.x] * .y)))
   Fs[1,z.i,i] <- Fs[1,z.i,i] + Fb[1,z.i,sdd.j[,3]] %*% (p$p_emig*p.ij)
   
   #---- generate data: add immigrants
