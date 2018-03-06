@@ -173,15 +173,15 @@ for(i in 1:n.cell) {
   sdd.i <- env.df$id[i] # full rectangle grid id for SDD indexes
   
   #---- Truth: add immigrants
-  sdd.j <- which(sdd[,,2,]==sdd.i, arr.ind=TRUE)[,3]
-  p.ij <- sdd[,,1,sdd.j][sdd[,,2,sdd.j]==sdd.i]
+  sdd.j <- which(sdd[,,2,]==sdd.i, arr.ind=TRUE)
+  p.ij <- sdd[,,1,][sdd.j]
   Fs[z.i,z.i,i] <- Fs[z.i,z.i,i] + 
-    Reduce(`+`, map2(sdd.j, p$p_emig*p.ij, ~(Fb[z.i,z.i,.x] * .y)))
-  Fs[1,z.i,i] <- Fs[1,z.i,i] + Fb[1,z.i,sdd.j] %*% (p$p_emig*p.ij)
+    h * Reduce(`+`, map2(sdd.j[,3], p$p_emig*p.ij, ~(Fb[z.i,z.i,.x] * .y)))
+  Fs[1,z.i,i] <- Fs[1,z.i,i] + Fb[1,z.i,sdd.j[,3]] %*% (p$p_emig*p.ij)
   
   #---- generate data: add immigrants
   # total immigrants
-  D[i] <- sum(sdd[,,3,][sdd[,,2,]==sdd.i])
+  D[i] <- sum(sdd[,,3,][sdd.j])
   # seed bank: immigrants
   B_1[i] <- B_1[i] + D[i] * (1 - p$rcr_dir) * p$s_SB
   # recruits: immigrants
@@ -207,7 +207,6 @@ ggplot(lam.df, aes(x=lon, y=lat, fill=D)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=B1>B0)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=(D-nSdStay)/nSdStay)) + geom_tile() +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
-ggplot(lam.df, aes(x=lon, y=lat, fill=nSd*p$p_emig > D)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=nSdStay > D)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=nSdStay < D & lambda < 1)) +
   geom_tile()
