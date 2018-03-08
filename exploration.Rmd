@@ -30,6 +30,7 @@ ipmPlots <- T
 nPlots <- 5
 z.rng <- c(1, 12)
 n <- 50  # ncells in IPM matrix
+tmax <- 10
 cells <- 1:n_distinct(lc.df$CellID)
 n.cell <- length(cells)
 n_i <- rpois(n.cell, mean_abund)
@@ -43,11 +44,12 @@ sp_i <- list(p=list(s_z=c(-1.75, .75), # b1 + b2*z
                     seed_z=c(2, 0.5, -.03), # b1 + b2*z + b2*z^2
                     seed_x=c(1, -.1, 1, -.1, .2), # b1*x1 + ...
                     rcr_z=c(1.5, 0.4), # N(mean=rcrt1, sd=rcrt2)
-                    p_est=0.02, # p(establishment)
-                    rcr_SB=0.2, # p(recruit from seedbank)
-                    rcr_dir=0.6, # p(recruit directly)
+                    p_est=0.03, # p(establishment)
+                    NDD=T, # negative density dependence: p_est=p_est/N
+                    rcr_SB=0.5, # p(recruit from seedbank)
+                    rcr_dir=0.9, # p(recruit directly)
                     s_SB=0.3, # p(survive in seedbank additional year)
-                    sdd_max=7, # max SDD distance in cells
+                    sdd_max=4, # max SDD distance in cells
                     sdd_rate=1 # SDD dispersal rate
                     ))
 sp_i$p$p_emig <- pexp(0.5, sp_i$p$sdd_rate, lower.tail=F) # p(seed emigrates)
@@ -97,9 +99,10 @@ rm(env.rct)
 p <- sp_i$p
 setup_IPM_matrix(n, z.rng, buffer=0.25, discrete=1)
 IPMs <- Ps <- Fs <- Fb <- array(0, dim=c(n+1, n+1, n.cell))
+Nt <- array(dim=c(n+1, n+1, n.cell, tmax))
 d <- vector("list", length=n.cell)
 B <- rpois(n.cell, n_i)
-B_1 <- nSd <- D <- rep(NA, n.cell)
+B_1 <- nSd <- D <- p_est.i <- rep(NA, n.cell)
 sdd <- array(0, dim=dim(sdd.pr) + c(0,0,1,0)) # add layer for nEmig
 sdd[,,1:2,] <- sdd.pr
 
@@ -117,6 +120,7 @@ X_seed <- as.matrix(env.df[,1:n_seedx])
 ########
 ## loop through cells
 ########
+# local growth
 for(i in 1:n.cell) {
   d[[i]] <- data.frame(size=runif(n=n_i[i], min=z.rng[1], max=z.rng[2]))
   size.mx <- cbind(1, d[[i]]$size, d[[i]]$size^2, d[[i]]$size^3)
@@ -132,13 +136,13 @@ for(i in 1:n.cell) {
   for(k in z.i) Ps[k,z.i,i] <- G.mx[k-1,]*S.v
   Ps[1,1,i] <- calc_staySB(p)
   ### store seed production
-  Fb[z.i,z.i,i] <- h * outer(y, y, calc_rcrDir, p=p, n_seedz=n_seedz, 
-                             n_flz=n_flz, X.seed=X_seed[i,], X.fl=X_fl[i,])
-  Fb[1,z.i,i] <- h * calc_addSB(y, p=p, n_seedz=n_seedz, n_flz=n_flz, 
-                            X.seed=X_seed[i,], X.fl=X_fl[i,])
+  Fb[z.i,z.i,i] <- outer(y, y, calc_rcrDir, p=p, n_seedz=n_seedz, n_flz=n_flz, 
+                         X.seed=X_seed[i,], X.fl=X_fl[i,]) *h * p$p_est
+  Fb[1,z.i,i] <- calc_addSB(y, p=p, n_seedz=n_seedz, n_flz=n_flz, 
+                            X.seed=X_seed[i,], X.fl=X_fl[i,]) * h
   Fs[z.i,z.i,i] <- (1 - p$p_emig) * Fb[z.i,z.i,i]
   Fs[1,z.i,i] <- (1 - p$p_emig) * Fb[1,z.i,i]
-  Fs[z.i,1,i] <- calc_rcrSB(y, p)
+  Fs[z.i,1,i] <- calc_rcrSB(y, p) * p$p_est
   
   #---- generate data
   ## survival
@@ -162,14 +166,16 @@ for(i in 1:n.cell) {
   B_1[i] <- B[i] * p$s_SB * (1 - p$rcr_SB) + 
     nSd[i] * (1 - p$p_emig) * (1 - p$rcr_dir) * p$s_SB
   ## recruits: native
-  rcr.n <- max(ceiling(nSd[i] * (1 - p$p_emig) * p$rcr_dir * p$p_est +
-                   B[i] * p$rcr_SB * p$p_est), 2) # ≥ 2 for IPMpack sd(rcr_z')
+  p_est.i[i] <- ifelse(p$NDD, sum(d[[i]]$surv==1)/nSd[i], p$p_est)
+  rcr.n <- ceiling(nSd[i] * (1 - p$p_emig) * p$rcr_dir * p_est.i[i] +
+                   B[i] * p$rcr_SB * p_est.i[i]) # ≥ 2 for IPMpack sd(rcr_z')
   rcr.i <- (1:rcr.n) + n_i[i]
   d[[i]][rcr.i,] <- NA
   d[[i]]$sizeNext[rcr.i] <- rnorm(rcr.n, p$rcr_z[1], p$rcr_z[2])
   ## emigrants
   sdd[,,3,i] <- nSd[i] * p$p_emig * sdd[,,1,i]
 }
+# dispersal
 for(i in 1:n.cell) {
   sdd.i <- env.df$id[i] # full rectangle grid id for SDD indexes
   
@@ -186,23 +192,43 @@ for(i in 1:n.cell) {
   # seed bank: immigrants
   B_1[i] <- B_1[i] + D[i] * (1 - p$rcr_dir) * p$s_SB
   # recruits: immigrants
-  rcr.imm <- max(ceiling(D[i] * p$rcr_dir * p$p_est), 2)
+  rcr.imm <- ceiling(D[i] * p$rcr_dir * p_est.i[i])
   rcr.i <- (1:rcr.imm) + nrow(d[[i]])
   d[[i]][rcr.i,] <- NA
   d[[i]]$sizeNext[rcr.i] <- rnorm(rcr.imm, p$rcr_z[1], p$rcr_z[2])
+}
+# density dependence
+if(p$NDD) {
+  lam.t <- p_est.t <- matrix(nrow=tmax-1, ncol=n.cell)
+  p_est.t[1,] <- p$p_est
+  for(i in 1:n.cell) {
+    Nt[,,i,1] <- rpois((n+1)*(n+1), n_i)
+    for(k in 1:(tmax-1)) {
+      F.t <- Fs[,,i]
+      p_est.t[k,i] <- min(195/(sum(F.t[z.i,] * Nt[z.i,,i,k])/p$p_est), p$p_est)
+      F.t[z.i,] <- F.t[z.i,]/p$p_est * p_est.t[k,i]
+      IPM.t <- Ps[,,i] + F.t
+      Nt[,,i,k+1] <- IPM.t %*% Nt[,,i,k]
+      lam.t[k,i] <- Re(eigen(IPM.t)$values[1])
+    }
+  }
 }
 IPMs <- Ps + Fs
 lam.df <- env.df
 lam.df$lambda <- apply(IPMs, 3, function(x) Re(eigen(x)$values[1]))
 lam.df %<>% add_column(nSd=nSd, B0=B, B1=B_1, D=D) %>%
-  mutate(nSdStay=nSd*(1-p$p_emig), nSdLeave=nSd*p$p_emig)
+  mutate(nSdStay=nSd*(1-p$p_emig), nSdLeave=nSd*p$p_emig) %>%
+  add_column(Ntmax=apply(Nt[,,,tmax],3,sum), lam.tmax=lam.t[tmax-1,])
 
 ########
 ## plots
 ########
 ggplot(lam.df, aes(x=lon, y=lat, fill=log(lambda))) + geom_tile() +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
+ggplot(lam.df, aes(x=lon, y=lat, fill=log(lam.tmax))) + geom_tile() +
+  scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
 ggplot(lam.df, aes(x=lon, y=lat, fill=lambda>1)) + geom_tile()
+ggplot(lam.df, aes(x=lon, y=lat, fill=lam.tmax>1)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=nSd)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=D)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=B1>B0)) + geom_tile()
