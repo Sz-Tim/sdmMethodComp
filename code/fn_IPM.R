@@ -68,20 +68,19 @@ calc_seeds <- function(z.v, p, n_seeds, X.seed) {
 
 
 ##-- Recruits (direct)
-##   z' ~ P(fl) * nSeeds * P(rcrDir) * P(estab) * N(mn, sd)
+##   z' ~ P(fl) * nSeeds * P(estab) * N(mn, sd)
 calc_rcrDir <- function(z1, z.v, p, n_seedz, n_flz, X.seed, X.fl) {
   calc_flwr(z.v, p, n_flz, X.fl) *
     calc_seeds(z.v, p, n_seedz, X.seed) *
     p$rcr_dir *
-    p$p_est *
     dnorm(z1, p$rcr_z[1], p$rcr_z[2])
 }
 
 
 ##-- Recruits (seedbank)
-##   z' ~ P(s.SB) * P(estab) * N(mn, sd)
+##   z' ~ P(s.SB) * N(mn, sd)
 calc_rcrSB <- function(z1, p) {
-  p$s_SB * p$p_est * dnorm(z1, p$rcr_z[1], p$rcr_z[2])
+  p$s_SB * dnorm(z1, p$rcr_z[1], p$rcr_z[2])
 }
 
 
