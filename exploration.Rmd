@@ -166,7 +166,7 @@ for(i in 1:n.cell) {
   B_1[i] <- B[i] * p$s_SB * (1 - p$rcr_SB) + 
     nSd[i] * (1 - p$p_emig) * (1 - p$rcr_dir) * p$s_SB
   ## recruits: native
-  p_est.i[i] <- ifelse(p$NDD, sum(d[[i]]$surv==1)/nSd[i], p$p_est)
+  p_est.i[i] <- ifelse(p$NDD, min(150/nSd[i], p$p_est), p$p_est)
   rcr.n <- round(nSd[i] * (1 - p$p_emig) * p$rcr_dir * p_est.i[i] +
                    B[i] * p$rcr_SB * p_est.i[i]) # ≥ 2 for IPMpack sd(rcr_z')
   if(rcr.n > 0) {
@@ -209,7 +209,7 @@ if(p$NDD) {
     for(k in 1:(tmax-1)) {
       F.t <- Fs[,,i]
       # set p_est to density dependent value if that is < p$p_est
-      p_est.t[k,i] <- min(195/(sum(F.t[z.i,] * Nt[z.i,,i,k])/p$p_est), p$p_est)
+      p_est.t[k,i] <- min(150/(sum(F.t[z.i,] * Nt[z.i,,i,k])/p$p_est), p$p_est)
       # F.s[,,i] was already multiplied by p$p_est, so divide by that first
       F.t[z.i,] <- F.t[z.i,]/p$p_est * p_est.t[k,i]
       IPM.t <- Ps[,,i] + F.t
