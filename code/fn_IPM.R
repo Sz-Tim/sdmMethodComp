@@ -31,6 +31,10 @@
 # of columns where: z.mx[,1]=1; z.mx[,2]=z; z.mx[,3]=z^2; z.mx[,4]=z^3; etc
 
 
+################################################################################
+## Vital rate functions
+########
+
 ##-- Survival
 ##   P(s) ~ antilogit(size + environment)
 calc_surv <- function(z.v, p, n_sz, X.s) {
@@ -100,5 +104,32 @@ calc_addSB <- function(z.v, p, n_seedz, n_flz, X.seed, X.fl) {
 calc_staySB <- function(p) {
   p$s_SB * (1 - p$rcr_SB)
 }
+
+
+
+
+
+################################################################################
+## IPM matrix construction
+########
+
+##-- Set boundaries, meshpoints, & step size for IPM matrix
+##   create objects in global environment
+setup_IPM_matrix <- function(n=100, z.rng=c(1,10), buffer=0.25, discrete=0) {
+  lo <<- z.rng[1]*(1-buffer)  # IPM matrix lower limit
+  hi <<- z.rng[2]*(1+buffer)  # IPM matrix upper limit
+  b <<- lo + c(0:n)*(hi - lo)/n  # boundary points
+  y <<- 0.5*(b[1:n] + b[2:(n+1)])  # mesh points
+  h <<- y[2] - y[1]  # step size
+  z.i <<- (1:n) + discrete  # continuous stage matrix indices
+}
+
+
+##-- Fill P & F matrices: local 
+##   
+
+
+
+
 
 
