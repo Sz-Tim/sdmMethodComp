@@ -65,7 +65,7 @@ calc_flwr <- function(z.v, p, n_flz, X.fl) {
 
 ##-- Seed production
 ##   nSeeds ~ exp(size + environment)
-calc_seeds <- function(z.v, p, n_seeds, X.seed) {
+calc_seeds <- function(z.v, p, n_seedz, X.seed) {
   z <- z_pow(z.v, n_seedz)
   exp(z %*% p$seed_z + c(t(X.seed) %*% p$seed_x))
 }
@@ -125,9 +125,34 @@ setup_IPM_matrix <- function(n=100, z.rng=c(1,10), buffer=0.25, discrete=0) {
 }
 
 
-##-- Fill P & F matrices: local 
+##-- Fill P matrix: local 
 ##   
+fill_P <- function(h, y, z.i, n, p, n_z, n_x, X_s, X_g) {
+  P.mx <- matrix(0, nrow=n+1, ncol=n+1)
+  # survival & growth
+  S.v <- calc_surv(y, p=p, n_sz=n_z$s, X.s=X_s)
+  G.mx <- h*outer(y, y, calc_grow, p=p, n_gz=n_z$g, X.g=X_g)
+  # correct ejections
+  for(k in 1:(n/2)) G.mx[1,k] <- G.mx[1,k] + 1 - sum(G.mx[,k])
+  for(k in (n/2+1):n) G.mx[n,k] <- G.mx[n,k] + 1 - sum(G.mx[,k])
+  # fill P matrix
+  for(k in z.i) P.mx[k,z.i] <- G.mx[k-1,]*S.v
+  P.mx[1,1] <- calc_staySB(p)
+  return(P.mx)
+}
 
+
+##-- Fill F matrix 
+##   
+fill_F <- function(h, y, z.i, n, p, n_z, n_x, X_fl, X_seed) {
+  F.mx <- matrix(0, nrow=n+1, ncol=n+1)
+  F.mx[z.i,z.i] <- outer(y, y, calc_rcrDir, p=p, n_seedz=n_z$seed, n_flz=n_z$fl, 
+                         X.seed=X_seed, X.fl=X_fl) * h * p$p_est
+  F.mx[1,z.i] <- calc_addSB(y, p=p, n_seedz=n_z$seed, n_flz=n_z$fl, 
+                            X.seed=X_seed, X.fl=X_fl) * h
+  F.mx[z.i,1] <- calc_rcrSB(y, p) * p$p_est
+  return(F.mx)
+}
 
 
 

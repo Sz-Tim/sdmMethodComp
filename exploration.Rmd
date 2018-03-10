@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = T)
 pkgs <- c("fields", "sevcheck", "gbPopMod", "IPMpack", "tidyverse", "magrittr")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
 theme_set(theme_bw())
-source("code/fn_IPM.R"); source("code/fn_aux.R")
+source("code/fn_IPM.R"); source("code/fn_aux.R"); source("code/fn_sim.R")
 lc.df <- read_csv("data/landcover_5km.csv") %>% 
   filter(!is.na(bio1_mean)) %>%
   mutate(x=as.integer(factor(.$left)),
@@ -24,32 +24,33 @@ lc.df <- read_csv("data/landcover_5km.csv") %>%
 ## Species description: Life history, characteristics, relevant attributes
 The simulated species is fully described here. The object `sp_i` is a list containing elements for the global parameters, relationships with environmental variables, and demographic matrices that are applicable or potentially applicable for that modeling strategy. Parameters are abbreviated with the associated kernel component (e.g., `s_*` for survival, `g_*` for growth, etc) and the type of covariate (`*_z` for size, `*_x` for environmental covariates).
 ```{r sp_i}
-mean_abund <- 500
-regPlots <- T
-ipmPlots <- T
+mean_abund <- 100
+regPlots <- F
+ipmPlots <- F
 nPlots <- 5
 z.rng <- c(1, 12)
-n <- 50  # ncells in IPM matrix
-tmax <- 100
+n <- 10  # ncells in IPM matrix
+tmax <- 30
 cells <- 1:n_distinct(lc.df$CellID)
 n.cell <- length(cells)
 n_i <- rpois(n.cell, mean_abund)
 sp_i <- list(p=list(s_z=c(-1.75, .75), # b1 + b2*z
-                    s_x=c(2, -.1, -.5, -.1, .05, -2, -.4), # b1*x1 + ...
+                    s_x=c(2, -.1, -2, -.1, 2, -2, -.4), # b1*x1 + ...
                     g_z=c(.2, 2, -0.1), # b1 + b2*z + b3*z^2
-                    g_x=c(2, -.1, 1.5, -.1, .1, -2), #b1*x1 + ...
+                    g_x=c(2, -.1, 2, -.1, 2, -2), #b1*x1 + ...
                     g_sig=1, # growth ~ N(E, g_sig)
                     fl_z=c(-1.5, .1, .1), # b1 + b2*z + b3*z^2
-                    fl_x=c(2, -.01, -1, -.01, 0, .2), # b1*x1 + ...
+                    fl_x=c(2, -.1, -2, -.1, 1, 1), # b1*x1 + ...
                     seed_z=c(2, 0.5, -.03), # b1 + b2*z + b2*z^2
-                    seed_x=c(1, -.1, 1, -.1, .2), # b1*x1 + ...
+                    seed_x=c(1, -.1, -1, -.1, .2), # b1*x1 + ...
                     rcr_z=c(1.5, 0.4), # N(mean=rcrt1, sd=rcrt2)
                     p_est=0.03, # p(establishment)
                     NDD=T, # negative density dependence: p_est=p_est/N
+                    NDD_n=100, # mean number of recruits if NDD
                     rcr_SB=0.5, # p(recruit from seedbank)
-                    rcr_dir=0.8, # p(recruit directly)
+                    rcr_dir=0.5, # p(recruit directly)
                     s_SB=0.3, # p(survive in seedbank additional year)
-                    sdd_max=4, # max SDD distance in cells
+                    sdd_max=5, # max SDD distance in cells
                     sdd_rate=1 # SDD dispersal rate
                     ))
 sp_i$p$p_emig <- pexp(0.5, sp_i$p$sdd_rate, lower.tail=F) # p(seed emigrates)
@@ -85,7 +86,7 @@ env.df <- filter(env.rct, inbd) %>% select(4:12, 1:3, 13:17) %>%
          pEvg=c(scale(pEvg)), pMxd=c(scale(pMxd)))
 rm(env.rct)
 # sdd.pr[,,2,] has indexes based on env.df$id -- NOT env.df$id.inbd
-# ggplot(env.df, aes(x=lon, y=lat, fill=id %in% sdd.pr[,,2,760])) + geom_tile()
+# ggplot(env.df, aes(x=lon, y=lat, fill=id %in% sdd.pr[,,2,740])) + geom_tile()
 ```
 
 ---
@@ -97,135 +98,109 @@ rm(env.rct)
 ########
 # set up storage & IPM matrix objects
 p <- sp_i$p
-setup_IPM_matrix(n, z.rng, buffer=0.25, discrete=1)
+setup_IPM_matrix(n, z.rng, buffer=0.5, discrete=1)
 IPMs <- Ps <- Fs <- Fb <- array(0, dim=c(n+1, n+1, n.cell))
 Nt <- array(dim=c(n+1, n+1, n.cell, tmax))
-d <- vector("list", length=n.cell)
-B <- rpois(n.cell, n_i)
-B_1 <- nSd <- D <- p_est.i <- rep(NA, n.cell)
+d <- sdd.j <- vector("list", length=n.cell)
+B <- cbind(rpois(n.cell, n_i), matrix(0, nrow=n.cell, ncol=tmax))
+nSd <- D <- p_est.i <- matrix(nrow=n.cell, ncol=tmax)
+lam.t <- p_est.t <- matrix(nrow=n.cell, ncol=tmax-1)
 sdd <- array(0, dim=dim(sdd.pr) + c(0,0,1,0)) # add layer for nEmig
 sdd[,,1:2,] <- sdd.pr
 
 # set up environmental covariates
-n_sz <- length(p$s_z); n_sx <- length(p$s_x)
-n_gz <- length(p$g_z); n_gx <- length(p$g_x)
-n_flz <- length(p$fl_z); n_flx <- length(p$fl_x)
-n_seedz <- length(p$seed_z); n_seedx <- length(p$seed_x)
-X_s <- as.matrix(env.df[,1:n_sx])
-X_g <- as.matrix(env.df[,1:n_gx])
-X_fl <- as.matrix(env.df[,1:n_flx])
-X_seed <- as.matrix(env.df[,1:n_seedx])
+n_z <- list(s=length(p$s_z), g=length(p$g_z),
+            fl=length(p$fl_z), seed=length(p$seed_z))
+n_x <- list(s=length(p$s_x), g=length(p$g_x),
+            fl=length(p$fl_x), seed=length(p$seed_x))
+X <- list(s=as.matrix(env.df[,1:n_x$s]), g=as.matrix(env.df[,1:n_x$g]),
+          fl=as.matrix(env.df[,1:n_x$fl]), seed=as.matrix(env.df[,1:n_x$seed]))
 
 
 ########
 ## loop through cells
 ########
-# local growth
+
+#---- Truth: use assigned slopes to fill IPM matrix
+## local growth
 for(i in 1:n.cell) {
-  d[[i]] <- data.frame(size=runif(n=n_i[i], min=z.rng[1], max=z.rng[2]))
-  size.mx <- cbind(1, d[[i]]$size, d[[i]]$size^2, d[[i]]$size^3)
-  
-  #---- Truth: use assigned slopes to fill IPM matrix
-  ### growth and survival
-  G.mx <- h*outer(y, y, calc_grow, p=p, n_gz=n_gz, X.g=X_g[i,])
-  S.v <- calc_surv(y, p=p, n_sz=n_sz, X.s=X_s[i,])
-  ### Fix eviction of individuals below/above size limits
-  for(k in 1:(n/2)) G.mx[1,k] <- G.mx[1,k] + 1 - sum(G.mx[,k])
-  for(k in (n/2+1):n) G.mx[n,k] <- G.mx[n,k] + 1 - sum(G.mx[,k])
-  ### fill P and F matrices
-  for(k in z.i) Ps[k,z.i,i] <- G.mx[k-1,]*S.v
-  Ps[1,1,i] <- calc_staySB(p)
-  ### store seed production
-  Fb[z.i,z.i,i] <- outer(y, y, calc_rcrDir, p=p, n_seedz=n_seedz, n_flz=n_flz, 
-                         X.seed=X_seed[i,], X.fl=X_fl[i,]) *h * p$p_est
-  Fb[1,z.i,i] <- calc_addSB(y, p=p, n_seedz=n_seedz, n_flz=n_flz, 
-                            X.seed=X_seed[i,], X.fl=X_fl[i,]) * h
-  Fs[z.i,z.i,i] <- (1 - p$p_emig) * Fb[z.i,z.i,i]
-  Fs[1,z.i,i] <- (1 - p$p_emig) * Fb[1,z.i,i]
-  Fs[z.i,1,i] <- calc_rcrSB(y, p) * p$p_est
-  
-  #---- generate data
-  ## survival
-  E_surv <- antilogit(size.mx[,1:n_sz] %*% p$s_z + c(X_s[i,] %*% p$s_x))
-  d[[i]]$surv <- rbinom(n_i[i], 1, E_surv)
-  ## growth
-  E_grow <- size.mx[,1:n_gz] %*% p$g_z + c(X_g[i,] %*% p$g_x)
-  d[[i]]$sizeNext <- rnorm(n_i[i], E_grow, p$g_sig)
-  d[[i]]$sizeNext <- ifelse(d[[i]]$surv, d[[i]]$sizeNext, NA)
-  ## flowering 
-  E_fl <- antilogit(size.mx[,1:n_flz] %*% p$fl_z + c(X_fl[i,] %*% p$fl_x))
-  d[[i]]$fl <- rbinom(n_i[i], 1, E_fl)
-  ## seed production
-  E_seed <- d[[i]]$fl * 
-    exp(size.mx[,1:n_seedz] %*% p$seed_z + c(X_seed[i,] %*% p$seed_x))
-  d[[i]]$seed <- rpois(n_i[i], E_seed)
-  # d[[i]]$fl <- ifelse(d[[i]]$surv, d[[i]]$fl, NA)
-  d[[i]]$seed <- ifelse(d[[i]]$fl==1, d[[i]]$seed, NA)
-  nSd[i] <- sum(d[[i]]$seed, na.rm=T)
-  ## seed bank: native
-  B_1[i] <- B[i] * p$s_SB * (1 - p$rcr_SB) + 
-    nSd[i] * (1 - p$p_emig) * (1 - p$rcr_dir) * p$s_SB
-  ## recruits: native
-  p_est.i[i] <- ifelse(p$NDD, min(150/nSd[i], p$p_est), p$p_est)
-  rcr.n <- round(nSd[i] * (1 - p$p_emig) * p$rcr_dir * p_est.i[i] +
-                   B[i] * p$rcr_SB * p_est.i[i]) # ≥ 2 for IPMpack sd(rcr_z')
-  if(rcr.n > 0) {
-    rcr.i <- (1:rcr.n) + n_i[i]
-    d[[i]][rcr.i,] <- NA
-    d[[i]]$sizeNext[rcr.i] <- rnorm(rcr.n, p$rcr_z[1], p$rcr_z[2])
-  }
-  ## emigrants
-  sdd[,,3,i] <- nSd[i] * p$p_emig * sdd[,,1,i]
+  Ps[,,i] <- fill_P(h, y, z.i, n, p, n_z, n_x, X$s[i,], X$g[i,])
+  Fb[,,i] <- fill_F(h, y, z.i, n, p, n_z, n_x, X$fl[i,], X$seed[i,])
+  Fs[z.i,z.i,i] <- (1-p$p_emig) * Fb[z.i,z.i,i]
+  Fs[1,z.i,i] <- (1-p$p_emig) * Fb[1,z.i,i]
+  Fs[z.i,1,i] <- Fb[z.i,1,i]
 }
-# dispersal
+## dispersal & density dependence
 for(i in 1:n.cell) {
   sdd.i <- env.df$id[i] # full rectangle grid id for SDD indexes
-  
-  #---- Truth: add immigrants
-  sdd.j <- which(sdd[,,2,]==sdd.i, arr.ind=TRUE)
-  p.ij <- sdd[,,1,][sdd.j]
+  sdd.j[[i]] <- which(sdd[,,2,]==sdd.i, arr.ind=TRUE) # j cells with target i
+  p.ij <- sdd[,,1,][sdd.j[[i]]] # p(j to i | immigrant seed from j)
   Fs[z.i,z.i,i] <- Fs[z.i,z.i,i] + 
-    Reduce(`+`, map2(sdd.j[,3], p$p_emig*p.ij, ~(Fb[z.i,z.i,.x] * .y)))
-  Fs[1,z.i,i] <- Fs[1,z.i,i] + Fb[1,z.i,sdd.j[,3]] %*% (p$p_emig*p.ij)
-  
-  #---- generate data: add immigrants
-  # total immigrants
-  D[i] <- sum(sdd[,,3,][sdd.j])
-  # seed bank: immigrants
-  B_1[i] <- B_1[i] + D[i] * (1 - p$rcr_dir) * p$s_SB
-  # recruits: immigrants
-  rcr.imm <- round(D[i] * p$rcr_dir * p_est.i[i])
-  if(rcr.imm > 0) {
-    rcr.i <- (1:rcr.imm) + nrow(d[[i]])
-    d[[i]][rcr.i,] <- NA
-    d[[i]]$sizeNext[rcr.i] <- rnorm(rcr.imm, p$rcr_z[1], p$rcr_z[2])
-  }
-}
-# density dependence
-if(p$NDD) {
-  lam.t <- p_est.t <- matrix(nrow=tmax-1, ncol=n.cell)
-  for(i in 1:n.cell) {
-    Nt[,,i,1] <- rpois((n+1)*(n+1), n_i)
+    Reduce(`+`, map2(sdd.j[[i]][,3], p$p_emig*p.ij, ~(Fb[z.i,z.i,.x] * .y)))
+  Fs[1,z.i,i] <- Fs[1,z.i,i] + Fb[1,z.i,sdd.j[[i]][,3]] %*% (p$p_emig*p.ij)
+  if(p$NDD) {
+    Nt[,,i,1] <- rpois((n+1)*(n+1), n_i[i])
+    F.i <- F.t <- Fs[,,i]/p$p_est  # F.s[,,i] was already multiplied by p$p_est
     for(k in 1:(tmax-1)) {
-      F.t <- Fs[,,i]
-      # set p_est to density dependent value if that is < p$p_est
-      p_est.t[k,i] <- min(150/(sum(F.t[z.i,] * Nt[z.i,,i,k])/p$p_est), p$p_est)
-      # F.s[,,i] was already multiplied by p$p_est, so divide by that first
-      F.t[z.i,] <- F.t[z.i,]/p$p_est * p_est.t[k,i]
+      p_est.t[i,k] <- min(p$NDD_n/(sum(F.i[z.i,]*Nt[z.i,,i,k])), p$p_est)
+      F.t[z.i,] <- F.i[z.i,] * p_est.t[i,k]
       IPM.t <- Ps[,,i] + F.t
       Nt[,,i,k+1] <- IPM.t %*% Nt[,,i,k]
-      lam.t[k,i] <- Re(eigen(IPM.t)$values[1])
+      lam.t[i,k] <- Re(eigen(IPM.t)$values[1])
     }
   }
 }
 IPMs <- Ps + Fs
+
+#---- Realization: generate simulated data
+## local growth
+for(i in 1:n.cell) {
+  d[[i]] <- data.frame(yr=1, size=runif(n=n_i[i], min=z.rng[1], max=z.rng[2]))
+  E <- sim_expected(d[[i]], p, map(X, ~(.[i,])), n_z)
+  d[[i]] <- sim_realized(d[[i]], 1:nrow(d[[i]]), E, p, lo, hi)
+  nSd[i,1] <- sum(d[[i]]$seed, na.rm=T)
+  sdd[,,3,i] <- nSd[i,1] * p$p_emig * sdd[,,1,i]
+}
+## dispersal & density dependence
+for(i in 1:n.cell) {
+  D[i,1] <- sum(sdd[,,3,][sdd.j[[i]]])
+  p_est.i[i,1] <- ifelse(p$NDD, min(p$NDD_n/(nSd[i,1]+D[i,1]),p$p_est), p$p_est)
+  d[[i]] <- sim_recruits(d[[i]], p_est.i[i,1], nSd[i,1], B[i,1], D[i,1], p)
+  B[i,2] <- sim_seedbank(nSd[i,1], B[i,1], D[i,1], p)
+}
+## iterate forward
+for(k in 2:tmax) {
+  for(i in 1:n.cell) {
+    size.k <- d[[i]]$sizeNext[!is.na(d[[i]]$sizeNext) & d[[i]]$yr == k-1]
+    if(length(size.k) > 0) {
+      k.index <- (1:length(size.k)) + nrow(d[[i]])
+      d[[i]][k.index, "size"] <- size.k
+      d[[i]][k.index, "yr"] <- k
+      E <- sim_expected(d[[i]][k.index,], p, map(X, ~(.[i,])), n_z)
+      d[[i]] <- sim_realized(d[[i]], k.index, E, p, lo, hi)
+      nSd[i,k] <- sum(d[[i]]$seed[k.index], na.rm=T)
+    } else {
+      nSd[i,k] <- 0
+    }
+    sdd[,,3,i] <- nSd[i,k] * p$p_emig * sdd[,,1,i]
+  }
+  for(i in 1:n.cell) {
+    D[i,k] <- sum(sdd[,,3,][sdd.j[[i]]])
+    p_est.i[i,k] <- ifelse(p$NDD, min(p$NDD_n/(nSd[i,k]+D[i,k]),p$p_est), p$p_est)
+    d[[i]] <- sim_recruits(d[[i]], p_est.i[i,k], nSd[i,k], B[i,k], D[i,k], p)
+    B[i,k+1] <- sim_seedbank(nSd[i,k], B[i,k], D[i,k], p)
+  }
+}
+
+
 lam.df <- env.df
 lam.df$lambda <- apply(IPMs, 3, function(x) Re(eigen(x)$values[1]))
 lam.df %<>% 
-  add_column(nSd=nSd, B0=B, B1=B_1, D=D, N=map_dbl(d, ~sum(!is.na(.$sizeNext))),
-             N.surv=map_dbl(d, ~sum(.$surv, na.rm=T)),
-             N.rcr=map_dbl(d, ~sum(is.na(.$size)))) %>%
-  mutate(nSdStay=nSd*(1-p$p_emig), nSdLeave=nSd*p$p_emig) %>%
+  add_column(nSeed=nSd[,tmax], B0=B[,1], Btmax=B[,tmax+1], D=D[,tmax], 
+             N=map_dbl(d, ~sum(!is.na(.$sizeNext[.$yr==tmax]))),
+             N.surv=map_dbl(d, ~sum(.$surv[.$yr==tmax], na.rm=T)),
+             N.rcr=map_dbl(d, ~sum(is.na(.$size[.$yr==tmax])))) %>%
+  mutate(nSdStay=nSeed*(1-p$p_emig), nSdLeave=nSeed*p$p_emig) %>%
   add_column(Ntmax=apply(Nt[,,,tmax],3,sum), lam.tmax=lam.t[tmax-1,])
 
 ########
@@ -235,16 +210,23 @@ ggplot(lam.df, aes(x=lon, y=lat, fill=log(lambda))) + geom_tile() +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
 ggplot(lam.df, aes(x=lon, y=lat, fill=log(lam.tmax))) + geom_tile() +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
-ggplot(lam.df, aes(x=lon, y=lat, fill=log(Ntmax))) + geom_tile() +
+ggplot(lam.df, aes(x=lon, y=lat, fill=log(Ntmax)*(Ntmax>10))) + geom_tile() +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=1)
 ggplot(lam.df, aes(x=lon, y=lat, fill=lambda>1)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=lam.tmax>1)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=Ntmax>1)) + geom_tile() 
 ggplot(lam.df, aes(x=lon, y=lat, fill=Ntmax>1 & lam.tmax<1)) + geom_tile() 
-ggplot(lam.df, aes(x=lon, y=lat, fill=nSd)) + geom_tile()
+ggplot(lam.df, aes(x=lon, y=lat, fill=log(N))) + geom_tile() +
+  scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
+ggplot(lam.df, aes(x=lon, y=lat, fill=log(N.surv))) + geom_tile() +
+  scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
+ggplot(lam.df, aes(x=lon, y=lat, fill=log(N.rcr))) + geom_tile() +
+  scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
+ggplot(lam.df, aes(x=lon, y=lat, fill=nSeed)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=D)) + geom_tile()
+ggplot(lam.df, aes(x=lon, y=lat, fill=Btmax)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=D + nSdStay)) + geom_tile()
-ggplot(lam.df, aes(x=lon, y=lat, fill=B1>B0)) + geom_tile()
+ggplot(lam.df, aes(x=lon, y=lat, fill=Btmax>B0)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=nSdStay/D)) + geom_tile() +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=1)
 ggplot(lam.df, aes(x=lon, y=lat, fill=nSdStay > D)) + geom_tile()
@@ -253,7 +235,7 @@ ggplot(lam.df, aes(x=lon, y=lat, fill=nSdStay < D & lambda < 1)) +
 par(mfrow=c(2,2))
 plot(log(lambda) ~ temp, data=lam.df); abline(h=0, col="red", lty=2)
 plot(log(lambda) ~ prec, data=lam.df); abline(h=0, col="red", lty=2)
-plot(log(lambda) ~ pOth, data=lam.df); abline(h=0, col="red", lty=2)
+plot(log(lambda) ~ pOpn, data=lam.df); abline(h=0, col="red", lty=2)
 plot(density(log(lam.df$lambda))); abline(v=0, col="red", lty=2)
 
 sample.cells <- sample.int(n.cell, nPlots)
@@ -308,6 +290,14 @@ if(ipmPlots) {
                xlab="Size (t)", ylab="Size (t+1)")
   }
 }
+image.plot(x, x, t(apply(Ps, 1:2, mean)), main="P matrix: mean",
+           xlab="Size (t)", ylab="Size (t+1)")
+image.plot(x, x, t(apply(Fs, 1:2, mean)), main="F matrix: mean",
+           xlab="Size (t)", ylab="Size (t+1)")
+image.plot(x, x, sens(t(apply(IPMs, 1:2, mean))), main="Sensitivity: mean",
+           xlab="Size (t)", ylab="Size (t+1)")
+image.plot(x, x, elas(t(apply(IPMs, 1:2, mean))), main="Elasticity: mean",
+           xlab="Size (t)", ylab="Size (t+1)")
 ```
 
 ----
