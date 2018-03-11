@@ -24,23 +24,23 @@ lc.df <- read_csv("data/landcover_5km.csv") %>%
 ## Species description: Life history, characteristics, relevant attributes
 The simulated species is fully described here. The object `sp_i` is a list containing elements for the global parameters, relationships with environmental variables, and demographic matrices that are applicable or potentially applicable for that modeling strategy. Parameters are abbreviated with the associated kernel component (e.g., `s_*` for survival, `g_*` for growth, etc) and the type of covariate (`*_z` for size, `*_x` for environmental covariates).
 ```{r sp_i}
-mean_abund <- 100
-regPlots <- F
-ipmPlots <- F
+mean_abund <- 500
+regPlots <- T
+ipmPlots <- T
 nPlots <- 5
 z.rng <- c(1, 12)
-n <- 10  # ncells in IPM matrix
+n <- 50  # ncells in IPM matrix
 tmax <- 30
 cells <- 1:n_distinct(lc.df$CellID)
 n.cell <- length(cells)
 n_i <- rpois(n.cell, mean_abund)
-sp_i <- list(p=list(s_z=c(-1.75, .75), # b1 + b2*z
+sp_i <- list(p=list(s_z=c(-8, 2.1, -.09), # b1 + b2*z + b3*z^2
                     s_x=c(2, -.1, -2, -.1, 2, -2, -.4), # b1*x1 + ...
                     g_z=c(.2, 2, -0.1), # b1 + b2*z + b3*z^2
                     g_x=c(2, -.1, 2, -.1, 2, -2), #b1*x1 + ...
                     g_sig=1, # growth ~ N(E, g_sig)
                     fl_z=c(-1.5, .1, .1), # b1 + b2*z + b3*z^2
-                    fl_x=c(2, -.1, -2, -.1, 1, 1), # b1*x1 + ...
+                    fl_x=c(-2, -.1, -2, -.1, 1, 1), # b1*x1 + ...
                     seed_z=c(2, 0.5, -.03), # b1 + b2*z + b2*z^2
                     seed_x=c(1, -.1, -1, -.1, .2), # b1*x1 + ...
                     rcr_z=c(1.5, 0.4), # N(mean=rcrt1, sd=rcrt2)
@@ -103,7 +103,7 @@ IPMs <- Ps <- Fs <- Fb <- array(0, dim=c(n+1, n+1, n.cell))
 Nt <- array(dim=c(n+1, n+1, n.cell, tmax))
 d <- sdd.j <- vector("list", length=n.cell)
 B <- cbind(rpois(n.cell, n_i), matrix(0, nrow=n.cell, ncol=tmax))
-nSd <- D <- p_est.i <- matrix(nrow=n.cell, ncol=tmax)
+nSd <- D <- p_est.i <- N_sim <- matrix(0, nrow=n.cell, ncol=tmax)
 lam.t <- p_est.t <- matrix(nrow=n.cell, ncol=tmax-1)
 sdd <- array(0, dim=dim(sdd.pr) + c(0,0,1,0)) # add layer for nEmig
 sdd[,,1:2,] <- sdd.pr
@@ -161,6 +161,7 @@ for(i in 1:n.cell) {
   nSd[i,1] <- sum(d[[i]]$seed, na.rm=T)
   sdd[,,3,i] <- nSd[i,1] * p$p_emig * sdd[,,1,i]
 }
+N_sim[,1] <- n_i
 ## dispersal & density dependence
 for(i in 1:n.cell) {
   D[i,1] <- sum(sdd[,,3,][sdd.j[[i]]])
@@ -179,8 +180,7 @@ for(k in 2:tmax) {
       E <- sim_expected(d[[i]][k.index,], p, map(X, ~(.[i,])), n_z)
       d[[i]] <- sim_realized(d[[i]], k.index, E, p, lo, hi)
       nSd[i,k] <- sum(d[[i]]$seed[k.index], na.rm=T)
-    } else {
-      nSd[i,k] <- 0
+      N_sim[i,k] <- length(size.k)
     }
     sdd[,,3,i] <- nSd[i,k] * p$p_emig * sdd[,,1,i]
   }
@@ -201,7 +201,7 @@ lam.df %<>%
              N.surv=map_dbl(d, ~sum(.$surv[.$yr==tmax], na.rm=T)),
              N.rcr=map_dbl(d, ~sum(is.na(.$size[.$yr==tmax])))) %>%
   mutate(nSdStay=nSeed*(1-p$p_emig), nSdLeave=nSeed*p$p_emig) %>%
-  add_column(Ntmax=apply(Nt[,,,tmax],3,sum), lam.tmax=lam.t[tmax-1,])
+  add_column(Ntmax=apply(Nt[,,,tmax],3,sum), lam.tmax=lam.t[,tmax-1])
 
 ########
 ## plots
@@ -213,6 +213,7 @@ ggplot(lam.df, aes(x=lon, y=lat, fill=log(lam.tmax))) + geom_tile() +
 ggplot(lam.df, aes(x=lon, y=lat, fill=log(Ntmax)*(Ntmax>10))) + geom_tile() +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=1)
 ggplot(lam.df, aes(x=lon, y=lat, fill=lambda>1)) + geom_tile()
+ggplot(lam.df, aes(x=lon, y=lat, fill=N>1)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=lam.tmax>1)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=Ntmax>1)) + geom_tile() 
 ggplot(lam.df, aes(x=lon, y=lat, fill=Ntmax>1 & lam.tmax<1)) + geom_tile() 
@@ -224,8 +225,8 @@ ggplot(lam.df, aes(x=lon, y=lat, fill=log(N.rcr))) + geom_tile() +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
 ggplot(lam.df, aes(x=lon, y=lat, fill=nSeed)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=D)) + geom_tile()
-ggplot(lam.df, aes(x=lon, y=lat, fill=Btmax)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=D + nSdStay)) + geom_tile()
+ggplot(lam.df, aes(x=lon, y=lat, fill=Btmax)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=Btmax>B0)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=nSdStay/D)) + geom_tile() +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=1)
@@ -237,31 +238,37 @@ plot(log(lambda) ~ temp, data=lam.df); abline(h=0, col="red", lty=2)
 plot(log(lambda) ~ prec, data=lam.df); abline(h=0, col="red", lty=2)
 plot(log(lambda) ~ pOpn, data=lam.df); abline(h=0, col="red", lty=2)
 plot(density(log(lam.df$lambda))); abline(v=0, col="red", lty=2)
+matplot(t(log(lam.t)), type="l", lty=1, col=rgb(0,0,0,0.1))
+matplot(t(log(apply(Nt, 3:4, sum))), type="l", lty=1, col=rgb(0,0,0,0.1))
+matplot(t(N_sim[,2:tmax]/N_sim[,1:(tmax-1)]), type="l", lty=1, col=rgb(0,0,0,.1))
+matplot(t(log(N_sim+1)), type="l", lty=1, col=rgb(0,0,0,0.1))
+#matplot(t(log(nSd*(1-p$p_emig)+D)), type="l", lty=1, col=rgb(0,0,0,0.1))
 
-sample.cells <- sample.int(n.cell, nPlots)
+sample.cells <- sample((1:n.cell)[lam.df$N.surv>0], nPlots)
 if(regPlots) {
   par(mfrow=c(3,2), mar=c(4,4,2,1))
   xx <- tibble(size=seq(lo, hi, length.out=100), size2=size^2, size3=size^3)
   mx <- cbind(1, as.matrix(xx))
   xxx <- seq(0, hi*.5, length.out=100)
   for(i in sample.cells) {
-    z.t <- d[[i]][!is.na(d[[i]]$size),]; main.i <- paste("Cell", i)
+    z.t <- d[[i]][!is.na(d[[i]]$size) & d[[i]]$yr==tmax,]
+    main.i <- paste("Cell", i)
     w1 <- Re(eigen(IPMs[,,i])$vectors[,1])[-1]; stable.dist1 <- w1/sum(w1)
     rcrt.z <- d[[i]]$sizeNext[is.na(d[[i]]$size) & !is.na(d[[i]]$sizeNext)]
     plot(surv~size, data=z.t, ylim=c(0,1), pch=20, col=rgb(0,0,0,0.2),
          main=paste("Surv:", main.i), xlab="Size (t)", ylab="P(surv to t+1)")
-      lines(mx[,2], antilogit(mx[,1:n_sz]%*%p$s_z + c(X_s[i,]%*%p$s_x)), col=2)
+      lines(mx[,2], antilogit(mx[,1:n_z$s]%*%p$s_z + c(X$s[i,]%*%p$s_x)), col=2)
     plot(sizeNext~size, data=z.t, pch=20, col=rgb(0,0,0,0.2), 
          main=paste("Growth:", main.i), xlab="Size (t)", ylab="Size (t+1)")
-      lines(mx[,2], mx[,1:n_gz]%*%p$g_z + c(X_g[i,]%*%p$g_x), col=2)
+      lines(mx[,2], mx[,1:n_z$g]%*%p$g_z + c(X$g[i,]%*%p$g_x), col=2)
       abline(a=0, b=1, lty=2)
     plot(fl~size, data=z.t, pch=20, ylim=c(0,1), col=rgb(0,0,0,0.2),
          main=paste("P(Flower):", main.i), xlab="Size (t)", ylab="P(flower)")
-      lines(mx[,2], antilogit(mx[,1:n_flz]%*%p$fl_z + c(X_fl[i,]%*%p$fl_x)),
+      lines(mx[,2], antilogit(mx[,1:n_z$fl]%*%p$fl_z + c(X$fl[i,]%*%p$fl_x)),
             col=2)
     plot(seed~size, data=z.t, pch=23-z.t$fl*3, col=rgb(0,0,0,0.2), 
          main=paste("nSeeds:", main.i), xlab="Size (t)", ylab="Number of seeds")
-      lines(mx[,2], exp(mx[,1:n_seedz]%*%p$seed_z + c(X_seed[i,]%*%p$seed_x)),
+      lines(mx[,2], exp(mx[,1:n_z$seed]%*%p$seed_z + c(X$seed[i,]%*%p$seed_x)),
             col=2)
     plot(y, stable.dist1, ylab="", type="l", col=2, 
          main=paste("Stable size distribution:", main.i), xlab="Size (t)")
@@ -274,20 +281,21 @@ if(ipmPlots) {
   par(mfrow=c(2,2), mar=c(4,4,2,1))
   x <- c(0, y)
   for(i in sample.cells) {
-    z.t <- d[[i]][!is.na(d[[i]]$size),]; main.i <- paste("Cell", i)
-    z.t$y <- y[findInterval(z.t$size, y, all.inside=T)]
-    totSeeds <- group_by(z.t, y) %>% summarise(seed=sum(seed, na.rm=T))
-    image.plot(x, x, t(Ps[,,i]), main=paste("P matrix:", main.i), 
-               xlab="Size (t)", ylab="Size (t+1)")
-      points(sizeNext~size, data=z.t, pch=20, col=rgb(0,0,0,1/(n_i[i]^.25)))
-      abline(a=0, b=1, col="white", lty=2)
-    image.plot(x, x, t(Fs[,,i]), main=paste("F matrix:", main.i), 
-               xlab="Size (t)", ylab="Size (t+1)")
-      points(totSeeds$y, totSeeds$seed/max(totSeeds$seed)*hi*.9)
-    image.plot(x, x, t(sens(IPMs[,,i])), main=paste("Sensitivity:", main.i), 
-               xlab="Size (t)", ylab="Size (t+1)")
-    image.plot(x, x, t(elas(IPMs[,,i])), main=paste("Elasticity:", main.i),
-               xlab="Size (t)", ylab="Size (t+1)")
+   z.t <- d[[i]][!is.na(d[[i]]$size) & d[[i]]$yr==tmax,] 
+   main.i <- paste("Cell", i)
+   z.t$y <- y[findInterval(z.t$size, y, all.inside=T)]
+   totSeeds <- group_by(z.t, y) %>% summarise(seed=sum(seed, na.rm=T))
+   image.plot(x, x, t(Ps[,,i]), main=paste("P matrix:", main.i), 
+              xlab="Size (t)", ylab="Size (t+1)")
+    points(sizeNext~size, data=z.t, pch=20, col=rgb(0,0,0,1/(n_i[i]^.25)))
+    abline(a=0, b=1, col="white", lty=2)
+   image.plot(x, x, t(Fs[,,i]), main=paste("F matrix:", main.i), 
+              xlab="Size (t)", ylab="Size (t+1)")
+    points(totSeeds$y, totSeeds$seed/max(totSeeds$seed)*hi*.9)
+   image.plot(x, x, t(sens(IPMs[,,i])), main=paste("Sensitivity:", main.i), 
+              xlab="Size (t)", ylab="Size (t+1)")
+   image.plot(x, x, t(elas(IPMs[,,i])), main=paste("Elasticity:", main.i),
+              xlab="Size (t)", ylab="Size (t+1)")
   }
 }
 image.plot(x, x, t(apply(Ps, 1:2, mean)), main="P matrix: mean",
