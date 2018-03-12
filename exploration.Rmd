@@ -450,15 +450,15 @@ IPM.fit.sum <- lam.df %>%
             mnNDiff=mean(N.S.f-N.S),
             mdNDiff=median(N.S.f-N.S),
             sdNDiff=sd(N.S.f-N.S),
-            pctNCorr=mean((N.S>1 & N.S.f>1) | (N.S<1 & N.S.f<1)),
+            pctNCorr=mean((N.S>0 & N.S.f>0) | (N.S<0 & N.S.f<0)),
             mnSurvDiff=mean(Surv.S.f-Surv.S),
             mdSurvDiff=median(Surv.S.f-Surv.S),
             sdSurvDiff=sd(Surv.S.f-Surv.S),
-            pctSurvCorr=mean((Surv.S>1 & Surv.S.f>1) | (Surv.S<1 & Surv.S.f<1)),
+            pctSurvCorr=mean((Surv.S>0 & Surv.S.f>0) | (Surv.S<0 & Surv.S.f<0)),
             mnRcrDiff=mean(Rcr.S.f-Rcr.S),
             mdRcrDiff=median(Rcr.S.f-Rcr.S),
             sdRcrDiff=sd(Rcr.S.f-Rcr.S),
-            pctRcrCorr=mean((Rcr.S>1 & Rcr.S.f>1) | (Rcr.S<1 & Rcr.S.f<1)))
+            pctRcrCorr=mean((Rcr.S>0 & Rcr.S.f>0) | (Rcr.S<0 & Rcr.S.f<0)))
 ```
 
 
