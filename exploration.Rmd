@@ -96,19 +96,10 @@ rm(env.rct)
 ########
 ## set up
 ########
-# set up storage & IPM matrix objects
+# set up storage objects & environmental covariates
 p <- sp_i$p
-setup_IPM_matrix(n, z.rng, buffer=0.5, discrete=1)
-IPMs <- Ps <- Fs <- Fb <- array(0, dim=c(n+1, n+1, n.cell))
-Nt <- array(dim=c(n+1, n+1, n.cell, tmax))
-d <- E <- sdd.j <- vector("list", length=n.cell)
-B <- cbind(rpois(n.cell, n_i), matrix(0, nrow=n.cell, ncol=tmax))
-nSd <- D <- p_est.i <- N_sim <- matrix(0, nrow=n.cell, ncol=tmax)
-lam.t <- p_est.t <- matrix(nrow=n.cell, ncol=tmax-1)
 sdd <- array(0, dim=dim(sdd.pr) + c(0,0,1,0)) # add layer for nEmig
 sdd[,,1:2,] <- sdd.pr
-
-# set up environmental covariates
 n_z <- list(s=length(p$s_z), g=length(p$g_z),
             fl=length(p$fl_z), seed=length(p$seed_z))
 n_x <- list(s=length(p$s_x), g=length(p$g_x),
@@ -116,120 +107,56 @@ n_x <- list(s=length(p$s_x), g=length(p$g_x),
 X <- list(s=as.matrix(env.df[,1:n_x$s]), g=as.matrix(env.df[,1:n_x$g]),
           fl=as.matrix(env.df[,1:n_x$fl]), seed=as.matrix(env.df[,1:n_x$seed]))
 
-
 ########
-## loop through cells
+## generate underlying IPM and simulated data
 ########
 
 #---- Truth: use assigned slopes to fill IPM matrix
-## local growth
-for(i in 1:n.cell) {
-  Ps[,,i] <- fill_P(h, y, z.i, n, p, n_z, n_x, X$s[i,], X$g[i,])
-  Fb[,,i] <- fill_F(h, y, z.i, n, p, n_z, n_x, X$fl[i,], X$seed[i,])
-  Fs[z.i,z.i,i] <- (1-p$p_emig) * Fb[z.i,z.i,i]
-  Fs[1,z.i,i] <- (1-p$p_emig) * Fb[1,z.i,i]
-  Fs[z.i,1,i] <- Fb[z.i,1,i]
-}
-## dispersal & density dependence
-for(i in 1:n.cell) {
-  sdd.i <- env.df$id[i] # full rectangle grid id for SDD indexes
-  sdd.j[[i]] <- which(sdd[,,2,]==sdd.i, arr.ind=TRUE) # j cells with target i
-  p.ij <- sdd[,,1,][sdd.j[[i]]] # p(j to i | immigrant seed from j)
-  Fs[z.i,z.i,i] <- Fs[z.i,z.i,i] + 
-    Reduce(`+`, map2(sdd.j[[i]][,3], p$p_emig*p.ij, ~(Fb[z.i,z.i,.x] * .y)))
-  Fs[1,z.i,i] <- Fs[1,z.i,i] + Fb[1,z.i,sdd.j[[i]][,3]] %*% (p$p_emig*p.ij)
-  if(p$NDD) {
-    Nt[,,i,1] <- rpois((n+1)*(n+1), n_i[i])
-    F.i <- F.t <- Fs[,,i]/p$p_est  # F.s[,,i] was already multiplied by p$p_est
-    for(k in 1:(tmax-1)) {
-      p_est.t[i,k] <- min(p$NDD_n/(sum(F.i[z.i,]*Nt[z.i,,i,k])), p$p_est)
-      F.t[z.i,] <- F.i[z.i,] * p_est.t[i,k]
-      IPM.t <- Ps[,,i] + F.t
-      Nt[,,i,k+1] <- IPM.t %*% Nt[,,i,k]
-      lam.t[i,k] <- Re(eigen(IPM.t)$values[1])
-    }
-  }
-}
-IPMs <- Ps + Fs
+U <- fill_IPM_matrices(n.cell, tmax, n_i, n, z.rng, buffer=0.5, discrete=1,
+                       p, n_z, n_x, X, sdd.pr, env.df)
 
 #---- Realization: generate simulated data
-## local growth
-for(i in 1:n.cell) {
-  d[[i]] <- data.frame(yr=1, size=runif(n=n_i[i], min=z.rng[1], max=z.rng[2]))
-  E[[i]] <- sim_expected(d[[i]], p, map(X, ~(.[i,])), n_z)
-  d[[i]] <- sim_realized(d[[i]], 1:nrow(d[[i]]), E[[i]], p, lo, hi)
-  nSd[i,1] <- sum(d[[i]]$seed, na.rm=T)
-  sdd[,,3,i] <- nSd[i,1] * p$p_emig * sdd[,,1,i]
-}
-N_sim[,1] <- n_i
-## dispersal & density dependence
-for(i in 1:n.cell) {
-  D[i,1] <- sum(sdd[,,3,][sdd.j[[i]]])
-  p_est.i[i,1] <- ifelse(p$NDD, min(p$NDD_n/(nSd[i,1]+D[i,1]),p$p_est), p$p_est)
-  d[[i]] <- sim_recruits(d[[i]], p_est.i[i,1], nSd[i,1], B[i,1], D[i,1], p)
-  B[i,2] <- sim_seedbank(nSd[i,1], B[i,1], D[i,1], p)
-}
-## iterate forward
-for(k in 2:tmax) {
-  for(i in 1:n.cell) {
-    size.k <- d[[i]]$sizeNext[!is.na(d[[i]]$sizeNext) & d[[i]]$yr == k-1]
-    if(length(size.k) > 0) {
-      k.index <- (1:length(size.k)) + nrow(d[[i]])
-      d[[i]][k.index, "size"] <- size.k
-      d[[i]][k.index, "yr"] <- k
-      E <- sim_expected(d[[i]][k.index,], p, map(X, ~(.[i,])), n_z)
-      d[[i]] <- sim_realized(d[[i]], k.index, E, p, lo, hi)
-      nSd[i,k] <- sum(d[[i]]$seed[k.index], na.rm=T)
-      N_sim[i,k] <- length(size.k)
-    }
-    sdd[,,3,i] <- nSd[i,k] * p$p_emig * sdd[,,1,i]
-  }
-  for(i in 1:n.cell) {
-    D[i,k] <- sum(sdd[,,3,][sdd.j[[i]]])
-    p_est.i[i,k] <- ifelse(p$NDD, min(p$NDD_n/(nSd[i,k]+D[i,k]),p$p_est), p$p_est)
-    d[[i]] <- sim_recruits(d[[i]], p_est.i[i,k], nSd[i,k], B[i,k], D[i,k], p)
-    B[i,k+1] <- sim_seedbank(nSd[i,k], B[i,k], D[i,k], p)
-  }
-}
+S <- simulate_data(n.cell, tmax, n_i, z.rng, U$lo, U$hi, 
+                   p, X, n_z, sdd, U$sdd.j)
 
-
+#---- Aggregate results
 lam.df <- env.df
-lam.df$lambda <- apply(IPMs, 3, function(x) Re(eigen(x)$values[1]))
+lam.df$lambda <- apply(U$IPMs, 3, function(x) Re(eigen(x)$values[1]))
 lam.df %<>% 
-  add_column(nSeed=nSd[,tmax], B0=B[,1], Btmax=B[,tmax+1], D=D[,tmax], 
-             N=map_dbl(d, ~sum(!is.na(.$sizeNext[.$yr==tmax]))),
-             N.surv=map_dbl(d, ~sum(.$surv[.$yr==tmax], na.rm=T)),
-             N.rcr=map_dbl(d, ~sum(is.na(.$size[.$yr==tmax])))) %>%
+  add_column(nSeed=S$nSd[,tmax], D=S$D[,tmax], 
+             B0=S$B[,1], Btmax=S$B[,tmax+1], 
+             N.S=map_dbl(S$d, ~sum(!is.na(.$sizeNext[.$yr==tmax]))),
+             Surv.S=map_dbl(S$d, ~sum(.$surv[.$yr==tmax], na.rm=T)),
+             Rcr.S=map_dbl(S$d, ~sum(is.na(.$size[.$yr==tmax])))) %>%
   mutate(nSdStay=nSeed*(1-p$p_emig), nSdLeave=nSeed*p$p_emig) %>%
-  add_column(Ntmax=apply(Nt[,,,tmax],3,sum), lam.tmax=lam.t[,tmax-1])
+  add_column(N.U=apply(U$Nt[,,,tmax],3,sum), lam.U=U$lam.t[,tmax-1])
 
 ########
 ## plots
 ########
 ggplot(lam.df, aes(x=lon, y=lat, fill=log(lambda))) + geom_tile() +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
-ggplot(lam.df, aes(x=lon, y=lat, fill=log(lam.tmax))) + geom_tile() +
+ggplot(lam.df, aes(x=lon, y=lat, fill=log(lam.U))) + geom_tile() +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
-ggplot(lam.df, aes(x=lon, y=lat, fill=log(Ntmax)*(Ntmax>10))) + geom_tile() +
+ggplot(lam.df, aes(x=lon, y=lat, fill=log(N.U)*(N.U>10))) + geom_tile() +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=1)
 ggplot(lam.df, aes(x=lon, y=lat, fill=lambda>1)) + geom_tile()
-ggplot(lam.df, aes(x=lon, y=lat, fill=N>1)) + geom_tile()
-ggplot(lam.df, aes(x=lon, y=lat, fill=lam.tmax>1)) + geom_tile()
-ggplot(lam.df, aes(x=lon, y=lat, fill=Ntmax>1)) + geom_tile() 
-ggplot(lam.df, aes(x=lon, y=lat, fill=Ntmax>1 & lam.tmax<1)) + geom_tile() 
-ggplot(lam.df, aes(x=lon, y=lat, fill=log(N))) + geom_tile() +
+ggplot(lam.df, aes(x=lon, y=lat, fill=N.S>1)) + geom_tile()
+ggplot(lam.df, aes(x=lon, y=lat, fill=lam.U>1)) + geom_tile()
+ggplot(lam.df, aes(x=lon, y=lat, fill=N.U>1)) + geom_tile() 
+ggplot(lam.df, aes(x=lon, y=lat, fill=N.U>1 & lam.U<1)) + geom_tile() 
+ggplot(lam.df, aes(x=lon, y=lat, fill=N.S>1 & lambda<1)) + geom_tile()
+ggplot(lam.df, aes(x=lon, y=lat, fill=log(N.S))) + geom_tile() +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
-ggplot(lam.df, aes(x=lon, y=lat, fill=log(N.surv))) + geom_tile() +
+ggplot(lam.df, aes(x=lon, y=lat, fill=log(Surv.S))) + geom_tile() +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
-ggplot(lam.df, aes(x=lon, y=lat, fill=log(N.rcr))) + geom_tile() +
+ggplot(lam.df, aes(x=lon, y=lat, fill=log(Rcr.S))) + geom_tile() +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
 ggplot(lam.df, aes(x=lon, y=lat, fill=nSeed)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=D)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=D + nSdStay)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=Btmax)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=Btmax>B0)) + geom_tile()
-ggplot(lam.df, aes(x=lon, y=lat, fill=nSdStay/D)) + geom_tile() +
-  scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=1)
 ggplot(lam.df, aes(x=lon, y=lat, fill=nSdStay > D)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=nSdStay < D & lambda < 1)) +
   geom_tile()
@@ -238,75 +165,74 @@ plot(log(lambda) ~ temp, data=lam.df); abline(h=0, col="red", lty=2)
 plot(log(lambda) ~ prec, data=lam.df); abline(h=0, col="red", lty=2)
 plot(log(lambda) ~ pOpn, data=lam.df); abline(h=0, col="red", lty=2)
 plot(density(log(lam.df$lambda))); abline(v=0, col="red", lty=2)
-matplot(t(log(lam.t)), type="l", lty=1, col=rgb(0,0,0,0.1))
-matplot(t(log(apply(Nt, 3:4, sum))), type="l", lty=1, col=rgb(0,0,0,0.1))
-matplot(t(N_sim[,2:tmax]/N_sim[,1:(tmax-1)]), type="l", lty=1, col=rgb(0,0,0,.1))
-matplot(t(log(N_sim+1)), type="l", lty=1, col=rgb(0,0,0,0.1))
+matplot(t(log(U$lam.t)), type="l", lty=1, col=rgb(0,0,0,0.1))
+matplot(t(log(apply(U$Nt, 3:4, sum))), type="l", lty=1, col=rgb(0,0,0,0.1))
+matplot(t(S$N_sim[,2:tmax]/S$N_sim[,1:(tmax-1)]), 
+        type="l", lty=1, col=rgb(0,0,0,.1))
+matplot(t(log(S$N_sim+1)), type="l", lty=1, col=rgb(0,0,0,0.1))
 #matplot(t(log(nSd*(1-p$p_emig)+D)), type="l", lty=1, col=rgb(0,0,0,0.1))
 
-sample.cells <- sample((1:n.cell)[lam.df$N.surv>0], nPlots)
+sample.cells <- sample((1:n.cell)[lam.df$Surv.S>0], nPlots)
 if(regPlots) {
   par(mfrow=c(3,2), mar=c(4,4,2,1))
-  xx <- tibble(size=seq(lo, hi, length.out=100), size2=size^2, size3=size^3)
-  mx <- cbind(1, as.matrix(xx))
-  xxx <- seq(0, hi*.5, length.out=100)
+  xx <- tibble(size=seq(U$lo, U$hi, length.out=100), size2=size^2, size3=size^3)
+  E.t <- xx %>% add_column(s=NA, g=NA, fl=NA, seed=NA)
+  xxx <- seq(0, U$hi*.5, length.out=100)
   for(i in sample.cells) {
-    z.t <- d[[i]][!is.na(d[[i]]$size) & d[[i]]$yr==tmax,]
+    z.t <- S$d[[i]][!is.na(S$d[[i]]$size) & S$d[[i]]$yr==tmax,]
+    E.t <- sim_expected(E.t, 1:100, 1:100, E.t, p, map(X, ~.[i,]), n_z)
     main.i <- paste("Cell", i)
-    w1 <- Re(eigen(IPMs[,,i])$vectors[,1])[-1]; stable.dist1 <- w1/sum(w1)
-    rcrt.z <- d[[i]]$sizeNext[is.na(d[[i]]$size) & !is.na(d[[i]]$sizeNext)]
+    w1 <- Re(eigen(U$IPMs[,,i])$vectors[,1])[-1]; stable.dist1 <- w1/sum(w1)
     plot(surv~size, data=z.t, ylim=c(0,1), pch=20, col=rgb(0,0,0,0.2),
          main=paste("Surv:", main.i), xlab="Size (t)", ylab="P(surv to t+1)")
-      lines(mx[,2], antilogit(mx[,1:n_z$s]%*%p$s_z + c(X$s[i,]%*%p$s_x)), col=2)
-    plot(sizeNext~size, data=z.t, pch=20, col=rgb(0,0,0,0.2), ylim=c(lo,hi),
+      lines(E.t$size, E.t$s, col=2)
+    plot(sizeNext~size, data=z.t, pch=20, col=rgb(0,0,0,0.2), ylim=c(U$lo,U$hi),
          main=paste("Growth:", main.i), xlab="Size (t)", ylab="Size (t+1)")
-      lines(mx[,2], mx[,1:n_z$g]%*%p$g_z + c(X$g[i,]%*%p$g_x), col=2)
+      lines(E.t$size, E.t$g, col=2)
       abline(a=0, b=1, lty=2)
     plot(fl~size, data=z.t, pch=20, ylim=c(0,1), col=rgb(0,0,0,0.2),
          main=paste("P(Flower):", main.i), xlab="Size (t)", ylab="P(flower)")
-      lines(mx[,2], antilogit(mx[,1:n_z$fl]%*%p$fl_z + c(X$fl[i,]%*%p$fl_x)),
-            col=2)
+      lines(E.t$size, E.t$fl, col=2)
     plot(seed~size, data=z.t, pch=23-z.t$fl*3, col=rgb(0,0,0,0.2), 
-         ylim=range(c(exp(mx[,1:n_z$seed]%*%p$seed_z + c(X$seed[i,]%*%p$seed_x)),
-                      z.t$seed), na.rm=TRUE),
+         ylim=range(c(E.t$seed, z.t$seed), na.rm=TRUE),
          main=paste("nSeeds:", main.i), xlab="Size (t)", ylab="Number of seeds")
-      lines(mx[,2], exp(mx[,1:n_z$seed]%*%p$seed_z + c(X$seed[i,]%*%p$seed_x)),
-            col=2)
-    plot(y, stable.dist1, ylab="", type="l", col=2, 
+      lines(E.t$size, E.t$seed, col=2)
+    plot(U$y, stable.dist1, ylab="", type="l", col=2, 
          main=paste("Stable size distribution:", main.i), xlab="Size (t)")
-    hist(d[[i]]$sizeNext[is.na(d[[i]]$size)], col="grey", freq=F, 
+    hist(with(S$d[[i]], sizeNext[is.na(size)]), col="grey", freq=F, 
          main=paste("Recruit sizes:", main.i), xlab="Recruit size (t+1)")
-      lines(xxx, dnorm(xxx, p$rcr_z[1], p$rcr_z[2]), col="red", lwd=2)
+      lines(xxx, dnorm(xxx, p$rcr_z[1], p$rcr_z[2]), col="red")
   }
 }
 if(ipmPlots) {
   par(mfrow=c(2,2), mar=c(4,4,2,1))
-  x <- c(0, y)
+  x <- c(0, U$y)
   for(i in sample.cells) {
-   z.t <- d[[i]][!is.na(d[[i]]$size) & d[[i]]$yr==tmax,] 
+   z.t <- S$d[[i]][!is.na(S$d[[i]]$size) & S$d[[i]]$yr==tmax,]
    main.i <- paste("Cell", i)
-   z.t$y <- y[findInterval(z.t$size, y, all.inside=T)]
+   z.t$y <- U$y[findInterval(z.t$size, U$y, all.inside=T)]
    totSeeds <- group_by(z.t, y) %>% summarise(seed=sum(seed, na.rm=T))
-   image.plot(x, x, t(Ps[,,i]), main=paste("P matrix:", main.i), 
+   image.plot(x, x, t(U$Ps[,,i]), main=paste("P matrix:", main.i), 
               xlab="Size (t)", ylab="Size (t+1)")
-    points(sizeNext~size, data=z.t, pch=20, col=rgb(0,0,0,1/(n_i[i]^.25)))
+    points(sizeNext~size, data=z.t, col=rgb(1,1,1,1/(nrow(z.t)^.25)))
     abline(a=0, b=1, col="white", lty=2)
-   image.plot(x, x, t(Fs[,,i]), main=paste("F matrix:", main.i), 
+   image.plot(x, x, t(U$Fs[,,i]), main=paste("F matrix:", main.i), 
               xlab="Size (t)", ylab="Size (t+1)")
-    points(totSeeds$y, totSeeds$seed/max(totSeeds$seed)*hi*.9)
-   image.plot(x, x, t(sens(IPMs[,,i])), main=paste("Sensitivity:", main.i), 
+    points(totSeeds$y, totSeeds$seed/max(totSeeds$seed)*U$hi*.9, col="white")
+   image.plot(x, x, t(sens(U$IPMs[,,i])), main=paste("Sensitivity:", main.i), 
               xlab="Size (t)", ylab="Size (t+1)")
-   image.plot(x, x, t(elas(IPMs[,,i])), main=paste("Elasticity:", main.i),
+   image.plot(x, x, t(elas(U$IPMs[,,i])), main=paste("Elasticity:", main.i),
               xlab="Size (t)", ylab="Size (t+1)")
+   points(sizeNext~size, data=z.t, col=rgb(1,1,1,1/(nrow(z.t)^.25)))
   }
 }
-image.plot(x, x, t(apply(Ps, 1:2, mean)), main="P matrix: mean",
+image.plot(x, x, t(apply(U$Ps, 1:2, mean)), main="P matrix: mean",
            xlab="Size (t)", ylab="Size (t+1)")
-image.plot(x, x, t(apply(Fs, 1:2, mean)), main="F matrix: mean",
+image.plot(x, x, t(apply(U$Fs, 1:2, mean)), main="F matrix: mean",
            xlab="Size (t)", ylab="Size (t+1)")
-image.plot(x, x, sens(t(apply(IPMs, 1:2, mean))), main="Sensitivity: mean",
+image.plot(x, x, sens(t(apply(U$IPMs, 1:2, mean))), main="Sensitivity: mean",
            xlab="Size (t)", ylab="Size (t+1)")
-image.plot(x, x, elas(t(apply(IPMs, 1:2, mean))), main="Elasticity: mean",
+image.plot(x, x, elas(t(apply(U$IPMs, 1:2, mean))), main="Elasticity: mean",
            xlab="Size (t)", ylab="Size (t+1)")
 ```
 
@@ -317,7 +243,7 @@ The simulated species *S* is sampled appropriately in order to fit each SDM mode
 ```{r O_setup}
 O_n <- list(Mx=500, CA=20, IPM=20) # number of cells in sample
 O_yr <- list(Mx=tmax, CA=(tmax-10):tmax, IPM=tmax) # years to sample from
-P.i <- which(lam.df$N.surv > 0) # presences: surviving individuals > seedlings
+P.i <- which(lam.df$Surv.S > 0) # presences: surviving individuals > seedlings
 ```
 
 ### Correlative: MaxEnt
@@ -340,7 +266,7 @@ ggplot(lam.df, aes(x=lon, y=lat, fill=MxCorrect)) + geom_tile()
 IPM.P <- sample(P.i, O_n$IPM, replace=FALSE)
 IPM.d <- vector("list", O_n$IPM)
 for(i in IPM.P) {
-  IPM.d[[i]] <- d[[i]] %>% filter(yr %in% O_yr$IPM) %>%
+  IPM.d[[i]] <- S$d[[i]] %>% filter(yr %in% O_yr$IPM) %>%
     add_column(id.inbd=i) %>%
     full_join(env.df[i,], by="id.inbd")
 }
@@ -387,217 +313,133 @@ p.ipm$seed_x <- coef(seed.m)[(1:length(p.ipm$seed_x)) + length(p.ipm$seed_z)]
 p.ipm$rcr_z <- c(mean(IPM.d[is.na(IPM.d$size), "sizeNext"]),
                  sd(IPM.d[is.na(IPM.d$size), "sizeNext"]))
 
-setup_IPM_matrix(n, z.rng, buffer=0.5, discrete=1)
-IPMs.f <- Ps.f <- Fs.f <- Fb.f <- array(0, dim=c(n+1, n+1, n.cell))
-Nt.f <- array(dim=c(n+1, n+1, n.cell, tmax))
-d.f <- E.f <- sdd.j <- vector("list", length=n.cell)
-B.f <- cbind(rpois(n.cell, n_i), matrix(0, nrow=n.cell, ncol=tmax))
-nSd.f <- D.f <- p_est.i.f <- N_sim.f <- matrix(0, nrow=n.cell, ncol=tmax)
-lam.t.f <- p_est.t.f <- matrix(nrow=n.cell, ncol=tmax-1)
-sdd.f <- array(0, dim=dim(sdd.pr) + c(0,0,1,0)) # add layer for nEmig
-sdd.f[,,1:2,] <- sdd.pr
-
-# set up environmental covariates
-n_z.f <- list(s=length(p.ipm$s_z), g=length(p.ipm$g_z),
+n_z <- list(s=length(p.ipm$s_z), g=length(p.ipm$g_z),
             fl=length(p.ipm$fl_z), seed=length(p.ipm$seed_z))
-n_x.f <- list(s=length(p.ipm$s_x), g=length(p.ipm$g_x),
+n_x <- list(s=length(p.ipm$s_x), g=length(p.ipm$g_x),
             fl=length(p.ipm$fl_x), seed=length(p.ipm$seed_x))
-X.f <- list(s=as.matrix(env.df[,1:n_x.f$s]), g=as.matrix(env.df[,1:n_x.f$g]),
-          fl=as.matrix(env.df[,1:n_x.f$fl]), seed=as.matrix(env.df[,1:n_x.f$seed]))
-
+X <- list(s=as.matrix(env.df[,1:n_x$s]), g=as.matrix(env.df[,1:n_x$g]),
+          fl=as.matrix(env.df[,1:n_x$fl]), seed=as.matrix(env.df[,1:n_x$seed]))
 
 ########
-## loop through cells
+## predict distribution with fit models
 ########
-
 #---- Truth: use assigned slopes to fill IPM matrix
-## local growth
-for(i in 1:n.cell) {
-  Ps.f[,,i] <- fill_P(h, y, z.i, n, p.ipm, n_z.f, n_x.f, X.f$s[i,], X.f$g[i,])
-  Fb.f[,,i] <- fill_F(h, y, z.i, n, p.ipm, n_z.f, n_x.f, X.f$fl[i,], X.f$seed[i,])
-  Fs.f[z.i,z.i,i] <- (1-p.ipm$p_emig) * Fb.f[z.i,z.i,i]
-  Fs.f[1,z.i,i] <- (1-p.ipm$p_emig) * Fb.f[1,z.i,i]
-  Fs.f[z.i,1,i] <- Fb.f[z.i,1,i]
-}
-## dispersal & density dependence
-for(i in 1:n.cell) {
-  sdd.i <- env.df$id[i] # full rectangle grid id for SDD indexes
-  sdd.j[[i]] <- which(sdd.f[,,2,]==sdd.i, arr.ind=TRUE) # j cells with target i
-  p.ij <- sdd.f[,,1,][sdd.j[[i]]] # p(j to i | immigrant seed from j)
-  Fs.f[z.i,z.i,i] <- Fs.f[z.i,z.i,i] + 
-    Reduce(`+`, map2(sdd.j[[i]][,3], p.ipm$p_emig*p.ij, ~(Fb.f[z.i,z.i,.x] * .y)))
-  Fs.f[1,z.i,i] <- Fs.f[1,z.i,i] + Fb.f[1,z.i,sdd.j[[i]][,3]] %*% (p.ipm$p_emig*p.ij)
-  if(p.ipm$NDD) {
-    Nt.f[,,i,1] <- rpois((n+1)*(n+1), n_i[i])
-    F.i.f <- F.t.f <- Fs.f[,,i]/p.ipm$p_est  
-    for(k in 1:(tmax-1)) {
-      p_est.t.f[i,k] <- min(p.ipm$NDD_n/(sum(F.i.f[z.i,]*Nt.f[z.i,,i,k])), p.ipm$p_est)
-      F.t.f[z.i,] <- F.i.f[z.i,] * p_est.t[i,k]
-      IPM.t.f <- Ps.f[,,i] + F.t.f
-      Nt.f[,,i,k+1] <- IPM.t.f %*% Nt.f[,,i,k]
-      lam.t.f[i,k] <- Re(eigen(IPM.t.f)$values[1])
-    }
-  }
-}
-IPMs.f <- Ps.f + Fs.f
+U.f <- fill_IPM_matrices(n.cell, tmax, n_i, n, z.rng, buffer=0.5, discrete=1,
+                         p.ipm, n_z, n_x, X, sdd, env.df)
 
 #---- Realization: generate simulated data
-## local growth
-for(i in 1:n.cell) {
-  d.f[[i]] <- data.frame(yr=1, size=runif(n=n_i[i], min=z.rng[1], max=z.rng[2]))
-  E.f[[i]] <- sim_expected(d.f[[i]], p.ipm, map(X.f, ~(.[i,])), n_z)
-  d.f[[i]] <- sim_realized(d.f[[i]], 1:nrow(d.f[[i]]), E.f[[i]], p.ipm, lo, hi)
-  nSd.f[i,1] <- sum(d.f[[i]]$seed, na.rm=T)
-  sdd.f[,,3,i] <- nSd.f[i,1] * p.ipm$p_emig * sdd.f[,,1,i]
-}
-N_sim.f[,1] <- n_i
-## dispersal & density dependence
-for(i in 1:n.cell) {
-  D.f[i,1] <- sum(sdd.f[,,3,][sdd.j[[i]]])
-  p_est.i.f[i,1] <- ifelse(p.ipm$NDD, min(p.ipm$NDD_n/(nSd.f[i,1]+D.f[i,1]), 
-                                          p.ipm$p_est), p.ipm$p_est)
-  d.f[[i]] <- sim_recruits(d.f[[i]], p_est.i[i,1], nSd.f[i,1], B.f[i,1], D.f[i,1], p.ipm)
-  B.f[i,2] <- sim_seedbank(nSd.f[i,1], B.f[i,1], D.f[i,1], p.ipm)
-}
-## iterate forward
-for(k in 2:tmax) {
-  for(i in 1:n.cell) {
-    size.k <- d.f[[i]]$sizeNext[!is.na(d.f[[i]]$sizeNext) & d.f[[i]]$yr == k-1]
-    if(length(size.k) > 0) {
-      k.index <- (1:length(size.k)) + nrow(d.f[[i]])
-      d.f[[i]][k.index, "size"] <- size.k
-      d.f[[i]][k.index, "yr"] <- k
-      E.f <- sim_expected(d.f[[i]][k.index,], p, map(X, ~(.[i,])), n_z)
-      d.f[[i]] <- sim_realized(d.f[[i]], k.index, E.f, p.ipm, lo, hi)
-      nSd.f[i,k] <- sum(d.f[[i]]$seed[k.index], na.rm=T)
-      N_sim.f[i,k] <- length(size.k)
-    }
-    sdd.f[,,3,i] <- nSd.f[i,k] * p.ipm$p_emig * sdd.f[,,1,i]
-  }
-  for(i in 1:n.cell) {
-    D.f[i,k] <- sum(sdd.f[,,3,][sdd.j[[i]]])
-    p_est.i.f[i,k] <- ifelse(p.ipm$NDD, min(p.ipm$NDD_n/(nSd.f[i,k]+D.f[i,k]),
-                                            p.ipm$p_est), p.ipm$p_est)
-    d.f[[i]] <- sim_recruits(d.f[[i]], p_est.i.f[i,k], nSd.f[i,k], B.f[i,k], D.f[i,k], p.ipm)
-    B.f[i,k+1] <- sim_seedbank(nSd.f[i,k], B.f[i,k], D.f[i,k], p.ipm)
-  }
-}
+S.f <- simulate_data(n.cell, tmax, n_i, z.rng, U.f$lo, U.f$hi, 
+                     p.ipm, X, n_z, sdd, U.f$sdd.j)
 
-
-lam.df <- env.df
-lam.df$lambda.f <- apply(IPMs.f, 3, function(x) Re(eigen(x)$values[1]))
+#---- Aggregate results
+lam.df$lambda.f <- apply(U.f$IPMs, 3, function(x) Re(eigen(x)$values[1]))
 lam.df %<>% 
-  add_column(nSeed.f=nSd.f[,tmax], B0.f=B.f[,1], Btmax.f=B.f[,tmax+1], D.f=D.f[,tmax], 
-             N.f=map_dbl(d.f, ~sum(!is.na(.$sizeNext[.$yr==tmax]))),
-             N.surv.f=map_dbl(d.f, ~sum(.$surv[.$yr==tmax], na.rm=T)),
-             N.rcr.f=map_dbl(d.f, ~sum(is.na(.$size[.$yr==tmax])))) %>%
+  add_column(nSeed.f=S.f$nSd[,tmax], D.f=S.f$D[,tmax], 
+             B0.f=S.f$B[,1], Btmax.f=S.f$B[,tmax+1], 
+             N.S.f=map_dbl(S.f$d, ~sum(!is.na(.$sizeNext[.$yr==tmax]))),
+             Surv.S.f=map_dbl(S.f$d, ~sum(.$surv[.$yr==tmax], na.rm=T)),
+             Rcr.S.f=map_dbl(S.f$d, ~sum(is.na(.$size[.$yr==tmax])))) %>%
   mutate(nSdStay.f=nSeed.f*(1-p.ipm$p_emig), nSdLeave.f=nSeed.f*p.ipm$p_emig) %>%
-  add_column(Ntmax.f=apply(Nt.f[,,,tmax],3,sum), lam.tmax.f=lam.t.f[,tmax-1])
+  add_column(N.U.f=apply(U.f$Nt[,,,tmax],3,sum), lam.U.f=U.f$lam.t[,tmax-1])
 
 ########
 ## plots
 ########
-ggplot(lam.df, aes(x=lon, y=lat, fill=log(lambda.f))) + geom_tile() +
+ggplot(lam.df, aes(x=lon, y=lat, fill=lambda.f-lambda)) + geom_tile() +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
-ggplot(lam.df, aes(x=lon, y=lat, fill=log(lam.tmax.f))) + geom_tile() +
+ggplot(lam.df, aes(x=lon, y=lat, fill=lam.U.f-lam.U)) + geom_tile() +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
-ggplot(lam.df, aes(x=lon, y=lat, fill=log(Ntmax.f)*(Ntmax.f>10))) + geom_tile() +
-  scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=1)
-ggplot(lam.df, aes(x=lon, y=lat, fill=lambda.f>1)) + geom_tile()
-ggplot(lam.df, aes(x=lon, y=lat, fill=N.f>1)) + geom_tile()
-ggplot(lam.df, aes(x=lon, y=lat, fill=lam.tmax.f>1)) + geom_tile()
-ggplot(lam.df, aes(x=lon, y=lat, fill=Ntmax.f>1)) + geom_tile() 
-ggplot(lam.df, aes(x=lon, y=lat, fill=Ntmax.f>1 & lam.tmax.f<1)) + geom_tile() 
-ggplot(lam.df, aes(x=lon, y=lat, fill=log(N.f))) + geom_tile() +
+ggplot(lam.df, aes(x=lon, y=lat)) + 
+  geom_tile(aes(fill=(lambda>1 & lambda.f>1) | (lambda<1 & lambda.f<1)))
+ggplot(lam.df, aes(x=lon, y=lat)) + 
+  geom_tile(aes(fill=(N.S>1 & N.S.f>1) | (N.S<1 & N.S.f<1)))
+ggplot(lam.df, aes(x=lon, y=lat)) + 
+  geom_tile(aes(fill=(lam.U>1 & lam.U.f>1) | (lam.U<1 & lam.U.f<1)))
+ggplot(lam.df, aes(x=lon, y=lat)) + 
+  geom_tile(aes(fill=(N.U>1 & N.U.f>1) | (N.U<1 & N.U.f<1)))
+ggplot(lam.df, aes(x=lon, y=lat, fill=(N.S.f-N.S)/N.S)) + geom_tile() +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
-ggplot(lam.df, aes(x=lon, y=lat, fill=log(N.surv.f))) + geom_tile() +
+ggplot(lam.df, aes(x=lon, y=lat, fill=(Surv.S.f-Surv.S)/Surv.S)) + geom_tile() +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
-ggplot(lam.df, aes(x=lon, y=lat, fill=log(N.rcr.f))) + geom_tile() +
+ggplot(lam.df, aes(x=lon, y=lat, fill=(Rcr.S.f-Rcr.S)/Rcr.S)) + geom_tile() +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
-ggplot(lam.df, aes(x=lon, y=lat, fill=nSeed.f)) + geom_tile()
-ggplot(lam.df, aes(x=lon, y=lat, fill=D.f)) + geom_tile()
-ggplot(lam.df, aes(x=lon, y=lat, fill=D.f + nSdStay.f)) + geom_tile()
-ggplot(lam.df, aes(x=lon, y=lat, fill=Btmax.f)) + geom_tile()
-ggplot(lam.df, aes(x=lon, y=lat, fill=Btmax.f>B0.f)) + geom_tile()
-ggplot(lam.df, aes(x=lon, y=lat, fill=nSdStay.f/D.f)) + geom_tile() +
-  scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=1)
-ggplot(lam.df, aes(x=lon, y=lat, fill=nSdStay.f > D.f)) + geom_tile()
-ggplot(lam.df, aes(x=lon, y=lat, fill=nSdStay.f < D.f & lambda.f < 1)) +
-  geom_tile()
 par(mfrow=c(2,2))
-plot(log(lambda.f) ~ temp, data=lam.df); abline(h=0, col="red", lty=2)
-plot(log(lambda.f) ~ prec, data=lam.df); abline(h=0, col="red", lty=2)
-plot(log(lambda.f) ~ pOpn, data=lam.df); abline(h=0, col="red", lty=2)
-plot(density(log(lam.df$lambda.f))); abline(v=0, col="red", lty=2)
-matplot(t(log(lam.t.f)), type="l", lty=1, col=rgb(0,0,0,0.1))
-matplot(t(log(apply(Nt.f, 3:4, sum))), type="l", lty=1, col=rgb(0,0,0,0.1))
-matplot(t(N_sim.f[,2:tmax]/N_sim.f[,1:(tmax-1)]), type="l", lty=1, col=rgb(0,0,0,.1))
-matplot(t(log(N_sim.f+1)), type="l", lty=1, col=rgb(0,0,0,0.1))
-#matplot(t(log(nSd*(1-p.ipm$p_emig)+D)), type="l", lty=1, col=rgb(0,0,0,0.1))
+plot((lambda.f-lambda) ~ temp, data=lam.df); abline(h=0, col="red", lty=2)
+plot((lambda.f-lambda) ~ prec, data=lam.df); abline(h=0, col="red", lty=2)
+plot((lambda.f-lambda) ~ pOpn, data=lam.df); abline(h=0, col="red", lty=2)
+plot(density((lam.df$lambda.f-lam.df$lambda))); abline(v=0, col="red", lty=2)
+matplot(t(log(U.f$lam.t)), type="l", lty=1, col=rgb(0,0,0,0.1))
+matplot(t(log(apply(U.f$Nt, 3:4, sum))), type="l", lty=1, col=rgb(0,0,0,0.1))
+matplot(t(S.f$N_sim[,2:tmax]/S$N_sim[,1:(tmax-1)]), 
+        type="l", lty=1, col=rgb(0,0,0,.1))
+matplot(t(log(S.f$N_sim+1)), type="l", lty=1, col=rgb(0,0,0,0.1))
 
-sample.cells <- sample((1:n.cell)[lam.df$N.surv>0], nPlots)
+sample.cells <- sample((1:n.cell)[lam.df$Surv.S>0], nPlots)
 if(regPlots) {
   par(mfrow=c(3,2), mar=c(4,4,2,1))
-  xx <- tibble(size=seq(lo, hi, length.out=100), size2=size^2, size3=size^3)
-  mx <- cbind(1, as.matrix(xx))
-  xxx <- seq(0, hi*.5, length.out=100)
+  xx <- tibble(size=seq(U.f$lo, U.f$hi, length.out=100), 
+               size2=size^2, size3=size^3)
+  E.t <- xx %>% add_column(s=NA, g=NA, fl=NA, seed=NA)
+  xxx <- seq(0, U.f$hi*.5, length.out=100)
   for(i in sample.cells) {
-    z.t <- d[[i]][!is.na(d[[i]]$size) & d[[i]]$yr==tmax,]
+    z.t <- S.f$d[[i]][!is.na(S.f$d[[i]]$size) & S.f$d[[i]]$yr==tmax,]
+    E.t <- sim_expected(E.t, 1:100, 1:100, E.t, p.ipm, map(X, ~.[i,]), n_z)
+    E.S.t <- sim_expected(E.t, 1:100, 1:100, E.t, p, map(X, ~.[i,]), n_z)
     main.i <- paste("Cell", i)
-    w1 <- Re(eigen(IPMs[,,i])$vectors[,1])[-1]; stable.dist1 <- w1/sum(w1)
-    rcrt.z <- d[[i]]$sizeNext[is.na(d[[i]]$size) & !is.na(d[[i]]$sizeNext)]
+    w1 <- Re(eigen(U.f$IPMs[,,i])$vectors[,1])[-1]; stable.dist1 <- w1/sum(w1)
+    w.S <- Re(eigen(U$IPMs[,,i])$vectors[,1])[-1]; stable.dist.S <- w.S/sum(w.S)
     plot(surv~size, data=z.t, ylim=c(0,1), pch=20, col=rgb(0,0,0,0.2),
          main=paste("Surv:", main.i), xlab="Size (t)", ylab="P(surv to t+1)")
-      lines(mx[,2], antilogit(mx[,1:n_z$s]%*%p.ipm$s_z + c(X$s[i,]%*%p.ipm$s_x)), col=2)
-    plot(sizeNext~size, data=z.t, pch=20, col=rgb(0,0,0,0.2), ylim=c(lo,hi),
+      lines(E.t$size, E.t$s, col=2); lines(E.S.t$size, E.S.t$s, col=4)
+    plot(sizeNext~size, data=z.t, pch=20, col=rgb(0,0,0,0.2), ylim=c(U$lo,U$hi),
          main=paste("Growth:", main.i), xlab="Size (t)", ylab="Size (t+1)")
-      lines(mx[,2], mx[,1:n_z$g]%*%p.ipm$g_z + c(X$g[i,]%*%p.ipm$g_x), col=2)
+      lines(E.t$size, E.t$g, col=2); lines(E.S.t$size, E.S.t$g, col=4)
       abline(a=0, b=1, lty=2)
     plot(fl~size, data=z.t, pch=20, ylim=c(0,1), col=rgb(0,0,0,0.2),
          main=paste("P(Flower):", main.i), xlab="Size (t)", ylab="P(flower)")
-      lines(mx[,2], antilogit(mx[,1:n_z$fl]%*%p.ipm$fl_z + c(X$fl[i,]%*%p.ipm$fl_x)),
-            col=2)
+      lines(E.t$size, E.t$fl, col=2); lines(E.S.t$size, E.S.t$fl, col=4)
     plot(seed~size, data=z.t, pch=23-z.t$fl*3, col=rgb(0,0,0,0.2), 
-         ylim=range(c(exp(mx[,1:n_z$seed]%*%p.ipm$seed_z + c(X$seed[i,]%*%p.ipm$seed_x)),
-                      z.t$seed), na.rm=TRUE),
+         ylim=range(c(E.t$seed, z.t$seed), na.rm=TRUE),
          main=paste("nSeeds:", main.i), xlab="Size (t)", ylab="Number of seeds")
-      lines(mx[,2], exp(mx[,1:n_z$seed]%*%p.ipm$seed_z + c(X$seed[i,]%*%p.ipm$seed_x)),
-            col=2)
-    plot(y, stable.dist1, ylab="", type="l", col=2, 
+      lines(E.t$size, E.t$seed, col=2); lines(E.S.t$size, E.S.t$seed, col=4)
+    plot(U.f$y, stable.dist1, ylab="", type="l", col=2, 
          main=paste("Stable size distribution:", main.i), xlab="Size (t)")
-    hist(d[[i]]$sizeNext[is.na(d[[i]]$size)], col="grey", freq=F, 
+      lines(U.f$y, stable.dist.S, col=4)
+    hist(with(S.f$d[[i]], sizeNext[is.na(size)]), col="grey", freq=F, 
          main=paste("Recruit sizes:", main.i), xlab="Recruit size (t+1)")
-      lines(xxx, dnorm(xxx, p.ipm$rcr_z[1], p.ipm$rcr_z[2]), col="red", lwd=2)
+      lines(xxx, dnorm(xxx, p.ipm$rcr_z[1], p.ipm$rcr_z[2]), col=2)
+      lines(xxx, dnorm(xxx, p$rcr_z[1], p$rcr_z[2]), col=4)
   }
 }
 if(ipmPlots) {
   par(mfrow=c(2,2), mar=c(4,4,2,1))
-  x <- c(0, y)
+  x <- c(0, U.f$y)
   for(i in sample.cells) {
-   z.t <- d[[i]][!is.na(d[[i]]$size) & d[[i]]$yr==tmax,] 
+   z.t <- S.f$d[[i]][!is.na(S.f$d[[i]]$size) & S.f$d[[i]]$yr==tmax,]
    main.i <- paste("Cell", i)
-   z.t$y <- y[findInterval(z.t$size, y, all.inside=T)]
+   z.t$y <- U.f$y[findInterval(z.t$size, U.f$y, all.inside=T)]
    totSeeds <- group_by(z.t, y) %>% summarise(seed=sum(seed, na.rm=T))
-   image.plot(x, x, t(Ps[,,i]), main=paste("P matrix:", main.i), 
+   image.plot(x, x, t(U.f$Ps[,,i]), main=paste("P matrix:", main.i), 
               xlab="Size (t)", ylab="Size (t+1)")
-    points(sizeNext~size, data=z.t, pch=20, col=rgb(0,0,0,1/(n_i[i]^.25)))
+    points(sizeNext~size, data=z.t, col=rgb(1,1,1,1/(nrow(z.t)^.25)))
     abline(a=0, b=1, col="white", lty=2)
-   image.plot(x, x, t(Fs[,,i]), main=paste("F matrix:", main.i), 
+   image.plot(x, x, t(U.f$Fs[,,i]), main=paste("F matrix:", main.i), 
               xlab="Size (t)", ylab="Size (t+1)")
-    points(totSeeds$y, totSeeds$seed/max(totSeeds$seed)*hi*.9)
-   image.plot(x, x, t(sens(IPMs[,,i])), main=paste("Sensitivity:", main.i), 
+    points(totSeeds$y, totSeeds$seed/max(totSeeds$seed)*U.f$hi*.9, col="white")
+   image.plot(x, x, t(sens(U.f$IPMs[,,i])), main=paste("Sensitivity:", main.i), 
               xlab="Size (t)", ylab="Size (t+1)")
-   image.plot(x, x, t(elas(IPMs[,,i])), main=paste("Elasticity:", main.i),
+   image.plot(x, x, t(elas(U.f$IPMs[,,i])), main=paste("Elasticity:", main.i),
               xlab="Size (t)", ylab="Size (t+1)")
+   points(sizeNext~size, data=z.t, col=rgb(1,1,1,1/(nrow(z.t)^.25)))
   }
 }
-image.plot(x, x, t(apply(Ps.f, 1:2, mean)), main="P matrix: mean",
+image.plot(x, x, t(apply(U.f$Ps, 1:2, mean)), main="P matrix: mean",
            xlab="Size (t)", ylab="Size (t+1)")
-image.plot(x, x, t(apply(Fs.f, 1:2, mean)), main="F matrix: mean",
+image.plot(x, x, t(apply(U.f$Fs, 1:2, mean)), main="F matrix: mean",
            xlab="Size (t)", ylab="Size (t+1)")
-image.plot(x, x, sens(t(apply(IPMs.f, 1:2, mean))), main="Sensitivity: mean",
+image.plot(x, x, sens(t(apply(U.f$IPMs, 1:2, mean))), main="Sensitivity: mean",
            xlab="Size (t)", ylab="Size (t+1)")
-image.plot(x, x, elas(t(apply(IPMs.f, 1:2, mean))), main="Elasticity: mean",
+image.plot(x, x, elas(t(apply(U.f$IPMs, 1:2, mean))), main="Elasticity: mean",
            xlab="Size (t)", ylab="Size (t+1)")
 ```
 

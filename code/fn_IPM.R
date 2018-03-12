@@ -115,13 +115,13 @@ calc_staySB <- function(p) {
 
 ##-- Set boundaries, meshpoints, & step size for IPM matrix
 ##   create objects in global environment
-setup_IPM_matrix <- function(n=100, z.rng=c(1,10), buffer=0.25, discrete=0) {
-  lo <<- z.rng[1]*(1-buffer)  # IPM matrix lower limit
-  hi <<- z.rng[2]*(1+buffer)  # IPM matrix upper limit
-  b <<- lo + c(0:n)*(hi - lo)/n  # boundary points
-  y <<- 0.5*(b[1:n] + b[2:(n+1)])  # mesh points
-  h <<- y[2] - y[1]  # step size
-  z.i <<- (1:n) + discrete  # continuous stage matrix indices
+setup_IPM_matrix <- function(n=100, z.rng=c(1,10), buffer=0.25) {
+  lo <- z.rng[1]*(1-buffer)  # IPM matrix lower limit
+  hi <- z.rng[2]*(1+buffer)  # IPM matrix upper limit
+  b <- lo + c(0:n)*(hi - lo)/n  # boundary points
+  y <- 0.5*(b[1:n] + b[2:(n+1)])  # mesh points
+  h <- y[2] - y[1]  # step size
+  return(list(lo=lo, hi=hi, b=b, y=y, h=h))
 }
 
 
@@ -155,6 +155,56 @@ fill_F <- function(h, y, z.i, n, p, n_z, n_x, X_fl, X_seed) {
 }
 
 
+##-- Fill all IPM objects
+##
+fill_IPM_matrices <- function(n.cell, tmax, n_i, n, z.rng, buffer, discrete,
+                              p, n_z, n_x, X, sdd, env.df, verbose=FALSE) {
+  require(tidyverse)
+  
+  # storage objects
+  IPMs <- Ps <- Fs <- Fb <- array(0, dim=c(n+1, n+1, n.cell))
+  Nt <- array(dim=c(n+1, n+1, n.cell, tmax))
+  sdd.j <- vector("list", length=n.cell)
+  lam.t <- p_est.t <- matrix(nrow=n.cell, ncol=tmax-1)
+  
+  # IPM matrix setup
+  L <- setup_IPM_matrix(n, z.rng, buffer)
+  z.i <- (1:n) + discrete  # continuous stage matrix indices
 
+  ## local growth
+  for(i in 1:n.cell) {
+    Ps[,,i] <- fill_P(L$h, L$y, z.i, n, p, n_z, n_x, X$s[i,], X$g[i,])
+    Fb[,,i] <- fill_F(L$h, L$y, z.i, n, p, n_z, n_x, X$fl[i,], X$seed[i,])
+    Fs[z.i,z.i,i] <- (1-p$p_emig) * Fb[z.i,z.i,i]
+    Fs[1,z.i,i] <- (1-p$p_emig) * Fb[1,z.i,i]
+    Fs[z.i,1,i] <- Fb[z.i,1,i]
+  }
+  if(verbose) cat("Finished local growth \n")
+  ## dispersal & density dependence
+  for(i in 1:n.cell) {
+    sdd.i <- env.df$id[i] # full rectangle grid id for SDD indexes
+    sdd.j[[i]] <- which(sdd[,,2,]==sdd.i, arr.ind=T) # j cells with target i
+    p.ij <- sdd[,,1,][sdd.j[[i]]] # p(j to i | immigrant seed from j)
+    Fs[z.i,z.i,i] <- Fs[z.i,z.i,i] + 
+      Reduce(`+`, map2(sdd.j[[i]][,3], p$p_emig*p.ij, ~(Fb[z.i,z.i,.x] * .y)))
+    Fs[1,z.i,i] <- Fs[1,z.i,i] + Fb[1,z.i,sdd.j[[i]][,3]] %*% (p$p_emig*p.ij)
+    if(p$NDD) {
+      Nt[,,i,1] <- rpois((n+1)*(n+1), n_i[i])
+      F.i <- F.t <- Fs[,,i]/p$p_est  # F.s[,,i] was already multiplied by p$p_est
+      for(k in 1:(tmax-1)) {
+        p_est.t[i,k] <- min(p$NDD_n/(sum(F.i[z.i,]*Nt[z.i,,i,k])), p$p_est)
+        F.t[z.i,] <- F.i[z.i,] * p_est.t[i,k]
+        IPM.t <- Ps[,,i] + F.t
+        Nt[,,i,k+1] <- IPM.t %*% Nt[,,i,k]
+        lam.t[i,k] <- Re(eigen(IPM.t)$values[1])
+      }
+    }
+    if(verbose & !(i %% 500)) cat("Finished dispersal & NDD for", i, "cells\n")
+  }
+  
+  return(list(IPMs=Ps+Fs, Ps=Ps, Fb=Fb, Fs=Fs, 
+              lo=L$lo, hi=L$hi, b=L$b, y=L$y, h=L$h, sdd.j=sdd.j, 
+              Nt=Nt, lam.t=lam.t, p_est.t=p_est.t))
+}
 
 
