@@ -441,6 +441,24 @@ image.plot(x, x, sens(t(apply(U.f$IPMs, 1:2, mean))), main="Sensitivity: mean",
            xlab="Size (t)", ylab="Size (t+1)")
 image.plot(x, x, elas(t(apply(U.f$IPMs, 1:2, mean))), main="Elasticity: mean",
            xlab="Size (t)", ylab="Size (t+1)")
+
+IPM.fit.sum <- lam.df %>% 
+  summarise(mnLamDiff=mean(lambda.f-lambda),
+            mdLamDiff=median(lambda.f-lambda),
+            sdLamDiff=sd(lambda.f-lambda),
+            pctLamCorr=mean((lambda>1 & lambda.f>1) | (lambda<1 & lambda.f<1)),
+            mnNDiff=mean(N.S.f-N.S),
+            mdNDiff=median(N.S.f-N.S),
+            sdNDiff=sd(N.S.f-N.S),
+            pctNCorr=mean((N.S>1 & N.S.f>1) | (N.S<1 & N.S.f<1)),
+            mnSurvDiff=mean(Surv.S.f-Surv.S),
+            mdSurvDiff=median(Surv.S.f-Surv.S),
+            sdSurvDiff=sd(Surv.S.f-Surv.S),
+            pctSurvCorr=mean((Surv.S>1 & Surv.S.f>1) | (Surv.S<1 & Surv.S.f<1)),
+            mnRcrDiff=mean(Rcr.S.f-Rcr.S),
+            mdRcrDiff=median(Rcr.S.f-Rcr.S),
+            sdRcrDiff=sd(Rcr.S.f-Rcr.S),
+            pctRcrCorr=mean((Rcr.S>1 & Rcr.S.f>1) | (Rcr.S<1 & Rcr.S.f<1)))
 ```
 
 
