@@ -24,13 +24,13 @@ lc.df <- read_csv("data/landcover_5km.csv") %>%
 ## Species description: Life history, characteristics, relevant attributes
 The simulated species is fully described here. The object `sp_i` is a list containing elements for the global parameters, relationships with environmental variables, and demographic matrices that are applicable or potentially applicable for that modeling strategy. Parameters are abbreviated with the associated kernel component (e.g., `s_*` for survival, `g_*` for growth, etc) and the type of covariate (`*_z` for size, `*_x` for environmental covariates).
 ```{r sp_i}
-mean_abund <- 50
+mean_abund <- 200
 regPlots <- T
 ipmPlots <- T
 nPlots <- 5
 z.rng <- c(1, 12)
 n <- 50  # ncells in IPM matrix
-tmax <- 10
+tmax <- 50
 cells <- 1:n_distinct(lc.df$CellID)
 n.cell <- length(cells)
 n_i <- rpois(n.cell, mean_abund)
@@ -241,7 +241,7 @@ image.plot(x, x, elas(t(apply(U$IPMs, 1:2, mean))), main="Elasticity: mean",
 ## Observed datasets
 The simulated species *S* is sampled appropriately in order to fit each SDM model. The observed datasets,*O*, may be random or intentionally biased to mimic common issues with empirical data. The realized simulated data generated above (`d` and its abundance summary `N_sim`) are the underlying true distribution. The samples will be drawn from occupied cells in the final time steps where the species is approximately at equilibrium.
 ```{r O_setup}
-O_n <- list(Mx=500, CA=20, IPM=20) # number of cells in sample
+O_n <- list(Mx=500, CA=20, IPM=10) # number of cells in sample
 O_yr <- list(Mx=tmax, CA=(tmax-10):tmax, IPM=tmax) # years to sample from
 P.i <- which(lam.df$Surv.S > 0) # presences: surviving individuals > seedlings
 ```
@@ -345,23 +345,45 @@ lam.df %<>%
 ########
 ## plots
 ########
-ggplot(lam.df, aes(x=lon, y=lat, fill=lambda.f-lambda)) + geom_tile() +
-  scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
-ggplot(lam.df, aes(x=lon, y=lat, fill=lam.U.f-lam.U)) + geom_tile() +
+ggplot(lam.df, aes(x=lon, y=lat)) + 
+  geom_tile(aes(fill=lambda.f-lambda, colour=id.inbd %in% IPM.P)) +
+  scale_colour_manual(values=c(NA, "black")) +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
 ggplot(lam.df, aes(x=lon, y=lat)) + 
-  geom_tile(aes(fill=(lambda>1 & lambda.f>1) | (lambda<1 & lambda.f<1)))
-ggplot(lam.df, aes(x=lon, y=lat)) + 
-  geom_tile(aes(fill=(N.S>1 & N.S.f>1) | (N.S<1 & N.S.f<1)))
-ggplot(lam.df, aes(x=lon, y=lat)) + 
-  geom_tile(aes(fill=(lam.U>1 & lam.U.f>1) | (lam.U<1 & lam.U.f<1)))
-ggplot(lam.df, aes(x=lon, y=lat)) + 
-  geom_tile(aes(fill=(N.U>1 & N.U.f>1) | (N.U<1 & N.U.f<1)))
-ggplot(lam.df, aes(x=lon, y=lat, fill=(N.S.f-N.S)/N.S)) + geom_tile() +
+  geom_tile(aes(fill=lam.U.f-lam.U, colour=id.inbd %in% IPM.P)) +
+  scale_colour_manual(values=c(NA, "black")) +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
-ggplot(lam.df, aes(x=lon, y=lat, fill=(Surv.S.f-Surv.S)/Surv.S)) + geom_tile() +
+ggplot(lam.df, aes(x=lon, y=lat)) + 
+  geom_tile(aes(fill=(lambda>1 & lambda.f>1) | (lambda<1 & lambda.f<1),
+                colour=id.inbd %in% IPM.P)) +
+  scale_colour_manual(values=c(NA, "black")) + 
+  scale_fill_manual(values=c("red", "dodgerblue"))
+ggplot(lam.df, aes(x=lon, y=lat)) + 
+  geom_tile(aes(fill=(N.S>1 & N.S.f>1) | (N.S<1 & N.S.f<1),
+                colour=id.inbd %in% IPM.P)) +
+  scale_colour_manual(values=c(NA, "black")) + 
+  scale_fill_manual(values=c("red", "dodgerblue"))
+ggplot(lam.df, aes(x=lon, y=lat)) + 
+  geom_tile(aes(fill=(lam.U>1 & lam.U.f>1) | (lam.U<1 & lam.U.f<1),
+                colour=id.inbd %in% IPM.P)) +
+  scale_colour_manual(values=c(NA, "black")) + 
+  scale_fill_manual(values=c("red", "dodgerblue"))
+ggplot(lam.df, aes(x=lon, y=lat)) + 
+  geom_tile(aes(fill=(N.U>1 & N.U.f>1) | (N.U<1 & N.U.f<1),
+                colour=id.inbd %in% IPM.P)) +
+  scale_colour_manual(values=c(NA, "black")) + 
+  scale_fill_manual(values=c("red", "dodgerblue"))
+ggplot(lam.df, aes(x=lon, y=lat)) + 
+  geom_tile(aes(fill=(N.S.f-N.S)/N.S, colour=id.inbd %in% IPM.P)) +
+  scale_colour_manual(values=c(NA, "black")) +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
-ggplot(lam.df, aes(x=lon, y=lat, fill=(Rcr.S.f-Rcr.S)/Rcr.S)) + geom_tile() +
+ggplot(lam.df, aes(x=lon, y=lat)) + 
+  geom_tile(aes( fill=(Surv.S.f-Surv.S)/Surv.S, colour=id.inbd %in% IPM.P)) +
+  scale_colour_manual(values=c(NA, "black")) +
+  scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
+ggplot(lam.df, aes(x=lon, y=lat)) + 
+  geom_tile(aes(fill=(Rcr.S.f-Rcr.S)/Rcr.S, colour=id.inbd %in% IPM.P)) +
+  scale_colour_manual(values=c(NA, "black")) +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
 par(mfrow=c(2,2))
 plot((lambda.f-lambda) ~ temp, data=lam.df); abline(h=0, col="red", lty=2)
@@ -450,15 +472,16 @@ IPM.fit.sum <- lam.df %>%
             mnNDiff=mean(N.S.f-N.S),
             mdNDiff=median(N.S.f-N.S),
             sdNDiff=sd(N.S.f-N.S),
-            pctNCorr=mean((N.S>0 & N.S.f>0) | (N.S<0 & N.S.f<0)),
+            pctNCorr=mean((N.S>0 & N.S.f>0) | (N.S==0 & N.S.f==0)),
             mnSurvDiff=mean(Surv.S.f-Surv.S),
             mdSurvDiff=median(Surv.S.f-Surv.S),
             sdSurvDiff=sd(Surv.S.f-Surv.S),
-            pctSurvCorr=mean((Surv.S>0 & Surv.S.f>0) | (Surv.S<0 & Surv.S.f<0)),
+            pctSurvCorr=mean((Surv.S>0 & Surv.S.f>0) | (Surv.S==0 & Surv.S.f==0)),
             mnRcrDiff=mean(Rcr.S.f-Rcr.S),
             mdRcrDiff=median(Rcr.S.f-Rcr.S),
             sdRcrDiff=sd(Rcr.S.f-Rcr.S),
-            pctRcrCorr=mean((Rcr.S>0 & Rcr.S.f>0) | (Rcr.S<0 & Rcr.S.f<0)))
+            pctRcrCorr=mean((Rcr.S>0 & Rcr.S.f>0) | (Rcr.S==0 & Rcr.S.f==0)))
+str(IPM.fit.sum)
 ```
 
 
