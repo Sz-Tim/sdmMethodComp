@@ -123,7 +123,8 @@ S <- simulate_data(n.cell, tmax, n_i, z.rng, U$lo, U$hi,
 lam.df <- env.df
 lam.df$lambda <- apply(U$IPMs, 3, function(x) Re(eigen(x)$values[1]))
 lam.df %<>% 
-  add_column(nSeed=S$nSd[,tmax], D=S$D[,tmax], 
+  add_column(lam.S=S$N_sim[,tmax]/(S$N_sim[,tmax-1]+.01),
+             nSeed=S$nSd[,tmax], D=S$D[,tmax], 
              B0=S$B[,1], Btmax=S$B[,tmax+1], 
              N.S=map_dbl(S$d, ~sum(!is.na(.$sizeNext[.$yr==tmax]))),
              Surv.S=map_dbl(S$d, ~sum(.$surv[.$yr==tmax], na.rm=T)),
@@ -136,16 +137,18 @@ lam.df %<>%
 ########
 ggplot(lam.df, aes(x=lon, y=lat, fill=log(lambda))) + geom_tile() +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
+ggplot(lam.df, aes(x=lon, y=lat, fill=log(lam.S))) + geom_tile() +
+  scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
 ggplot(lam.df, aes(x=lon, y=lat, fill=log(lam.U))) + geom_tile() +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
-ggplot(lam.df, aes(x=lon, y=lat, fill=log(N.U)*(N.U>10))) + geom_tile() +
-  scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=1)
 ggplot(lam.df, aes(x=lon, y=lat, fill=lambda>1)) + geom_tile()
-ggplot(lam.df, aes(x=lon, y=lat, fill=N.S>1)) + geom_tile()
+ggplot(lam.df, aes(x=lon, y=lat, fill=lam.S>1)) + geom_tile()
+ggplot(lam.df, aes(x=lon, y=lat, fill=Surv.S>0)) + geom_tile()
+ggplot(lam.df, aes(x=lon, y=lat, fill=N.S>0)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=lam.U>1)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=N.U>1)) + geom_tile() 
 ggplot(lam.df, aes(x=lon, y=lat, fill=N.U>1 & lam.U<1)) + geom_tile() 
-ggplot(lam.df, aes(x=lon, y=lat, fill=N.S>1 & lambda<1)) + geom_tile()
+ggplot(lam.df, aes(x=lon, y=lat, fill=Surv.S>0 & lambda<1)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=log(N.S))) + geom_tile() +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
 ggplot(lam.df, aes(x=lon, y=lat, fill=log(Surv.S))) + geom_tile() +
@@ -158,8 +161,6 @@ ggplot(lam.df, aes(x=lon, y=lat, fill=D + nSdStay)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=Btmax)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=Btmax>B0)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=nSdStay > D)) + geom_tile()
-ggplot(lam.df, aes(x=lon, y=lat, fill=nSdStay < D & lambda < 1)) +
-  geom_tile()
 par(mfrow=c(2,2))
 plot(log(lambda) ~ temp, data=lam.df); abline(h=0, col="red", lty=2)
 plot(log(lambda) ~ prec, data=lam.df); abline(h=0, col="red", lty=2)
@@ -323,18 +324,19 @@ X <- list(s=as.matrix(env.df[,1:n_x$s]), g=as.matrix(env.df[,1:n_x$g]),
 ########
 ## predict distribution with fit models
 ########
-#---- Truth: use assigned slopes to fill IPM matrix
+#---- Truth: use estimated slopes to fill IPM matrix
 U.f <- fill_IPM_matrices(n.cell, tmax, n_i, n, z.rng, buffer=0.5, discrete=1,
                          p.ipm, n_z, n_x, X, sdd, env.df)
 
-#---- Realization: generate simulated data
+#---- Realization: use estimated slopes to generate simulated data
 S.f <- simulate_data(n.cell, tmax, n_i, z.rng, U.f$lo, U.f$hi, 
                      p.ipm, X, n_z, sdd, U.f$sdd.j)
 
 #---- Aggregate results
 lam.df$lambda.f <- apply(U.f$IPMs, 3, function(x) Re(eigen(x)$values[1]))
 lam.df %<>% 
-  add_column(nSeed.f=S.f$nSd[,tmax], D.f=S.f$D[,tmax], 
+  add_column(lam.S.f=S.f$N_sim[,tmax]/(S.f$N_sim[,tmax-1]+.01),
+             nSeed.f=S.f$nSd[,tmax], D.f=S.f$D[,tmax], 
              B0.f=S.f$B[,1], Btmax.f=S.f$B[,tmax+1], 
              N.S.f=map_dbl(S.f$d, ~sum(!is.na(.$sizeNext[.$yr==tmax]))),
              Surv.S.f=map_dbl(S.f$d, ~sum(.$surv[.$yr==tmax], na.rm=T)),
@@ -350,29 +352,39 @@ ggplot(lam.df, aes(x=lon, y=lat)) +
   scale_colour_manual(values=c(NA, "black")) +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
 ggplot(lam.df, aes(x=lon, y=lat)) + 
+  geom_tile(aes(fill=lam.S.f-lam.S, colour=id.inbd %in% IPM.P)) +
+  scale_colour_manual(values=c(NA, "black")) +
+  scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
+ggplot(lam.df, aes(x=lon, y=lat)) + 
   geom_tile(aes(fill=lam.U.f-lam.U, colour=id.inbd %in% IPM.P)) +
   scale_colour_manual(values=c(NA, "black")) +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
 ggplot(lam.df, aes(x=lon, y=lat)) + 
+  geom_tile(aes(fill=lam.S>1, colour=id.inbd %in% IPM.P)) +
+  scale_colour_manual(values=c(NA, "black"))
+ggplot(lam.df, aes(x=lon, y=lat)) + 
+  geom_tile(aes(fill=lam.S.f>1, colour=id.inbd %in% IPM.P)) +
+  scale_colour_manual(values=c(NA, "black"))
+ggplot(lam.df, aes(x=lon, y=lat)) + 
   geom_tile(aes(fill=(lambda>1 & lambda.f>1) | (lambda<1 & lambda.f<1),
                 colour=id.inbd %in% IPM.P)) +
-  scale_colour_manual(values=c(NA, "black")) + 
-  scale_fill_manual(values=c("red", "dodgerblue"))
+  scale_colour_manual(values=c(NA, "black"))
+ggplot(lam.df, aes(x=lon, y=lat)) + 
+  geom_tile(aes(fill=(lam.S>1 & lam.S.f>1) | (lam.S<1 & lam.S.f<1),
+                colour=id.inbd %in% IPM.P)) +
+  scale_colour_manual(values=c(NA, "black"))
 ggplot(lam.df, aes(x=lon, y=lat)) + 
   geom_tile(aes(fill=(N.S>1 & N.S.f>1) | (N.S<1 & N.S.f<1),
                 colour=id.inbd %in% IPM.P)) +
-  scale_colour_manual(values=c(NA, "black")) + 
-  scale_fill_manual(values=c("red", "dodgerblue"))
+  scale_colour_manual(values=c(NA, "black"))
 ggplot(lam.df, aes(x=lon, y=lat)) + 
   geom_tile(aes(fill=(lam.U>1 & lam.U.f>1) | (lam.U<1 & lam.U.f<1),
                 colour=id.inbd %in% IPM.P)) +
-  scale_colour_manual(values=c(NA, "black")) + 
-  scale_fill_manual(values=c("red", "dodgerblue"))
+  scale_colour_manual(values=c(NA, "black"))
 ggplot(lam.df, aes(x=lon, y=lat)) + 
   geom_tile(aes(fill=(N.U>1 & N.U.f>1) | (N.U<1 & N.U.f<1),
                 colour=id.inbd %in% IPM.P)) +
-  scale_colour_manual(values=c(NA, "black")) + 
-  scale_fill_manual(values=c("red", "dodgerblue"))
+  scale_colour_manual(values=c(NA, "black"))
 ggplot(lam.df, aes(x=lon, y=lat)) + 
   geom_tile(aes(fill=(N.S.f-N.S)/N.S, colour=id.inbd %in% IPM.P)) +
   scale_colour_manual(values=c(NA, "black")) +
@@ -469,6 +481,10 @@ IPM.fit.sum <- lam.df %>%
             mdLamDiff=median(lambda.f-lambda),
             sdLamDiff=sd(lambda.f-lambda),
             pctLamCorr=mean((lambda>1 & lambda.f>1) | (lambda<1 & lambda.f<1)),
+            mnLamSDiff=mean(lam.S.f-lam.S, na.rm=T),
+            mdLamSDiff=median(lam.S.f-lam.S, na.rm=T),
+            sdLamSDiff=sd(lam.S.f-lam.S, na.rm=T),
+            pctLamSCorr=mean((lam.S>1 & lam.S.f>1) | (lam.S<1 & lam.S.f<1)),
             mnNDiff=mean(N.S.f-N.S),
             mdNDiff=median(N.S.f-N.S),
             sdNDiff=sd(N.S.f-N.S),
