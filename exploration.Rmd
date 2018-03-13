@@ -230,6 +230,8 @@ if(ipmPlots) {
    points(sizeNext~size, data=z.t, col=rgb(1,1,1,1/(nrow(z.t)^.25)))
   }
 }
+par(mfrow=c(2,2), mar=c(4,4,2,1))
+x <- c(0, U$y)
 image.plot(x, x, t(apply(U$Ps, 1:2, mean)), main="P matrix: mean",
            xlab="Size (t)", ylab="Size (t+1)")
 image.plot(x, x, t(apply(U$Fs, 1:2, mean)), main="F matrix: mean",
@@ -449,8 +451,6 @@ if(regPlots) {
   }
 }
 if(ipmPlots) {
-  par(mfrow=c(2,2), mar=c(4,4,2,1))
-  x <- c(0, U.f$y)
   for(i in sample.cells) {
    z.t <- S.f$d[[i]][!is.na(S.f$d[[i]]$size) & S.f$d[[i]]$yr==tmax,]
    main.i <- paste("Cell", i)
@@ -470,6 +470,8 @@ if(ipmPlots) {
    points(sizeNext~size, data=z.t, col=rgb(1,1,1,1/(nrow(z.t)^.25)))
   }
 }
+par(mfrow=c(2,2), mar=c(4,4,2,1))
+x <- c(0, U.f$y)
 image.plot(x, x, t(apply(U.f$Ps, 1:2, mean)), main="P matrix: mean",
            xlab="Size (t)", ylab="Size (t+1)")
 image.plot(x, x, t(apply(U.f$Fs, 1:2, mean)), main="F matrix: mean",
