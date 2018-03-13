@@ -163,9 +163,9 @@ fill_IPM_matrices <- function(n.cell, tmax, n_i, n, z.rng, buffer, discrete,
   
   # storage objects
   IPMs <- Ps <- Fs <- Fb <- array(0, dim=c(n+1, n+1, n.cell))
-  Nt <- array(dim=c(n+1, n+1, n.cell, tmax))
+  Nt <- array(dim=c(n+1, n.cell, tmax+1))
   sdd.j <- vector("list", length=n.cell)
-  lam.t <- p_est.t <- matrix(nrow=n.cell, ncol=tmax-1)
+  lam.t <- p_est.t <- matrix(nrow=n.cell, ncol=tmax)
   
   # IPM matrix setup
   L <- setup_IPM_matrix(n, z.rng, buffer)
@@ -189,13 +189,13 @@ fill_IPM_matrices <- function(n.cell, tmax, n_i, n, z.rng, buffer, discrete,
       Reduce(`+`, map2(sdd.j[[i]][,3], p$p_emig*p.ij, ~(Fb[z.i,z.i,.x] * .y)))
     Fs[1,z.i,i] <- Fs[1,z.i,i] + Fb[1,z.i,sdd.j[[i]][,3]] %*% (p$p_emig*p.ij)
     if(p$NDD) {
-      Nt[,,i,1] <- rpois((n+1)*(n+1), n_i[i])
+      Nt[,i,1] <- rpois((n+1), n_i[i]/(n+1))
       F.i <- F.t <- Fs[,,i]/p$p_est  # F.s[,,i] was already multiplied by p$p_est
-      for(k in 1:(tmax-1)) {
-        p_est.t[i,k] <- min(p$NDD_n/(sum(F.i[z.i,]*Nt[z.i,,i,k])), p$p_est)
+      for(k in 1:tmax) {
+        p_est.t[i,k] <- min(p$NDD_n/(sum(F.i[z.i,]*Nt[z.i,i,k])), p$p_est)
         F.t[z.i,] <- F.i[z.i,] * p_est.t[i,k]
         IPM.t <- Ps[,,i] + F.t
-        Nt[,,i,k+1] <- IPM.t %*% Nt[,,i,k]
+        Nt[,i,k+1] <- round(IPM.t %*% Nt[,i,k])
         lam.t[i,k] <- Re(eigen(IPM.t)$values[1])
       }
     }
