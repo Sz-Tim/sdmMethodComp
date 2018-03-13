@@ -460,6 +460,8 @@ if(regPlots) {
   }
 }
 if(ipmPlots) {
+  par(mfrow=c(2,2), mar=c(4,4,2,1))
+  x <- c(0, U.f$y)
   for(i in sample.cells) {
    z.t <- S.f$d[[i]][!is.na(S.f$d[[i]]$size) & S.f$d[[i]]$yr==tmax,]
    main.i <- paste("Cell", i)
