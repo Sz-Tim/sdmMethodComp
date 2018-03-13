@@ -112,12 +112,12 @@ X <- list(s=as.matrix(env.df[,1:n_x$s]), g=as.matrix(env.df[,1:n_x$g]),
 ########
 
 #---- Truth: use assigned slopes to fill IPM matrix
-U <- fill_IPM_matrices(n.cell, tmax, n_i, n, z.rng, buffer=0.5, discrete=1,
-                       p, n_z, n_x, X, sdd.pr, env.df)
+U <- fill_IPM_matrices(n.cell, tmax, n_i, n, z.rng, buffer=0.75, discrete=1,
+                       p, n_z, n_x, X, sdd.pr, env.df, verbose=T)
 
 #---- Realization: generate simulated data
 S <- simulate_data(n.cell, tmax, n_i, z.rng, U$lo, U$hi, 
-                   p, X, n_z, sdd, U$sdd.j)
+                   p, X, n_z, sdd, U$sdd.j, verbose=T)
 
 #---- Aggregate results
 lam.df <- env.df
@@ -130,7 +130,7 @@ lam.df %<>%
              Surv.S=map_dbl(S$d, ~sum(.$surv[.$yr==tmax], na.rm=T)),
              Rcr.S=map_dbl(S$d, ~sum(is.na(.$size[.$yr==tmax])))) %>%
   mutate(nSdStay=nSeed*(1-p$p_emig), nSdLeave=nSeed*p$p_emig) %>%
-  add_column(N.U=apply(U$Nt[,,,tmax],3,sum), lam.U=U$lam.t[,tmax-1])
+  add_column(N.U=apply(U$Nt[-1,,tmax+1],2,sum), lam.U=U$lam.t[,tmax])
 
 ########
 ## plots
@@ -143,12 +143,15 @@ ggplot(lam.df, aes(x=lon, y=lat, fill=log(lam.U))) + geom_tile() +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
 ggplot(lam.df, aes(x=lon, y=lat, fill=lambda>1)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=lam.S>1)) + geom_tile()
+ggplot(lam.df, aes(x=lon, y=lat, fill=lam.U>1)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=Surv.S>0)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=N.S>0)) + geom_tile()
 ggplot(lam.df, aes(x=lon, y=lat, fill=lam.U>1)) + geom_tile()
-ggplot(lam.df, aes(x=lon, y=lat, fill=N.U>1)) + geom_tile() 
-ggplot(lam.df, aes(x=lon, y=lat, fill=N.U>1 & lam.U<1)) + geom_tile() 
+ggplot(lam.df, aes(x=lon, y=lat, fill=N.U>0)) + geom_tile() 
+ggplot(lam.df, aes(x=lon, y=lat, fill=N.U>0 & lam.U<1)) + geom_tile() 
 ggplot(lam.df, aes(x=lon, y=lat, fill=Surv.S>0 & lambda<1)) + geom_tile()
+ggplot(lam.df, aes(x=lon, y=lat, fill=log(N.U))) + geom_tile() +
+  scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
 ggplot(lam.df, aes(x=lon, y=lat, fill=log(N.S))) + geom_tile() +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
 ggplot(lam.df, aes(x=lon, y=lat, fill=log(Surv.S))) + geom_tile() +
@@ -167,8 +170,8 @@ plot(log(lambda) ~ prec, data=lam.df); abline(h=0, col="red", lty=2)
 plot(log(lambda) ~ pOpn, data=lam.df); abline(h=0, col="red", lty=2)
 plot(density(log(lam.df$lambda))); abline(v=0, col="red", lty=2)
 matplot(t(log(U$lam.t)), type="l", lty=1, col=rgb(0,0,0,0.1))
-matplot(t(log(apply(U$Nt, 3:4, sum))), type="l", lty=1, col=rgb(0,0,0,0.1))
-matplot(t(S$N_sim[,2:tmax]/S$N_sim[,1:(tmax-1)]), 
+matplot(t(log(apply(U$Nt[-1,,], 2:3, sum))), type="l", lty=1, col=rgb(0,0,0,0.1))
+matplot(t(log(S$N_sim[,2:tmax]/(S$N_sim[,1:(tmax-1)]))), 
         type="l", lty=1, col=rgb(0,0,0,.1))
 matplot(t(log(S$N_sim+1)), type="l", lty=1, col=rgb(0,0,0,0.1))
 #matplot(t(log(nSd*(1-p$p_emig)+D)), type="l", lty=1, col=rgb(0,0,0,0.1))
@@ -242,7 +245,7 @@ image.plot(x, x, elas(t(apply(U$IPMs, 1:2, mean))), main="Elasticity: mean",
 ## Observed datasets
 The simulated species *S* is sampled appropriately in order to fit each SDM model. The observed datasets,*O*, may be random or intentionally biased to mimic common issues with empirical data. The realized simulated data generated above (`d` and its abundance summary `N_sim`) are the underlying true distribution. The samples will be drawn from occupied cells in the final time steps where the species is approximately at equilibrium.
 ```{r O_setup}
-O_n <- list(Mx=500, CA=20, IPM=10) # number of cells in sample
+O_n <- list(Mx=500, CA=20, IPM=20) # number of cells in sample
 O_yr <- list(Mx=tmax, CA=(tmax-10):tmax, IPM=tmax) # years to sample from
 P.i <- which(lam.df$Surv.S > 0) # presences: surviving individuals > seedlings
 ```
@@ -326,11 +329,11 @@ X <- list(s=as.matrix(env.df[,1:n_x$s]), g=as.matrix(env.df[,1:n_x$g]),
 ########
 #---- Truth: use estimated slopes to fill IPM matrix
 U.f <- fill_IPM_matrices(n.cell, tmax, n_i, n, z.rng, buffer=0.5, discrete=1,
-                         p.ipm, n_z, n_x, X, sdd, env.df)
+                         p.ipm, n_z, n_x, X, sdd, env.df, verbose=T)
 
 #---- Realization: use estimated slopes to generate simulated data
 S.f <- simulate_data(n.cell, tmax, n_i, z.rng, U.f$lo, U.f$hi, 
-                     p.ipm, X, n_z, sdd, U.f$sdd.j)
+                     p.ipm, X, n_z, sdd, U.f$sdd.j, verbose=T)
 
 #---- Aggregate results
 lam.df$lambda.f <- apply(U.f$IPMs, 3, function(x) Re(eigen(x)$values[1]))
@@ -342,7 +345,7 @@ lam.df %<>%
              Surv.S.f=map_dbl(S.f$d, ~sum(.$surv[.$yr==tmax], na.rm=T)),
              Rcr.S.f=map_dbl(S.f$d, ~sum(is.na(.$size[.$yr==tmax])))) %>%
   mutate(nSdStay.f=nSeed.f*(1-p.ipm$p_emig), nSdLeave.f=nSeed.f*p.ipm$p_emig) %>%
-  add_column(N.U.f=apply(U.f$Nt[,,,tmax],3,sum), lam.U.f=U.f$lam.t[,tmax-1])
+  add_column(N.U.f=apply(U.f$Nt[,,tmax],2,sum), lam.U.f=U.f$lam.t[,tmax-1])
 
 ########
 ## plots
