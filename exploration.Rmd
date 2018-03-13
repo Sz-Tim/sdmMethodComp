@@ -46,7 +46,7 @@ sp_i <- list(p=list(s_z=c(-8, 2.1, -.09), # b1 + b2*z + b3*z^2
                     rcr_z=c(1.5, 0.4), # N(mean=rcrt1, sd=rcrt2)
                     p_est=0.03, # p(establishment)
                     NDD=T, # negative density dependence: p_est=p_est/N
-                    NDD_n=100, # mean number of recruits if NDD
+                    NDD_n=mean_abund/2, # mean number of recruits if NDD
                     rcr_SB=0.5, # p(recruit from seedbank)
                     rcr_dir=0.5, # p(recruit directly)
                     s_SB=0.3, # p(survive in seedbank additional year)
