@@ -48,8 +48,7 @@ calc_surv <- function(z.v, p, n_sz, X.s) {
 ##   z' ~ N(size + environment, sd)
 calc_grow <- function(z1, z.v, p, n_gz, X.g) {
   z <- z_pow(z.v, n_gz)
-  g <- dnorm(z1, mean=z %*% p$g_z + c(t(X.g) %*% p$g_x), 
-             sd=p$g_sig)
+  g <- dnorm(z1, mean=z %*% p$g_z + c(t(X.g) %*% p$g_x), sd=p$g_sig)
   return(g)
 }
 
@@ -157,9 +156,10 @@ fill_F <- function(h, y, z.i, n, p, n_z, n_x, X_fl, X_seed) {
 
 ##-- Fill all IPM objects
 ##
-fill_IPM_matrices <- function(n.cell, tmax, n_i, n, z.rng, buffer, discrete,
+fill_IPM_matrices <- function(n.cell, tmax, n0, n, z.rng, buffer, discrete,
                               p, n_z, n_x, X, sdd, env.df, verbose=FALSE) {
   require(tidyverse)
+  i <- 1:n.cell
   
   # storage objects
   IPMs <- Ps <- Fs <- Fb <- array(0, dim=c(n+1, n+1, n.cell))
@@ -172,34 +172,38 @@ fill_IPM_matrices <- function(n.cell, tmax, n_i, n, z.rng, buffer, discrete,
   z.i <- (1:n) + discrete  # continuous stage matrix indices
 
   ## local growth
-  for(i in 1:n.cell) {
-    Ps[,,i] <- fill_P(L$h, L$y, z.i, n, p, n_z, n_x, X$s[i,], X$g[i,])
-    Fb[,,i] <- fill_F(L$h, L$y, z.i, n, p, n_z, n_x, X$fl[i,], X$seed[i,])
-    Fs[z.i,z.i,i] <- (1-p$p_emig) * Fb[z.i,z.i,i]
-    Fs[1,z.i,i] <- (1-p$p_emig) * Fb[1,z.i,i]
-    Fs[z.i,1,i] <- Fb[z.i,1,i]
-  }
+  Ps <- vapply(i, function(x) fill_P(L$h, L$y, z.i, n, p, n_z, n_x, 
+                                            X$s[x,], X$g[x,]), Ps[,,1])
+  Fb <- vapply(i, function(x) fill_F(L$h, L$y, z.i, n, p, n_z, n_x, 
+                                            X$fl[x,], X$seed[x,]), Fb[,,1])
+  Fs[z.i,z.i,] <- (1-p$p_emig) * Fb[z.i,z.i,]
+  Fs[1,z.i,] <- (1-p$p_emig) * Fb[1,z.i,]
+  Fs[z.i,1,] <- Fb[z.i,1,]
   if(verbose) cat("Finished local growth \n")
   ## dispersal & density dependence
-  for(i in 1:n.cell) {
-    sdd.i <- env.df$id[i] # full rectangle grid id for SDD indexes
-    sdd.j[[i]] <- which(sdd[,,2,]==sdd.i, arr.ind=T) # j cells with target i
-    p.ij <- sdd[,,1,][sdd.j[[i]]] # p(j to i | immigrant seed from j)
-    Fs[z.i,z.i,i] <- Fs[z.i,z.i,i] + 
-      Reduce(`+`, map2(sdd.j[[i]][,3], p$p_emig*p.ij, ~(Fb[z.i,z.i,.x] * .y)))
-    Fs[1,z.i,i] <- Fs[1,z.i,i] + Fb[1,z.i,sdd.j[[i]][,3]] %*% (p$p_emig*p.ij)
-    if(p$NDD) {
-      Nt[,i,1] <- rpois((n+1), n_i[i]/(n+1))
-      F.i <- F.t <- Fs[,,i]/p$p_est  # F.s[,,i] was already multiplied by p$p_est
-      for(k in 1:tmax) {
-        p_est.t[i,k] <- min(p$NDD_n/(sum(F.i[z.i,]*Nt[z.i,i,k])), p$p_est)
-        F.t[z.i,] <- F.i[z.i,] * p_est.t[i,k]
-        IPM.t <- Ps[,,i] + F.t
-        Nt[,i,k+1] <- round(IPM.t %*% Nt[,i,k])
-        lam.t[i,k] <- Re(eigen(IPM.t)$values[1])
-      }
+  sdd.i <- env.df$id  # full rectangle grid id for SDD indexes
+  sdd.j <- lapply(i, function(x) which(sdd[,,2,]==sdd.i[x], arr.ind=T)) 
+  p.ij <- lapply(i, function(x) sdd[,,1,][sdd.j[[x]]]) 
+  Fs[1,z.i,] <- vapply(i, function(x) Fs[1,z.i,x] + 
+                         Fb[1,z.i,sdd.j[[x]][,3]] %*% (p$p_emig*p.ij[[x]]),
+                       Fs[1,z.i,1])
+  Fs[z.i,z.i,] <- vapply(i, function (x) Fs[z.i,z.i,x] + 
+                           Reduce(`+`, map2(sdd.j[[x]][,3], p$p_emig*p.ij[[x]], 
+                                            ~(Fb[z.i,z.i,.x] * .y))),
+                         Fs[z.i,z.i,1])
+  if(verbose) cat("Finished dispersal \n")
+  if(p$NDD) {
+    Nt[,,1] <- rpois((n+1)*n.cell, n0/(n+1))
+    Ft <- Fs/p$p_est  # Fs was already multiplied by p$p_est
+    for(k in 1:tmax) {
+      p_est.t[,k] <- pmin(vapply(i, function(x) p$NDD_n/
+                                   sum(Ft[z.i,,x]*Nt[z.i,x,k]), 1), p$p_est)
+      Ft[z.i,,] <- vapply(i, function(x) Ft[z.i,,x] * p_est.t[x,k], Ft[z.i,,1])
+      IPM.k <- Ps + Ft
+      Nt[,,k+1] <- round(sapply(i, function(x) IPM.k[,,x] %*% Nt[,x,k]))
+      lam.t[,k] <- vapply(i, function(x) Re(eigen(IPM.k[,,x])$values[1]), 1)
+      if(verbose) cat("Finished NDD for year", k, "\n")
     }
-    if(verbose & !(i %% 500)) cat("Finished dispersal & NDD for", i, "cells\n")
   }
   
   return(list(IPMs=Ps+Fs, Ps=Ps, Fb=Fb, Fs=Fs, 
