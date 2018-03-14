@@ -258,7 +258,7 @@ P.i <- which(lam.df$Surv.S > 0) # presences: surviving individuals > seedlings
 ### Correlative: MaxEnt
 ```{r O_Mx}
 library(dismo)
-Mx.P <- sample(P.i, O_n$Mx, replace=T)
+Mx.P <- sample(P.i, O_n$Mx, replace=F)
 pres <- 1:nrow(lam.df) %in% Mx.P
 Mx.out <- maxent(x=lam.df[,c(1,3,5:9)], p=pres)
 lam.df$MxPred <- 1:nrow(lam.df) %in% row.names(Mx.out@presence)
