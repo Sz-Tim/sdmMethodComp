@@ -356,53 +356,55 @@ lam.df %<>%
 ## plots
 ########
 ggplot(lam.df, aes(x=lon, y=lat)) + 
-  geom_tile(aes(fill=lambda.f-lambda, colour=id.inbd %in% IPM.P)) +
+  geom_tile(aes(fill=lambda.f-lambda, colour=id.inbd %in% IPM.P), size=.5) +
   scale_colour_manual(values=c(NA, "black")) +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
 ggplot(lam.df, aes(x=lon, y=lat)) + 
-  geom_tile(aes(fill=lam.S.f-lam.S, colour=id.inbd %in% IPM.P)) +
+  geom_tile(aes(fill=lam.S.f-lam.S, colour=id.inbd %in% IPM.P), size=.5) +
   scale_colour_manual(values=c(NA, "black")) +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
 ggplot(lam.df, aes(x=lon, y=lat)) + 
-  geom_tile(aes(fill=lam.U.f-lam.U, colour=id.inbd %in% IPM.P)) +
+  geom_tile(aes(fill=lam.U.f-lam.U, colour=id.inbd %in% IPM.P), size=.5) +
   scale_colour_manual(values=c(NA, "black")) +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
 ggplot(lam.df, aes(x=lon, y=lat)) + 
-  geom_tile(aes(fill=lam.S>1, colour=id.inbd %in% IPM.P)) +
+  geom_tile(aes(fill=lam.S>1, colour=id.inbd %in% IPM.P), size=.5) +
   scale_colour_manual(values=c(NA, "black"))
 ggplot(lam.df, aes(x=lon, y=lat)) + 
-  geom_tile(aes(fill=lam.S.f>1, colour=id.inbd %in% IPM.P)) +
+  geom_tile(aes(fill=lam.S.f>1, colour=id.inbd %in% IPM.P), size=.5) +
   scale_colour_manual(values=c(NA, "black"))
 ggplot(lam.df, aes(x=lon, y=lat)) + 
   geom_tile(aes(fill=(lambda>1 & lambda.f>1) | (lambda<1 & lambda.f<1),
-                colour=id.inbd %in% IPM.P)) +
+                colour=id.inbd %in% IPM.P), size=.5) +
   scale_colour_manual(values=c(NA, "black"))
 ggplot(lam.df, aes(x=lon, y=lat)) + 
   geom_tile(aes(fill=(lam.S>1 & lam.S.f>1) | (lam.S<1 & lam.S.f<1),
-                colour=id.inbd %in% IPM.P)) +
+                colour=id.inbd %in% IPM.P), size=.5) +
   scale_colour_manual(values=c(NA, "black"))
 ggplot(lam.df, aes(x=lon, y=lat)) + 
   geom_tile(aes(fill=(N.S>1 & N.S.f>1) | (N.S<1 & N.S.f<1),
-                colour=id.inbd %in% IPM.P)) +
+                colour=id.inbd %in% IPM.P), size=.5) +
   scale_colour_manual(values=c(NA, "black"))
 ggplot(lam.df, aes(x=lon, y=lat)) + 
   geom_tile(aes(fill=(lam.U>1 & lam.U.f>1) | (lam.U<1 & lam.U.f<1),
-                colour=id.inbd %in% IPM.P)) +
+                colour=id.inbd %in% IPM.P), size=.5) +
   scale_colour_manual(values=c(NA, "black"))
 ggplot(lam.df, aes(x=lon, y=lat)) + 
   geom_tile(aes(fill=(N.U>1 & N.U.f>1) | (N.U<1 & N.U.f<1),
-                colour=id.inbd %in% IPM.P)) +
+                colour=id.inbd %in% IPM.P), size=.5) +
   scale_colour_manual(values=c(NA, "black"))
 ggplot(lam.df, aes(x=lon, y=lat)) + 
-  geom_tile(aes(fill=(N.S.f-N.S)/N.S, colour=id.inbd %in% IPM.P)) +
+  geom_tile(aes(fill=(N.S.f-N.S)/N.S, colour=id.inbd %in% IPM.P), size=.5) +
   scale_colour_manual(values=c(NA, "black")) +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
 ggplot(lam.df, aes(x=lon, y=lat)) + 
-  geom_tile(aes( fill=(Surv.S.f-Surv.S)/Surv.S, colour=id.inbd %in% IPM.P)) +
+  geom_tile(aes(fill=(Surv.S.f-Surv.S)/Surv.S, 
+                colour=id.inbd %in% IPM.P), size=.5) +
   scale_colour_manual(values=c(NA, "black")) +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
 ggplot(lam.df, aes(x=lon, y=lat)) + 
-  geom_tile(aes(fill=(Rcr.S.f-Rcr.S)/Rcr.S, colour=id.inbd %in% IPM.P)) +
+  geom_tile(aes(fill=(Rcr.S.f-Rcr.S)/Rcr.S, 
+                colour=id.inbd %in% IPM.P), size=.5) +
   scale_colour_manual(values=c(NA, "black")) +
   scale_fill_gradient2(low="darkblue", mid="white", high="darkred", midpoint=0)
 par(mfrow=c(3,3))
