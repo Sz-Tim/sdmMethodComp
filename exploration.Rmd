@@ -11,12 +11,42 @@ pkgs <- c("fields", "sevcheck", "gbPopMod", "IPMpack", "tidyverse", "magrittr")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
 theme_set(theme_bw())
 source("code/fn_IPM.R"); source("code/fn_aux.R"); source("code/fn_sim.R")
+```
+
+## Landscape
+The landscape characteristics are aggregated here. It is a gridded landscape with climate and LULC data.
+```{r landscape}
+x_max <- 100
+y_max <- 100
+
 lc.df <- read_csv("data/landcover_5km.csv") %>% 
   filter(!is.na(bio1_mean)) %>%
   mutate(x=as.integer(factor(.$left)),
          y=as.integer(factor(.$top,
                              levels=rev(levels(factor(.$top))))),
          x_y=paste(x, y, sep="_"))
+env.rct <- as.tibble(expand.grid(x=1:max(lc.df$x),
+                                 y=1:max(lc.df$y))) %>%
+  mutate(x_y=paste(x, y, sep="_")) %>%
+  mutate(temp=c(scale(lc.df$bio1_mean))[match(.$x_y, lc.df$x_y)],
+         temp2=temp^2,
+         prec=c(scale(lc.df$bio12_mean))[match(.$x_y, lc.df$x_y)],
+         prec2=prec^2,
+         pOpn=lc.df$nlcd1_mean[match(.$x_y, lc.df$x_y)],
+         pOth=lc.df$nlcd2_mean[match(.$x_y, lc.df$x_y)],
+         pDec=lc.df$nlcd3_mean[match(.$x_y, lc.df$x_y)],
+         pEvg=lc.df$nlcd4_mean[match(.$x_y, lc.df$x_y)],
+         pMxd=lc.df$nlcd5_mean[match(.$x_y, lc.df$x_y)],
+         inbd=!is.na(match(.$x_y, lc.df$x_y)),
+         id=row_number(), 
+         id.inbd=min_rank(na_if(inbd*id, 0)),
+         lat=lc.df$top[match(.$x_y, lc.df$x_y)],
+         lon=lc.df$left[match(.$x_y, lc.df$x_y)])
+env.rct[is.na(env.rct)] <- 0
+env.df <- filter(env.rct, inbd) %>% select(4:12, 1:3, 13:17) %>%
+  mutate(pOpn=c(scale(pOpn)), pOth=c(scale(pOth)), pDec=c(scale(pDec)),
+         pEvg=c(scale(pEvg)), pMxd=c(scale(pMxd)))
+rm(env.rct)
 ```
 
 # Exploration of options for the simulation component
@@ -29,9 +59,9 @@ regPlots <- T
 ipmPlots <- T
 nPlots <- 5
 z.rng <- c(1, 12)
-n <- 50  # ncells in IPM matrix
-tmax <- 30
-cells <- 1:n_distinct(lc.df$CellID)
+n <- 20  # ncells in IPM matrix
+tmax <- 10
+cells <- n_distinct(lc.df$CellID)
 n.cell <- length(cells)
 sp_i <- list(p=list(s_z=c(-8, 2.1, -.09), # b1 + b2*z + b3*z^2
                     s_x=c(2, -.1, -2, -.1, 2, -2, -.4), # b1*x1 + ...
@@ -53,40 +83,13 @@ sp_i <- list(p=list(s_z=c(-8, 2.1, -.09), # b1 + b2*z + b3*z^2
                     sdd_rate=1 # SDD dispersal rate
                     ))
 sp_i$p$p_emig <- pexp(0.5, sp_i$p$sdd_rate, lower.tail=F) # p(seed emigrates)
-```
-
-## Landscape
-The landscape characteristics are aggregated here. It is a gridded landscape with climate and LULC data.
-```{r landscape}
-env.rct <- as.tibble(expand.grid(x=1:max(lc.df$x),
-                                 y=1:max(lc.df$y))) %>%
-  mutate(x_y=paste(x, y, sep="_")) %>%
-  mutate(temp=c(scale(lc.df$bio1_mean))[match(.$x_y, lc.df$x_y)],
-         temp2=temp^2,
-         prec=c(scale(lc.df$bio12_mean))[match(.$x_y, lc.df$x_y)],
-         prec2=prec^2,
-         pOpn=lc.df$nlcd1_mean[match(.$x_y, lc.df$x_y)],
-         pOth=lc.df$nlcd2_mean[match(.$x_y, lc.df$x_y)],
-         pDec=lc.df$nlcd3_mean[match(.$x_y, lc.df$x_y)],
-         pEvg=lc.df$nlcd4_mean[match(.$x_y, lc.df$x_y)],
-         pMxd=lc.df$nlcd5_mean[match(.$x_y, lc.df$x_y)],
-         inbd=!is.na(match(.$x_y, lc.df$x_y)),
-         id=row_number(), 
-         id.inbd=min_rank(na_if(inbd*id, 0)),
-         lat=lc.df$top[match(.$x_y, lc.df$x_y)],
-         lon=lc.df$left[match(.$x_y, lc.df$x_y)])
-env.rct[is.na(env.rct)] <- 0
+# sdd.pr[,,2,] has indexes based on env.df$id -- NOT env.df$id.inbd
 sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=env.rct, lc.col=8:12,
                         g.p=list(sdd.max=sp_i$p$sdd_max, 
                                  sdd.rate=sp_i$p$sdd_rate, 
                                  bird.hab=rep(1,5)))
-env.df <- filter(env.rct, inbd) %>% select(4:12, 1:3, 13:17) %>%
-  mutate(pOpn=c(scale(pOpn)), pOth=c(scale(pOth)), pDec=c(scale(pDec)),
-         pEvg=c(scale(pEvg)), pMxd=c(scale(pMxd)))
-rm(env.rct)
-# sdd.pr[,,2,] has indexes based on env.df$id -- NOT env.df$id.inbd
-# ggplot(env.df, aes(x=lon, y=lat, fill=id %in% sdd.pr[,,2,740])) + geom_tile()
 ```
+
 
 ---
 
