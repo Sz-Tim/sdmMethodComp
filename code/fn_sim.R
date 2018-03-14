@@ -26,7 +26,7 @@ sim_realized <- function(k, z.i, d_i, d.k, e.k, E, p, lo, hi) {
     d_i$yr[d.k] <- k
     d_i$size[d.k] <- z.i
     d_i$surv[d.k] <- rbinom(n_t, 1, E$s[e.k])
-    surv.ik <- ifelse(surv.ik, 1, NA)
+    surv.ik <- ifelse(d_i$surv[d.k], 1, NA)
     d_i$sizeNext[d.k] <- rnorm(n_t, E$g[e.k], p$g_sig) * surv.ik
     d_i$sizeNext[d.k] <- pmax(d_i$sizeNext[d.k], lo)
     d_i$sizeNext[d.k] <- pmin(d_i$sizeNext[d.k], hi)
@@ -80,8 +80,8 @@ simulate_data <- function(n.cell, tmax, n0, z.rng, lo, hi,
   for(k in 1:tmax) {
     ## local growth
     if(k>1) z.k <- map(d, ~.$sizeNext[!is.na(.$sizeNext) & .$yr == k-1])
-    d.k <- lapply(i, function(x) seq_along(z.k[[x]]) + nrow(d[[x]]))
-    e.k <- lapply(i, function(x) seq_along(z.k[[x]]) + nrow(E[[x]]))
+    d.k <- lapply(i, function(x) seq_along(z.k[[x]]) + length(d[[x]]$yr))
+    e.k <- lapply(i, function(x) seq_along(z.k[[x]]) + length(E[[x]]$yr))
     E <- lapply(i, function(x) sim_expected(k, z.k[[x]], e.k[[x]], E[[x]], 
                                             p, X_map[[x]], n_z))
     d <- lapply(i, function(x) sim_realized(k, z.k[[x]], d[[x]], d.k[[x]], 
