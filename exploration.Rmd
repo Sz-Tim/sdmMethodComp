@@ -192,17 +192,19 @@ if(regPlots) {
     E.t <- sim_expected(1, xx$size, 1:100, E.t, p, map(X, ~.[i,]), n_z)
     main.i <- paste("Cell", i)
     w1 <- Re(eigen(U$IPMs[,,i])$vectors[,1])[-1]; stable.dist1 <- w1/sum(w1)
-    plot(surv~size, data=z.t, ylim=c(0,1), pch=20, col=pt.col,
+    plot(surv~size, data=z.t, ylim=c(0,1), pch=20, col=pt.col, 
+         xlim=c(U$lo, U$hi),
          main=paste("Surv:", main.i), xlab="Size (t)", ylab="P(surv to t+1)")
       lines(E.t$size, E.t$s, col=2)
-    plot(sizeNext~size, data=z.t, pch=20, col=pt.col, ylim=c(U$lo,U$hi),
+    plot(sizeNext~size, data=z.t, pch=20, col=pt.col, ylim=c(U$lo,U$hi), 
+         xlim=c(U$lo, U$hi),
          main=paste("Growth:", main.i), xlab="Size (t)", ylab="Size (t+1)")
       lines(E.t$size, E.t$g, col=2)
       abline(a=0, b=1, lty=2)
-    plot(fl~size, data=z.t, pch=20, ylim=c(0,1), col=pt.col,
+    plot(fl~size, data=z.t, pch=20, ylim=c(0,1), col=pt.col, xlim=c(U$lo, U$hi),
          main=paste("P(Flower):", main.i), xlab="Size (t)", ylab="P(flower)")
       lines(E.t$size, E.t$fl, col=2)
-    plot(seed~size, data=z.t, pch=23-z.t$fl*3, col=pt.col, 
+    plot(seed~size, data=z.t, pch=23-z.t$fl*3, col=pt.col, xlim=c(U$lo, U$hi),
          ylim=range(c(E.t$seed, z.t$seed), na.rm=TRUE),
          main=paste("nSeeds:", main.i), xlab="Size (t)", ylab="Number of seeds")
       lines(E.t$size, E.t$seed, col=2)
