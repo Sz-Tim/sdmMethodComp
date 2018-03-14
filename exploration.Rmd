@@ -97,8 +97,6 @@ rm(env.rct)
 ########
 # set up storage objects & environmental covariates
 p <- sp_i$p
-sdd <- array(0, dim=dim(sdd.pr) + c(0,0,1,0)) # add layer for nEmig
-sdd[,,1:2,] <- sdd.pr
 n_z <- list(s=length(p$s_z), g=length(p$g_z),
             fl=length(p$fl_z), seed=length(p$seed_z))
 n_x <- list(s=length(p$s_x), g=length(p$g_x),
