@@ -333,11 +333,11 @@ X <- list(s=as.matrix(env.df[,1:n_x$s]), g=as.matrix(env.df[,1:n_x$g]),
 ## predict distribution with fit models
 ########
 #---- Truth: use estimated slopes to fill IPM matrix
-U.f <- fill_IPM_matrices(n.cell, tmax, n_i, n, z.rng, buffer=0.5, discrete=1,
+U.f <- fill_IPM_matrices(n.cell, tmax, n0, n, z.rng, buffer=0.5, discrete=1,
                          p.ipm, n_z, n_x, X, sdd, env.df, verbose=T)
 
 #---- Realization: use estimated slopes to generate simulated data
-S.f <- simulate_data(n.cell, tmax, n_i, z.rng, U.f$lo, U.f$hi, 
+S.f <- simulate_data(n.cell, tmax, n0, z.rng, U.f$lo, U.f$hi, 
                      p.ipm, X, n_z, sdd, U.f$sdd.j, verbose=T)
 
 #---- Aggregate results
