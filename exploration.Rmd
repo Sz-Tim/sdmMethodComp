@@ -24,16 +24,15 @@ lc.df <- read_csv("data/landcover_5km.csv") %>%
 ## Species description: Life history, characteristics, relevant attributes
 The simulated species is fully described here. The object `sp_i` is a list containing elements for the global parameters, relationships with environmental variables, and demographic matrices that are applicable or potentially applicable for that modeling strategy. Parameters are abbreviated with the associated kernel component (e.g., `s_*` for survival, `g_*` for growth, etc) and the type of covariate (`*_z` for size, `*_x` for environmental covariates).
 ```{r sp_i}
-mean_abund <- 200
+n0 <- 100
 regPlots <- T
 ipmPlots <- T
 nPlots <- 5
 z.rng <- c(1, 12)
 n <- 50  # ncells in IPM matrix
-tmax <- 50
+tmax <- 30
 cells <- 1:n_distinct(lc.df$CellID)
 n.cell <- length(cells)
-n_i <- rpois(n.cell, mean_abund)
 sp_i <- list(p=list(s_z=c(-8, 2.1, -.09), # b1 + b2*z + b3*z^2
                     s_x=c(2, -.1, -2, -.1, 2, -2, -.4), # b1*x1 + ...
                     g_z=c(.2, 2, -0.1), # b1 + b2*z + b3*z^2
@@ -46,7 +45,7 @@ sp_i <- list(p=list(s_z=c(-8, 2.1, -.09), # b1 + b2*z + b3*z^2
                     rcr_z=c(1.5, 0.4), # N(mean=rcrt1, sd=rcrt2)
                     p_est=0.03, # p(establishment)
                     NDD=T, # negative density dependence: p_est=p_est/N
-                    NDD_n=mean_abund/2, # mean number of recruits if NDD
+                    NDD_n=n0/2, # mean number of recruits if NDD
                     rcr_SB=0.5, # p(recruit from seedbank)
                     rcr_dir=0.5, # p(recruit directly)
                     s_SB=0.3, # p(survive in seedbank additional year)
@@ -112,12 +111,12 @@ X <- list(s=as.matrix(env.df[,1:n_x$s]), g=as.matrix(env.df[,1:n_x$g]),
 ########
 
 #---- Truth: use assigned slopes to fill IPM matrix
-U <- fill_IPM_matrices(n.cell, tmax, n_i, n, z.rng, buffer=0.75, discrete=1,
+U <- fill_IPM_matrices(n.cell, tmax, n0, n, z.rng, buffer=0.75, discrete=1,
                        p, n_z, n_x, X, sdd.pr, env.df, verbose=T)
 
 #---- Realization: generate simulated data
-S <- simulate_data(n.cell, tmax, n_i, z.rng, U$lo, U$hi, 
-                   p, X, n_z, sdd, U$sdd.j, verbose=T)
+S <- simulate_data(n.cell, tmax, n0, z.rng, U$lo, U$hi,
+                   p, X, n_z, sdd.pr, U$sdd.j, verbose=T)
 
 #---- Aggregate results
 lam.df <- env.df
