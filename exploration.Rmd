@@ -356,36 +356,7 @@ for(s in 1:n_sim) {
                      p.ipm, X, n_z, sdd.pr, U.f$sdd.j, verbose=T)
   cat("||-- Finished simulation", s, "\n||--\n")
 }
-S.sum <- list(B=map(S.i, ~.$B),
-              nSd=map(S.i, ~.$nSd),
-              D=map(S.i, ~.$D),
-              p_est=map(S.i, ~.$p_est.i),
-              N_sim=map(S.i, ~.$N_sim),
-              N_tot=map(S.i, ~map_dbl(.$d, 
-                                    ~sum(!is.na(.$sizeNext[.$yr==tmax])))),
-              N_surv=map(S.i, ~map_dbl(.$d, 
-                                    ~sum(.$surv[.$yr==tmax], na.rm=T))),
-              N_rcr=map(S.i, ~map_dbl(.$d, 
-                                    ~sum(is.na(.$size[.$yr==tmax]))))) %>% 
-  map(simplify2array)
-rm(S.i)
-              
-S.f <- list(B.mn=apply(S.sum$B, c(1,2), mean), 
-            B.sd=apply(S.sum$B, c(1,2), sd), 
-            nSd.mn=apply(S.sum$nSd, c(1,2), mean), 
-            nSd.sd=apply(S.sum$nSd, c(1,2), sd), 
-            D.mn=apply(S.sum$D, c(1,2), mean), 
-            D.sd=apply(S.sum$D, c(1,2), sd), 
-            p_est.mn=apply(S.sum$p_est, c(1,2), mean), 
-            p_est.sd=apply(S.sum$p_est, c(1,2), sd), 
-            N_sim.mn=apply(S.sum$N_sim, c(1,2), mean), 
-            N_sim.sd=apply(S.sum$N_sim, c(1,2), sd),
-            N_tot.mn=apply(S.sum$N_tot, 1, mean),
-            N_tot.sd=apply(S.sum$N_tot, 1, sd),
-            N_surv.mn=apply(S.sum$N_surv, 1, mean),
-            N_surv.sd=apply(S.sum$N_surv, 1, mean),
-            N_rcr.mn=apply(S.sum$N_rcr, 1, mean),
-            N_rcr.sd=apply(S.sum$N_rcr, 1, mean))
+S.f <- summarize_IPM_simulations(S.i)
 
 #---- Aggregate results
 lam.df$lambda.f <- apply(U.f$IPMs, 3, function(x) Re(eigen(x)$values[1]))
