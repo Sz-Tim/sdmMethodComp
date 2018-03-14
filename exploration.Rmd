@@ -261,7 +261,7 @@ The simulated species *S* is sampled appropriately in order to fit each SDM mode
 O_n <- list(Mx=500, CA=20, IPM=20) # number of cells in sample
 O_yr <- list(Mx=tmax, CA=(tmax-10):tmax, IPM=tmax) # years to sample from
 P.i <- which(lam.df$Surv.S > 0) # presences: surviving individuals > seedlings
-n_sim <- 20
+n_sim <- 15
 ```
 
 ### Correlative: MaxEnt
@@ -473,10 +473,10 @@ plot(density(lam.df$lam.U.f-lam.df$lam.U)); abline(v=0, col="red", lty=2)
 sample.cells <- sample((1:n.cell)[lam.df$Surv.S>0], nPlots)
 if(regPlots) {
   par(mfrow=c(3,2), mar=c(4,4,2,1))
-  xx <- tibble(size=seq(U.f$lo, U.f$hi, length.out=100), 
+  xx <- tibble(size=seq(U$lo, U$hi, length.out=100), 
                size2=size^2, size3=size^3)
   E.t <- xx %>% add_column(yr=NA, s=NA, g=NA, fl=NA, seed=NA)
-  xxx <- seq(0, U.f$hi*.5, length.out=100)
+  xxx <- seq(0, U$hi*.5, length.out=100)
   for(i in sample.cells) {
     z.t <- data.frame(S$d[[i]]) %>% filter(!is.na(size) & yr==tmax)
     pt.col <- rgb(0,0,0,1/(nrow(z.t)^.25))
@@ -485,17 +485,18 @@ if(regPlots) {
     main.i <- paste("Cell", i)
     w1 <- Re(eigen(U.f$IPMs[,,i])$vectors[,1])[-1]; stable.dist1 <- w1/sum(w1)
     w.S <- Re(eigen(U$IPMs[,,i])$vectors[,1])[-1]; stable.dist.S <- w.S/sum(w.S)
-    plot(surv~size, data=z.t, ylim=c(0,1), pch=20, col=pt.col,
+    plot(z.t$surv~z.t$size, ylim=c(0,1), pch=20, col=pt.col, xlim=c(U$lo, U$hi),
          main=paste("Surv:", main.i), xlab="Size (t)", ylab="P(surv to t+1)")
       lines(E.t$size, E.t$s, col=2); lines(E.S.t$size, E.S.t$s, col=4)
-    plot(sizeNext~size, data=z.t, pch=20, col=pt.col, ylim=c(U$lo,U$hi),
+    plot(z.t$sizeNext~z.t$size, pch=20, col=pt.col, ylim=c(U$lo,U$hi),
+         xlim=c(U$lo, U$hi),
          main=paste("Growth:", main.i), xlab="Size (t)", ylab="Size (t+1)")
       lines(E.t$size, E.t$g, col=2); lines(E.S.t$size, E.S.t$g, col=4)
       abline(a=0, b=1, lty=2)
-    plot(fl~size, data=z.t, pch=20, ylim=c(0,1), col=pt.col,
+    plot(fl~size, data=z.t, pch=20, ylim=c(0,1), col=pt.col, xlim=c(U$lo, U$hi),
          main=paste("P(Flower):", main.i), xlab="Size (t)", ylab="P(flower)")
       lines(E.t$size, E.t$fl, col=2); lines(E.S.t$size, E.S.t$fl, col=4)
-    plot(seed~size, data=z.t, pch=23-z.t$fl*3, col=pt.col, 
+    plot(seed~size, data=z.t, pch=23-z.t$fl*3, col=pt.col, xlim=c(U$lo, U$hi),
          ylim=range(c(E.t$seed, z.t$seed), na.rm=TRUE),
          main=paste("nSeeds:", main.i), xlab="Size (t)", ylab="Number of seeds")
       lines(E.t$size, E.t$seed, col=2); lines(E.S.t$size, E.S.t$seed, col=4)
