@@ -3,6 +3,48 @@
 # Tim Szewczyk
 
 
+##-- generate landscape
+build_landscape <- function(f, x_max=Inf, y_max=Inf) {
+  require(tidyverse)
+  
+  # load GIS data
+  lc.df <- read_csv(f) %>% 
+    filter(!is.na(bio1_mean)) %>%
+    mutate(x=as.integer(factor(.$left)),
+           y=as.integer(factor(.$top, levels=rev(levels(factor(.$top))))),
+           x_y=paste(x, y, sep="_"))
+  # establish grid with x=1:ncol, y=1:nrow
+  env.rct <- as.tibble(expand.grid(x=1:max(lc.df$x), y=1:max(lc.df$y))) %>%
+    mutate(x_y=paste(x, y, sep="_")) 
+  match_id <- match(env.rct$x_y, lc.df$x_y)
+  # pair environmental variables
+  env.rct <- env.rct %>%
+    mutate(temp=c(scale(lc.df$bio1_mean))[match_id],
+           temp2=temp^2,
+           prec=c(scale(lc.df$bio12_mean))[match_id],
+           prec2=prec^2,
+           pOpn=lc.df$nlcd1_mean[match_id],
+           pOth=lc.df$nlcd2_mean[match_id],
+           pDec=lc.df$nlcd3_mean[match_id],
+           pEvg=lc.df$nlcd4_mean[match_id],
+           pMxd=lc.df$nlcd5_mean[match_id],
+           inbd=!is.na(match(.$x_y, lc.df$x_y)),
+           lat=lc.df$top[match_id],
+           lon=lc.df$left[match_id],
+           rdLen=lc.df$rdLen[match_id]) %>%
+    filter(x <= x_max & y >= (max(.$y)-y_max)) %>%
+    mutate(id=row_number(), 
+           id.inbd=min_rank(na_if(inbd*id, 0)))
+  env.rct[is.na(env.rct)] <- 0
+  # subset inbound cells
+  env.in <- filter(env.rct, inbd) %>% select(4:12, 1:3, 13:18) %>%
+    mutate(pOpn=c(scale(pOpn)), pOth=c(scale(pOth)), pDec=c(scale(pDec)),
+           pEvg=c(scale(pEvg)), pMxd=c(scale(pMxd)))
+  
+  return(list(env.rct=env.rct, env.in=env.in))
+}
+
+
 ##-- create design matrix from vector of sizes
 z_pow <- function(z.vec, n_z) {
   if(n_z==1) {
