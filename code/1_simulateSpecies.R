@@ -1,0 +1,111 @@
+# 1: Simulate species
+# Comparison of SDM approaches
+# Tim Szewczyk
+
+# This script generates data for hypothetical species. The simulation process is
+# based on an IPM framework. Both the underlying IPM objects and the simulated
+# individuals are produced and stored. This serves as the perfectly known true
+# distribution from which samples are taken for fitting each SDM.
+
+########
+## Setup
+########
+# file specifications
+sp <- "sp1"
+env.f <- "data/landcover_5km.csv"  # file with environmental data
+
+# load workspace
+pkgs <- c("tidyverse", "magrittr")
+suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
+source("code/fn_IPM.R"); source("code/fn_aux.R"); source("code/fn_sim.R")
+L <- build_landscape(f=env.f, 
+                     x_max=30, # ncol in landscape; Inf for full dataset
+                     y_max=30) # nrow in landscape; Inf for full dataset
+n.cell <- sum(L$env.rct$inbd)
+
+
+########
+## Set species traits
+########
+p=list(n=20,  # ncells in IPM matrix
+       tmax=10,  # time steps for NDD & simulations
+       n0=100,  # initial pop sizes
+       z.rng=c(1,12),  # initial size range
+       s_z=c(-8, 2.1, -.09),  # b1 + b2*z + b3*z^2
+       s_x=c(2, -.1, -2, -.1, 2, -2, -.4),  # b1*x1 + ...
+       g_z=c(.2, 2, -0.1),  # b1 + b2*z + b3*z^2
+       g_x=c(2, -.1, 2, -.1, 2, -2),  # b1*x1 + ...
+       g_sig=1,  # growth ~ N(E, g_sig)
+       fl_z=c(-1.5, .1, .1),  # b1 + b2*z + b3*z^2
+       fl_x=c(-2, -.1, -2, -.1, 1, 1),  # b1*x1 + ...
+       seed_z=c(2, 0.5, -.03),  # b1 + b2*z + b2*z^2
+       seed_x=c(1, -.1, -1, -.1, .2),  # b1*x1 + ...
+       rcr_z=c(1.5, 0.4),  # N(mean=rcrt1, sd=rcrt2)
+       p_est=0.03,  # p(establishment)
+       NDD=T,  # negative density dependent p_est
+       rcr_SB=0.5,  # p(recruit from seedbank)
+       rcr_dir=0.5,  # p(recruit directly)
+       s_SB=0.3,  # p(survive in seedbank additional year)
+       sdd_max=5,  # max SDD distance in cells
+       sdd_rate=1  # SDD dispersal rate
+)
+p$NDD_n <- p$n0/2  # mean number of recruits if NDD
+p$p_emig <- pexp(0.5, p$sdd_rate, lower.tail=F) # p(seed emigrates)
+n_z <- list(s=length(p$s_z),  # n size covariates for each vital rate
+            g=length(p$g_z),
+            fl=length(p$fl_z), 
+            seed=length(p$seed_z))
+n_x <- list(s=length(p$s_x), # n env covariates for each vital rate
+            g=length(p$g_x),
+            fl=length(p$fl_x), 
+            seed=length(p$seed_x))
+X <- list(s=as.matrix(L$env.in[,1:n_x$s]), # env covariates for each vital rate
+          g=as.matrix(L$env.in[,1:n_x$g]),
+          fl=as.matrix(L$env.in[,1:n_x$fl]),
+          seed=as.matrix(L$env.in[,1:n_x$seed]))
+sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=L$env.rct, lc.col=8:12,
+                        g.p=list(sdd.max=p$sdd_max, 
+                                 sdd.rate=p$sdd_rate, 
+                                 bird.hab=rep(1,5)))
+# NOTE: sdd.pr[,,2,] indexes based on `id` (id for each cell in grid) instead  
+# of `id.inbd` (id for inbound cells only), but sdd.pr[,,,i] includes only
+# inbound cells, so the layer index aligns with `id.inbd`. This makes 
+# identifying much simpler, but requires looking up the corresponding id's
+
+
+########
+## Generate underlying IPM and simulated data
+########
+# Truth: use assigned slopes to fill IPM matrix
+U <- fill_IPM_matrices(n.cell, buffer=0.75, discrete=1, p, n_z, n_x, 
+                       X, sdd.pr, L$env.in$id, verbose=T)
+
+# Realization: generate simulated data
+S <- simulate_data(n.cell, U$lo, U$hi, p, X, n_z, sdd.pr, U$sdd.j, verbose=T)
+
+# Aggregate results
+lam.df <- L$env.in
+lam.df$lambda <- apply(U$IPMs, 3, function(x) Re(eigen(x)$values[1]))
+lam.df %<>% 
+  add_column(lam.S=S$N_sim[,p$tmax]/(S$N_sim[,p$tmax-1]+.01),
+             nSeed=S$nSd[,p$tmax], D=S$D[,p$tmax], 
+             B0=S$B[,1], Btmax=S$B[,p$tmax+1], 
+             N.S=map_dbl(S$d, ~sum(!is.na(.$sizeNext[.$yr==p$tmax]))),
+             Surv.S=map_dbl(S$d, ~sum(.$surv[.$yr==p$tmax], na.rm=T)),
+             Rcr.S=map_dbl(S$d, ~sum(is.na(.$size[.$yr==p$tmax])))) %>%
+  mutate(nSdStay=nSeed*(1-p$p_emig), nSdLeave=nSeed*p$p_emig) %>%
+  add_column(N.U=apply(U$Nt[-1,,p$tmax+1],2,sum), lam.U=U$lam.t[,p$tmax])
+
+
+########
+## Store true species distribution
+########
+saveRDS(L$env.in, paste0("out/", sp, "_env_in.rds"))
+saveRDS(p, paste0("out/", sp, "_p.rds"))
+saveRDS(sdd.pr, paste0("out/", sp, "_sdd.rds"))
+saveRDS(U, paste0("out/", sp, "_U.rds"))
+saveRDS(S, paste0("out/", sp, "_S.rds"))
+saveRDS(lam.df, paste0("out/", sp, "_lam_df.rds"))
+
+
+
