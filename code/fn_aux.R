@@ -59,7 +59,7 @@ z_pow <- function(z.vec, n_z) {
 
 
 ##-- calculate means and sds from multiple IPM simulations
-summarize_IPM_simulations <- function(S.i) {
+summarize_IPM_simulations <- function(S.i, tmax) {
   
   require(tidyverse)
   
