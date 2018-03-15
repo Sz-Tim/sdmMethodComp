@@ -126,14 +126,14 @@ setup_IPM_matrix <- function(n=100, z.rng=c(1,10), buffer=0.25) {
 
 ##-- Fill P matrix: local 
 ##   
-fill_P <- function(h, y, z.i, n, p, n_z, n_x, X_s, X_g) {
-  P.mx <- matrix(0, nrow=n+1, ncol=n+1)
+fill_P <- function(h, y, z.i, p, n_z, n_x, X_s, X_g) {
+  P.mx <- matrix(0, nrow=p$n+1, ncol=p$n+1)
   # survival & growth
   S.v <- calc_surv(y, p=p, n_sz=n_z$s, X.s=X_s)
   G.mx <- h*outer(y, y, calc_grow, p=p, n_gz=n_z$g, X.g=X_g)
   # correct ejections
-  for(k in 1:(n/2)) G.mx[1,k] <- G.mx[1,k] + 1 - sum(G.mx[,k])
-  for(k in (n/2+1):n) G.mx[n,k] <- G.mx[n,k] + 1 - sum(G.mx[,k])
+  for(k in 1:(p$n/2)) G.mx[1,k] <- G.mx[1,k] + 1 - sum(G.mx[,k])
+  for(k in (p$n/2+1):p$n) G.mx[p$n,k] <- G.mx[p$n,k] + 1 - sum(G.mx[,k])
   # fill P matrix
   for(k in z.i) P.mx[k,z.i] <- G.mx[k-1,]*S.v
   P.mx[1,1] <- calc_staySB(p)
@@ -143,8 +143,8 @@ fill_P <- function(h, y, z.i, n, p, n_z, n_x, X_s, X_g) {
 
 ##-- Fill F matrix 
 ##   
-fill_F <- function(h, y, z.i, n, p, n_z, n_x, X_fl, X_seed) {
-  F.mx <- matrix(0, nrow=n+1, ncol=n+1)
+fill_F <- function(h, y, z.i, p, n_z, n_x, X_fl, X_seed) {
+  F.mx <- matrix(0, nrow=p$n+1, ncol=p$n+1)
   F.mx[z.i,z.i] <- outer(y, y, calc_rcrDir, p=p, n_seedz=n_z$seed, n_flz=n_z$fl, 
                          X.seed=X_seed, X.fl=X_fl) * h * p$p_est
   F.mx[1,z.i] <- calc_addSB(y, p=p, n_seedz=n_z$seed, n_flz=n_z$fl, 
@@ -156,32 +156,31 @@ fill_F <- function(h, y, z.i, n, p, n_z, n_x, X_fl, X_seed) {
 
 ##-- Fill all IPM objects
 ##
-fill_IPM_matrices <- function(n.cell, tmax, n0, n, z.rng, buffer, discrete,
-                              p, n_z, n_x, X, sdd, env.df, verbose=FALSE) {
+fill_IPM_matrices <- function(n.cell, buffer, discrete, p, n_z, n_x, 
+                              X, sdd, sdd.i, verbose=FALSE) {
   require(tidyverse)
   i <- 1:n.cell
   
   # storage objects
-  IPMs <- Ps <- Fs <- Fb <- array(0, dim=c(n+1, n+1, n.cell))
-  Nt <- array(dim=c(n+1, n.cell, tmax+1))
+  IPMs <- Ps <- Fs <- Fb <- array(0, dim=c(p$n+1, p$n+1, n.cell))
+  Nt <- array(dim=c(p$n+1, n.cell, p$tmax+1))
   sdd.j <- vector("list", length=n.cell)
-  lam.t <- p_est.t <- matrix(nrow=n.cell, ncol=tmax)
+  lam.t <- p_est.t <- matrix(nrow=n.cell, ncol=p$tmax)
   
   # IPM matrix setup
-  L <- setup_IPM_matrix(n, z.rng, buffer)
-  z.i <- (1:n) + discrete  # continuous stage matrix indices
+  L <- setup_IPM_matrix(p$n, p$z.rng, buffer)
+  z.i <- (1:p$n) + discrete  # continuous stage matrix indices
 
   ## local growth
-  Ps <- vapply(i, function(x) fill_P(L$h, L$y, z.i, n, p, n_z, n_x, 
+  Ps <- vapply(i, function(x) fill_P(L$h, L$y, z.i, p, n_z, n_x, 
                                             X$s[x,], X$g[x,]), Ps[,,1])
-  Fb <- vapply(i, function(x) fill_F(L$h, L$y, z.i, n, p, n_z, n_x, 
+  Fb <- vapply(i, function(x) fill_F(L$h, L$y, z.i, p, n_z, n_x, 
                                             X$fl[x,], X$seed[x,]), Fb[,,1])
   Fs[z.i,z.i,] <- (1-p$p_emig) * Fb[z.i,z.i,]
   Fs[1,z.i,] <- (1-p$p_emig) * Fb[1,z.i,]
   Fs[z.i,1,] <- Fb[z.i,1,]
   if(verbose) cat("Finished local growth \n")
   ## dispersal & density dependence
-  sdd.i <- env.df$id  # full rectangle grid id for SDD indexes
   sdd.j <- lapply(i, function(x) which(sdd[,,2,]==sdd.i[x], arr.ind=T)) 
   p.ij <- lapply(i, function(x) sdd[,,1,][sdd.j[[x]]]) 
   Fs[1,z.i,] <- vapply(i, function(x) Fs[1,z.i,x] + 
@@ -193,9 +192,9 @@ fill_IPM_matrices <- function(n.cell, tmax, n0, n, z.rng, buffer, discrete,
                          Fs[z.i,z.i,1])
   if(verbose) cat("Finished dispersal \n")
   if(p$NDD) {
-    Nt[,,1] <- rpois((n+1)*n.cell, n0/(n+1))
+    Nt[,,1] <- rpois((p$n+1)*n.cell, p$n0/(p$n+1))
     Ft <- Fs/p$p_est  # Fs was already multiplied by p$p_est
-    for(k in 1:tmax) {
+    for(k in 1:p$tmax) {
       p_est.t[,k] <- pmin(vapply(i, function(x) p$NDD_n/
                                    sum(Ft[z.i,,x]*Nt[z.i,x,k]), 1), p$p_est)
       Ft[z.i,,] <- vapply(i, function(x) Ft[z.i,,x] * p_est.t[x,k], Ft[z.i,,1])
