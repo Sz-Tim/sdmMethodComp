@@ -64,20 +64,19 @@ sim_seedbank <- function(nSd_ik, B_ik, D_ik, p) {
 
 ##--- simulate full dataset
 ##
-simulate_data <- function(n.cell, tmax, n0, z.rng, lo, hi, 
-                          p, X, n_z, sdd, sdd.j, verbose=FALSE) {
+simulate_data <- function(n.cell, lo, hi, p, X, n_z, sdd, sdd.j, verbose=F) {
   require(tidyverse)
   i <- 1:n.cell
   
   # storage objects
   E <- d <- map(i, ~list())  # much faster than using dataframes
-  B <- cbind(rpois(n.cell, n0), matrix(0, nrow=n.cell, ncol=tmax))
-  nSd <- D <- N_sim <- matrix(0, nrow=n.cell, ncol=tmax)
-  p_est.i <- matrix(p$p_est, nrow=n.cell, ncol=tmax)
-  z.k <- map(i, ~runif(n0, z.rng[1], z.rng[2]))
+  B <- cbind(rpois(n.cell, p$n0), matrix(0, nrow=n.cell, ncol=p$tmax))
+  nSd <- D <- N_sim <- matrix(0, nrow=n.cell, ncol=p$tmax)
+  p_est.i <- matrix(p$p_est, nrow=n.cell, ncol=p$tmax)
+  z.k <- map(i, ~runif(p$n0, p$z.rng[1], p$z.rng[2]))
   X_map <- lapply(i, function(x) map(X, ~.[x,]))
   
-  for(k in 1:tmax) {
+  for(k in 1:p$tmax) {
     ## local growth
     if(k>1) z.k <- map(d, ~.$sizeNext[!is.na(.$sizeNext) & .$yr == k-1])
     d.k <- lapply(i, function(x) seq_along(z.k[[x]]) + length(d[[x]]$yr))
