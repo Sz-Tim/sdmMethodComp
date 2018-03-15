@@ -15,7 +15,7 @@ sp <- "sp1"
 env.f <- "data/landcover_5km.csv"  # file with environmental data
 
 # load workspace
-pkgs <- c("tidyverse", "magrittr")
+pkgs <- c("gbPopMod", "tidyverse", "magrittr")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
 source("code/fn_IPM.R"); source("code/fn_aux.R"); source("code/fn_sim.R")
 L <- build_landscape(f=env.f, 
