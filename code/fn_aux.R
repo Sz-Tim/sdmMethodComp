@@ -95,3 +95,7 @@ summarize_IPM_simulations <- function(S.i) {
               N_rcr.sd=apply(S.sum$N_rcr, 1, mean)))
 }
 
+
+##-- antilogit
+antilogit <- function (x) {
+  exp(x)/(1 + exp(x))
