@@ -109,15 +109,36 @@ for(i in 1:length(O_IPM)) {
   
   #---- Realization: use estimated slopes to generate simulated data
   S.i <- vector("list", n_sim)
+  cat("||-- Starting simulations\n||--\n")
   for(s in 1:n_sim) {
     S.i[[s]] <- simulate_data(n.cell, U$lo, U$hi, p.ipm, X, n_z, 
                               sdd.pr, U$sdd.j, verbose=T)
     cat("||-- Finished simulation", s, "\n||--\n")
   }
   S.f[[i]] <- summarize_IPM_simulations(S.i, p.ipm$tmax)
+  cat("\n  Finished dataset", i, "\n")
 }
+out <- summarize_IPM_samples(U.f, S.f)
+
+P_IPM <- lam.df %>% 
+  mutate(lambda.f=apply(out$Uf$IPM.mn, 3, function(x) Re(eigen(x)$values[1])),
+         lam.S.f=rowMeans(out$Sf$N_sim.mn[,(-3:0)+p.ipm$tmax]/
+                            (out$Sf$N_sim.mn[,(-4:-1)+p.ipm$tmax]+0.0001)),
+         nSeed.f=out$Sf$nSd.mn[,p.ipm$tmax], 
+         D.f=out$Sf$D.mn[,p.ipm$tmax],
+         B0.f=out$Sf$B.mn[,1], 
+         Btmax.f=out$Sf$B.mn[,p.ipm$tmax+1],
+         N.S.f=out$Sf$N_tot.mn, 
+         Surv.S.f=out$Sf$N_surv.mn, 
+         Rcr.S.f=out$Sf$N_rcr.mn) %>%
+  mutate(nSdStay.f=nSeed.f*(1-p.ipm$p_emig), 
+         nSdLeave.f=nSeed.f*p.ipm$p_emig,
+         N.U.f=apply(out$Uf$Nt.mn[,,p.ipm$tmax],2,sum), 
+         lam.U.f=out$Uf$lam.mn[,p.ipm$tmax-1])
 
 
+saveRDS(P_IPM, paste0("out/", sp, "_P_IPM_", sampling.issue, "_",
+                      modeling.issue, ".rds"))
 
 
 
