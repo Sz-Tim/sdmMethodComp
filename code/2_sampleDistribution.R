@@ -22,7 +22,7 @@ env.in <- readRDS(paste0("out/", sp, "_env_in.rds"))
 n.cell <- nrow(env.in)
 p <- readRDS(paste0("out/", sp, "_p.rds"))
 S <- readRDS(paste0("out/", sp, "_S.rds"))
-lam.df <- readRDS(paste0("out/", sp, "_lam_df.rds"))
+lam.df <- readRDS(paste0("out/", sp, "_lam_df.rds")) # env + true pop values
 
 
 ########
@@ -72,6 +72,7 @@ for(s in 1:n_samp) {
   IPM.d <- vector("list", O_n$Mech)
   for(i in Mech.sample[[s]]) {
     IPM.d[[i]] <- data.frame(S$d[[i]]) %>% filter(yr %in% O_yr$IPM) %>%
+      mutate(size2=size^2, size3=size^3) %>%
       add_column(id.inbd=i) %>%
       full_join(env.in[i,], by="id.inbd")
     IPM.d[[i]] <- sample_frac(IPM.d[[i]], prop.sampled)
