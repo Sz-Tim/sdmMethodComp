@@ -27,9 +27,9 @@ n.cell <- sum(L$env.rct$inbd)
 ########
 ## Set species traits
 ########
-p=list(n=20,  # ncells in IPM matrix
+p=list(n=50,  # ncells in IPM matrix
        tmax=10,  # time steps for NDD & simulations
-       n0=100,  # initial pop sizes
+       n0=200,  # initial pop sizes
        z.rng=c(1,12),  # initial size range
        s_z=c(-8, 2.1, -.09),  # b1 + b2*z + b3*z^2
        s_x=c(2, -.1, -2, -.1, 2, -2, -.4),  # b1*x1 + ...
@@ -84,17 +84,20 @@ U <- fill_IPM_matrices(n.cell, buffer=0.75, discrete=1, p, n_z, n_x,
 S <- simulate_data(n.cell, U$lo, U$hi, p, X, n_z, sdd.pr, U$sdd.j, verbose=T)
 
 # Aggregate results
-lam.df <- L$env.in
-lam.df$lambda <- apply(U$IPMs, 3, function(x) Re(eigen(x)$values[1]))
-lam.df %<>% 
-  add_column(lam.S=S$N_sim[,p$tmax]/(S$N_sim[,p$tmax-1]+.01),
-             nSeed=S$nSd[,p$tmax], D=S$D[,p$tmax], 
-             B0=S$B[,1], Btmax=S$B[,p$tmax+1], 
-             N.S=map_dbl(S$d, ~sum(!is.na(.$sizeNext[.$yr==p$tmax]))),
-             Surv.S=map_dbl(S$d, ~sum(.$surv[.$yr==p$tmax], na.rm=T)),
-             Rcr.S=map_dbl(S$d, ~sum(is.na(.$size[.$yr==p$tmax])))) %>%
-  mutate(nSdStay=nSeed*(1-p$p_emig), nSdLeave=nSeed*p$p_emig) %>%
-  add_column(N.U=apply(U$Nt[-1,,p$tmax+1],2,sum), lam.U=U$lam.t[,p$tmax])
+lam.df <- L$env.in %>%
+  mutate(lambda=apply(U$IPMs, 3, function(x) Re(eigen(x)$values[1])),
+         lam.S=S$N_sim[,p$tmax]/(S$N_sim[,p$tmax-1]+.01),
+         nSeed=S$nSd[,p$tmax], 
+         D=S$D[,p$tmax], 
+         B0=S$B[,1], 
+         Btmax=S$B[,p$tmax+1], 
+         N.S=map_dbl(S$d, ~sum(!is.na(.$sizeNext[.$yr==p$tmax]))),
+         Surv.S=map_dbl(S$d, ~sum(.$surv[.$yr==p$tmax], na.rm=T)),
+         Rcr.S=map_dbl(S$d, ~sum(is.na(.$size[.$yr==p$tmax]))),
+         nSdStay=nSeed*(1-p$p_emig), 
+         nSdLeave=nSeed*p$p_emig,
+         N.U=apply(U$Nt[-1,,p$tmax+1],2,sum), 
+         lam.U=U$lam.t[,p$tmax])
 
 
 ########
