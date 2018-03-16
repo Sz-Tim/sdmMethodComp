@@ -135,3 +135,11 @@ summarize_IPM_samples <- function(U.f, S.f) {
 antilogit <- function (x) {
   exp(x)/(1 + exp(x))
 }
+
+
+##-- extract SDM sampling & modeling issues from file names
+extract_SDM_issues <- function(f, SDM) {
+  require(stringr)
+  issues <- str_remove(str_split(f, paste0(SDM, "_"), Inf, T)[,2], ".rds")
+  return(str_split(issues, "_"))
+}
