@@ -59,10 +59,7 @@ n_x <- list(s=length(p$s_x), # n env covariates for each vital rate
             g=length(p$g_x),
             fl=length(p$fl_x), 
             seed=length(p$seed_x))
-X <- list(s=as.matrix(L$env.in[,1:n_x$s]), # env covariates for each vital rate
-          g=as.matrix(L$env.in[,1:n_x$g]),
-          fl=as.matrix(L$env.in[,1:n_x$fl]),
-          seed=as.matrix(L$env.in[,1:n_x$seed]))
+X <- map(n_x, ~as.matrix(L$env.in[,1:.]))  # env covariates for each vital rate
 sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=L$env.rct, lc.col=8:12,
                         g.p=list(sdd.max=p$sdd_max, 
                                  sdd.rate=p$sdd_rate, 
@@ -78,10 +75,10 @@ sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=L$env.rct, lc.col=8:12,
 ########
 # Truth: use assigned slopes to fill IPM matrix
 U <- fill_IPM_matrices(n.cell, buffer=0.75, discrete=1, p, n_z, n_x, 
-                       X, sdd.pr, L$env.in$id, verbose=T)
+                       X, sdd.pr, L$env.in$id)
 
 # Realization: generate simulated data
-S <- simulate_data(n.cell, U$lo, U$hi, p, X, n_z, sdd.pr, U$sdd.j, verbose=T)
+S <- simulate_data(n.cell, U$lo, U$hi, p, X, n_z, sdd.pr, U$sdd.j)
 
 # Aggregate results
 lam.df <- L$env.in %>%
