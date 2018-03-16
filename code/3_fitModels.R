@@ -11,7 +11,7 @@
 ########
 # file specifications
 sp <- "sp1"
-sampling.issue <- c("none", "error", "geog", "bias")[1]
+sampling.issue <- c("none", "error", "geog", "bias")[4]
 modeling.issue <- c("none")[1]
 
 # load workspace
@@ -33,30 +33,25 @@ O_IPM <- readRDS(paste0("out/", sp, "_O_IPM_", sampling.issue, ".rds"))
 ########
 ## Set model details
 ########
-n_sim <- 15  # number of simulations per sample (mechanistic only)
-v <- c("(Intercept)"=0, "size"=0, "size2"=0, "size3"=0, 
+n_sim <- 10  # number of simulations per sample (mechanistic only)
+v <- c("(Intercept)"=0, "size"=0, "size2"=0,# "size3"=0, 
        "temp"=0, "temp2"=0, "prec"=0, "prec2"=0, 
-       "pOpn"=0, "pOth"=0, "pDec"=0, "pEvg"=0, "pMxd"=0)
+       "pOpn"=0, "pOth"=0, "pDec"=0)#, "pEvg"=0, "pMxd"=0)
 m.full <- paste(names(v)[-1], collapse=" + ")
-n_z <- sum(grepl("size", names(v))) + 1  # include intercept
-n_x <- length(v) - n_z
-n_z <- rep(list(n_z), 4)
-names(n_z) <- c("s", "g", "fl", "seed")
-n_x <- rep(list(n_x), 4)
-names(n_x) <- c("s", "g", "fl", "seed")
-X <- list(s=as.matrix(env.in[,1:n_x$s]), g=as.matrix(env.in[,1:n_x$g]),
-          fl=as.matrix(env.in[,1:n_x$fl]), seed=as.matrix(env.in[,1:n_x$seed]))
-
+n_z <- rep(list(sum(grepl("size", names(v))) + 1), 4)# include intercept
+n_x <- rep(list(length(v) - n_z[[1]]), 4)
+names(n_z) <- names(n_x) <- c("s", "g", "fl", "seed")
+X <- map(n_x, ~as.matrix(env.in[,1:.]))
 
 ########
 ## fit models
 ########
-# MaxEnt
-# CA
-# IPM
+##--- MaxEnt
+##--- CA
+##--- IPM
 S.f <- U.f <- vector("list", length(O_IPM))
 for(i in 1:length(O_IPM)) {
-  # separate data from MuMIn::dredge()
+  # separate data for MuMIn::dredge()
   O_IPM.i.s <- filter(O_IPM[[i]], !is.na(surv))
   O_IPM.i.g <- filter(O_IPM[[i]], !is.na(sizeNext) & !is.na(size))
   O_IPM.i.fl <- filter(O_IPM[[i]], !is.na(fl))
@@ -64,26 +59,20 @@ for(i in 1:length(O_IPM)) {
   
   # global models
   options(na.action="na.fail")
-  s.m <- glm(as.formula(paste("surv ~", m.full, collapse="")), 
-             data=O_IPM.i.s, family="binomial")
-  g.m <- lm(as.formula(paste("sizeNext ~", m.full, collapse="")), 
-            data=O_IPM.i.g)
-  fl.m <- glm(as.formula(paste("fl ~", m.full, collapse="")), 
-              data=O_IPM.i.fl, family="binomial")
-  seed.m <- glm(as.formula(paste("seed ~", m.full, collapse="")), 
-                data=O_IPM.i.seed, family="poisson")
+  global.m <- list(s=glm(as.formula(paste("surv ~", m.full, collapse="")), 
+                         data=O_IPM.i.s, family="binomial"),
+                   g=lm(as.formula(paste("sizeNext ~", m.full, collapse="")), 
+                        data=O_IPM.i.g),
+                   fl=glm(as.formula(paste("fl ~", m.full, collapse="")), 
+                          data=O_IPM.i.fl, family="binomial"),
+                   seed=glm(as.formula(paste("seed ~", m.full, collapse="")), 
+                            data=O_IPM.i.seed, family="poisson"))
   
   # optimal models
-  s.opt <- get.models(dredge(s.m), subset=1)[[1]]
-  g.opt <- get.models(dredge(g.m), subset=1)[[1]]
-  fl.opt <- get.models(dredge(fl.m), subset=1)[[1]]
-  seed.opt <- get.models(dredge(seed.m), subset=1)[[1]]
+  opt.m <- map(global.m, ~get.models(dredge(.), subset=1)[[1]])
   
   # store coefficients
-  vars.opt <- list(s=coef(s.opt),
-                   g=coef(g.opt),
-                   fl=coef(fl.opt),
-                   seed=coef(seed.opt))
+  vars.opt <- map(opt.m, coef)
   vars.ls <- list(s=v, g=v, fl=v, seed=v)
   vars.ls$s[names(vars.opt$s)] <- vars.opt$s
   vars.ls$g[names(vars.opt$g)] <- vars.opt$g
@@ -104,23 +93,24 @@ for(i in 1:length(O_IPM)) {
   p.ipm$rcr_z <- filter(O_IPM[[i]], is.na(size)) %>% 
     summarise(mn=mean(sizeNext), sd=sd(sizeNext)) %>% unlist
   
+  # use estimated slopes to fill IPM matrix
   U.f[[i]] <- fill_IPM_matrices(n.cell, buffer=0.75, discrete=1, p.ipm, 
-                                n_z, n_x, X, sdd.pr, env.in$id, verbose=T)
+                                n_z, n_x, X, sdd.pr, env.in$id)
   
-  #---- Realization: use estimated slopes to generate simulated data
-  S.i <- vector("list", n_sim)
-  cat("||-- Starting simulations\n||--\n")
+  # use estimated slopes to generate simulated data
+  Si <- vector("list", n_sim)
+  cat("||-- Starting simulations\n")
   for(s in 1:n_sim) {
-    S.i[[s]] <- simulate_data(n.cell, U$lo, U$hi, p.ipm, X, n_z, 
-                              sdd.pr, U$sdd.j, verbose=T)
-    cat("||-- Finished simulation", s, "\n||--\n")
+    Si[[s]] <- simulate_data(n.cell, U$lo, U$hi, p.ipm, X, n_z, sdd.pr, U$sdd.j)
+    cat("||-- Finished simulation", s, "\n")
   }
-  S.f[[i]] <- summarize_IPM_simulations(S.i, p.ipm$tmax)
+  S.f[[i]] <- summarize_IPM_simulations(Si, p.ipm$tmax)
+  rm(Si)
   cat("\n  Finished dataset", i, "\n")
 }
 out <- summarize_IPM_samples(U.f, S.f)
 
-P_IPM <- lam.df %>% 
+P_IPM <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
   mutate(lambda.f=apply(out$Uf$IPM.mn, 3, function(x) Re(eigen(x)$values[1])),
          lam.S.f=rowMeans(out$Sf$N_sim.mn[,(-3:0)+p.ipm$tmax]/
                             (out$Sf$N_sim.mn[,(-4:-1)+p.ipm$tmax]+0.0001)),
@@ -130,8 +120,8 @@ P_IPM <- lam.df %>%
          Btmax.f=out$Sf$B.mn[,p.ipm$tmax+1],
          N.S.f=out$Sf$N_tot.mn, 
          Surv.S.f=out$Sf$N_surv.mn, 
-         Rcr.S.f=out$Sf$N_rcr.mn) %>%
-  mutate(nSdStay.f=nSeed.f*(1-p.ipm$p_emig), 
+         Rcr.S.f=out$Sf$N_rcr.mn,
+         nSdStay.f=nSeed.f*(1-p.ipm$p_emig), 
          nSdLeave.f=nSeed.f*p.ipm$p_emig,
          N.U.f=apply(out$Uf$Nt.mn[,,p.ipm$tmax],2,sum), 
          lam.U.f=out$Uf$lam.mn[,p.ipm$tmax-1])
