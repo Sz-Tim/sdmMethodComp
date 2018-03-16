@@ -12,7 +12,7 @@
 ########
 # file specifications
 sp <- "sp1"
-sampling.issue <- c("none", "error", "geog", "bias")[4]
+sampling.issue <- c("none", "noise", "geog", "bias")[4]
 
 # load workspace
 pkgs <- c("tidyverse", "magrittr")
@@ -22,6 +22,7 @@ env.in <- readRDS(paste0("out/", sp, "_env_in.rds"))
 n.cell <- nrow(env.in)
 p <- readRDS(paste0("out/", sp, "_p.rds"))
 S <- readRDS(paste0("out/", sp, "_S.rds"))
+U <- readRDS(paste0("out/", sp, "_U.rds"))
 lam.df <- readRDS(paste0("out/", sp, "_lam_df.rds")) # env + true pop values
 
 
@@ -34,8 +35,14 @@ O_yr <- list(Mx=p$tmax, CA=(p$tmax-10):p$tmax, IPM=p$tmax)  # years to sample
 P.i <- which(lam.df$Surv.S > 0)  # presences: survival past recruit stage
 P.pr <- rep(1, length(P.i))  # pr(sample cell | presence)
 prop.sampled <- 1  # proportion of individuals sampled per sampled cell 
-geog.excl <- which(env.in$x > 10 & env.in$y > 45)
-prop.err <- 0.2
+geog.excl <- which(env.in$x > 20 & env.in$y > 45)
+noise <- list(Mx=0.2, # proportion of observed presences that are false
+            CA=NA,
+            IPM=list(s=0.1,  # proportion of incorrectly assessed surv
+                     g=0.2,  # sizeNext.obs = SizeNext.true + rnorm(0,SD) 
+                     fl=0.1,  # proportion of incorrectly assessed fl
+                     seed=10)  # seed.obs = seed.true + rnorm(0,SD)
+            )
 
 
 ########
@@ -81,15 +88,25 @@ for(s in 1:n_samp) {
 }
 
 # add error
-if(sampling.issue=="error") {
+if(sampling.issue=="noise") {
   # MaxEnt: substitute in some % false presences
-  n.err <- prop.err*O_n$Corr
+  n.err <- noise$Mx*O_n$Corr
   for(s in 1:n_samp) {
     Corr.sample[[s]][1:n.err] <- sample((1:n.cell)[-P.i], n.err, F)
   }
   O_Mx <- map(Corr.sample, ~(1:nrow(lam.df) %in% .))
   # CA: add noise... 
   # IPM: add noise... 
+  for(s in 1:n_samp) {
+    n_obs <- nrow(O_IPM[[s]])
+    # adjust survival
+    # adjust growth, flowering based on survival
+    O_IPM[[s]]$sizeNext %<>% pmin(. + rnorm(n_obs, 0, noise$IPM$g), U$hi)
+    O_IPM[[s]]$sizeNext %<>% pmax(., U$lo)
+    # adjust flowering
+    # adjust seed based on flowering
+    O_IPM[[s]]$seed %<>% pmax(. + rnorm(n_obs, 0, noise$IPM$seed), 0)
+  }
 }
 
 
