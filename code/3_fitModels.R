@@ -85,7 +85,7 @@ for(i in 1:length(O_IPM)) {
   p.ipm$s_x <- vars.ls$s[(n_z$s+1):length(v)]
   p.ipm$g_z <- vars.ls$g[1:n_z$g]
   p.ipm$g_x <- vars.ls$g[(n_z$g+1):length(v)]
-  p.ipm$g_sig <- summary(g.opt)$sigma
+  p.ipm$g_sig <- summary(opt.m$g)$sigma
   p.ipm$fl_z <- vars.ls$fl[1:n_z$fl]
   p.ipm$fl_x <- vars.ls$fl[(n_z$fl+1):length(v)]
   p.ipm$seed_z <- vars.ls$seed[1:n_z$seed]
