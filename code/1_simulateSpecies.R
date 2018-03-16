@@ -19,8 +19,8 @@ pkgs <- c("gbPopMod", "tidyverse", "magrittr")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
 source("code/fn_IPM.R"); source("code/fn_aux.R"); source("code/fn_sim.R")
 L <- build_landscape(f=env.f, 
-                     x_max=30, # ncol in landscape; Inf for full dataset
-                     y_max=30) # nrow in landscape; Inf for full dataset
+                     x_max=40, # ncol in landscape; Inf for full dataset
+                     y_max=40) # nrow in landscape; Inf for full dataset
 n.cell <- sum(L$env.rct$inbd)
 
 
