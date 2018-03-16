@@ -12,7 +12,7 @@
 ########
 # file specifications
 sp <- "sp1"
-sampling.issue <- c("none", "error", "geog", "bias")[1]
+sampling.issue <- c("none", "error", "geog", "bias")[4]
 
 # load workspace
 pkgs <- c("tidyverse", "magrittr")
@@ -28,12 +28,12 @@ lam.df <- readRDS(paste0("out/", sp, "_lam_df.rds")) # env + true pop values
 ########
 ## Set sampling details
 ########
-n_samp <- 2  # number of unique samples to average across
+n_samp <- 5  # number of unique samples to average across
 O_n <- list(Corr=100, Mech=20)  # number of cells in sample
 O_yr <- list(Mx=p$tmax, CA=(p$tmax-10):p$tmax, IPM=p$tmax)  # years to sample
 P.i <- which(lam.df$Surv.S > 0)  # presences: survival past recruit stage
 P.pr <- rep(1, length(P.i))  # pr(sample cell | presence)
-prop.sampled <- 0.8  # proportion of individuals sampled per sampled cell 
+prop.sampled <- 1  # proportion of individuals sampled per sampled cell 
 geog.excl <- which(env.in$x > 10 & env.in$y > 45)
 prop.err <- 0.2
 
