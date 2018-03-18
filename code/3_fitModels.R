@@ -49,6 +49,7 @@ X <- map(n_x, ~as.matrix(env.in[,1:.]))
 ##--- MaxEnt
 ##--- CA
 ##--- IPM
+set.seed(1)
 S.f <- U.f <- vector("list", length(O_IPM))
 for(i in 1:length(O_IPM)) {
   # separate data for MuMIn::dredge()
