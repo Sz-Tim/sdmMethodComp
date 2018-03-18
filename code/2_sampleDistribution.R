@@ -29,7 +29,7 @@ lam.df <- readRDS(paste0("out/", sp, "_lam_df.rds")) # env + true pop values
 ########
 ## Set sampling details
 ########
-n_samp <- 5  # number of unique samples to average across
+n_samp <- 10  # number of unique samples to average across
 O_n <- list(Corr=100, Mech=20)  # number of cells in sample
 O_yr <- list(Mx=p$tmax, CA=(p$tmax-10):p$tmax, IPM=p$tmax)  # years to sample
 P.i <- which(lam.df$Surv.S > 0)  # presences: survival past recruit stage
@@ -38,10 +38,10 @@ prop.sampled <- 1  # proportion of individuals sampled per sampled cell
 geog.excl <- which(env.in$x > 20 & env.in$y > 45)
 noise <- list(Mx=0.2, # proportion of observed presences that are false
             CA=NA,
-            IPM=list(s=0.1,  # proportion of incorrectly assessed surv
-                     g=0.2,  # sizeNext.obs = SizeNext.true + rnorm(0,SD) 
-                     fl=0.1,  # proportion of incorrectly assessed fl
-                     seed=10)  # seed.obs = seed.true + rnorm(0,SD)
+            IPM=list(s=0,  # proportion of incorrectly assessed surv
+                     g=.05,  # sizeNext.obs = SizeNext.true + rnorm(0,g) 
+                     fl=0,  # proportion of incorrectly assessed fl
+                     seed=.05)  # seed.obs = seed.true + rnorm(0,seed.true*seed)
             )
 
 
@@ -54,6 +54,7 @@ if(sampling.issue=="geog") {
 } else if(sampling.issue=="bias") {
   P.pr <- P.pr * env.in$rdLen[P.i]
 }
+set.seed(1)
 Corr.sample <- map(1:n_samp, ~sample(P.i, O_n$Corr, replace=F, prob=P.pr))
 Mech.sample <- map(1:n_samp, ~sample(P.i, O_n$Mech, replace=F, prob=P.pr))
 
@@ -96,16 +97,19 @@ if(sampling.issue=="noise") {
   }
   O_Mx <- map(Corr.sample, ~(1:nrow(lam.df) %in% .))
   # CA: add noise... 
-  # IPM: add noise... 
+  # IPM: add noise
   for(s in 1:n_samp) {
     n_obs <- nrow(O_IPM[[s]])
     # adjust survival
     # adjust growth, flowering based on survival
-    O_IPM[[s]]$sizeNext %<>% pmin(. + rnorm(n_obs, 0, noise$IPM$g), U$hi)
-    O_IPM[[s]]$sizeNext %<>% pmax(., U$lo)
+    O_IPM[[s]]$sizeNext <- O_IPM[[s]]$sizeNext + rnorm(n_obs, 0, noise$IPM$g)
+    O_IPM[[s]]$sizeNext <- pmin(O_IPM[[s]]$sizeNext, U$hi)
+    O_IPM[[s]]$sizeNext <- pmax(O_IPM[[s]]$sizeNext, U$lo)
     # adjust flowering
     # adjust seed based on flowering
-    O_IPM[[s]]$seed %<>% pmax(. + rnorm(n_obs, 0, noise$IPM$seed), 0)
+    O_IPM[[s]]$seed <- pmax(round(O_IPM[[s]]$seed +
+                              rnorm(n_obs, 0, O_IPM[[s]]$seed*noise$IPM$seed)), 
+                            0)
   }
 }
 
