@@ -21,6 +21,12 @@ out_IPM <- map2(f_IPM, i_IPM, ~readRDS(.x) %>%
                   mutate(SDM="IPM", s_Iss=.y[1], m_Iss=.y[2])) %>%
   do.call("rbind", .) %>%
   full_join(select(lam.df, -c(10:15,17)), ., by="id.inbd")
+out_IPM$outcome <- NA
+out_IPM$outcome[out_IPM$Surv.S>0 & out_IPM$Surv.S.f>0.5] <- "true1pred1"
+out_IPM$outcome[out_IPM$Surv.S==0 & out_IPM$Surv.S.f<0.5] <- "true0pred0"
+out_IPM$outcome[out_IPM$Surv.S>0 & out_IPM$Surv.S.f<0.5] <- "true1pred0"
+out_IPM$outcome[out_IPM$Surv.S==0 & out_IPM$Surv.S.f>0.5] <- "true0pred1"
+
 
 write.csv(out_IPM, paste0("out/", sp, "_IPM.csv"))
 
