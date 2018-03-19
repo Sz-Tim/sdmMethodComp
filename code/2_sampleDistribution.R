@@ -35,7 +35,7 @@ O_yr <- list(Mx=p$tmax, CA=(p$tmax-10):p$tmax, IPM=p$tmax)  # years to sample
 P.i <- which(lam.df$Surv.S > 0)  # presences: survival past recruit stage
 P.pr <- rep(1, length(P.i))  # pr(sample cell | presence)
 prop.sampled <- 1  # proportion of individuals sampled per sampled cell 
-geog.excl <- which(env.in$x > 20 & env.in$y > 45)
+geog.excl <- which(env.in$x < 40 & env.in$y < 50)
 noise <- list(Mx=0.2, # proportion of observed presences that are false
             CA=NA,
             IPM=list(s=0,  # proportion of incorrectly assessed surv

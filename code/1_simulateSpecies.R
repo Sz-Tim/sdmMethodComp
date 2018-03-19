@@ -19,8 +19,8 @@ pkgs <- c("gbPopMod", "tidyverse", "magrittr")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
 source("code/fn_IPM.R"); source("code/fn_aux.R"); source("code/fn_sim.R")
 L <- build_landscape(f=env.f, 
-                     x_max=40, # ncol in landscape; Inf for full dataset
-                     y_max=40) # nrow in landscape; Inf for full dataset
+                     x_max=30, # ncol in landscape; Inf for full dataset
+                     y_max=30) # nrow in landscape; Inf for full dataset
 n.cell <- sum(L$env.rct$inbd)
 
 
@@ -28,7 +28,7 @@ n.cell <- sum(L$env.rct$inbd)
 ## Set species traits
 ########
 p=list(n=50,  # ncells in IPM matrix
-       tmax=10,  # time steps for NDD & simulations
+       tmax=30,  # time steps for NDD & simulations
        n0=200,  # initial pop sizes
        z.rng=c(1,12),  # initial size range
        s_z=c(-8, 2.1, -.09),  # b1 + b2*z + b3*z^2
