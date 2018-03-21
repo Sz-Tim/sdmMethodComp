@@ -48,6 +48,7 @@ sim_recruits <- function(k, d_i, p_est_ik, nSd_ik, B_ik, D_ik, p) {
     d_i$sizeNext[rcr_i] <- rnorm(n, p$rcr_z[1], p$rcr_z[2])
     d_i$yr[rcr_i] <- k
     d_i$size[rcr_i] <- d_i$surv[rcr_i] <- d_i$fl[rcr_i] <- d_i$seed[rcr_i] <- NA
+    d_i$age[rcr_i] <- 0
   }
   return(d_i)
 }
@@ -78,13 +79,21 @@ simulate_data <- function(n.cell, lo, hi, p, X, n_z, sdd, sdd.j, verbose=F) {
   
   for(k in 1:p$tmax) {
     ## local growth
-    if(k>1) z.k <- map(d, ~.$sizeNext[!is.na(.$sizeNext) & .$yr == k-1])
+    if(k>1) {
+      z.k <- map(d, ~.$sizeNext[!is.na(.$sizeNext) & .$yr == k-1])
+      age.k <- map(d, ~.$age[!is.na(.$sizeNext) & .$yr == k-1] + 1)
+    }
     d.k <- lapply(i, function(x) seq_along(z.k[[x]]) + length(d[[x]]$yr))
     e.k <- lapply(i, function(x) seq_along(z.k[[x]]) + length(E[[x]]$yr))
     E <- lapply(i, function(x) sim_expected(k, z.k[[x]], e.k[[x]], E[[x]], 
                                             p, X_map[[x]], n_z))
     d <- lapply(i, function(x) sim_realized(k, z.k[[x]], d[[x]], d.k[[x]], 
                                             e.k[[x]], E[[x]], p, lo, hi))
+    if(k==1) { 
+      invisible(lapply(i, function(x) d[[x]]$age[d.k[[x]]] <<- 1))
+    } else { 
+      invisible(lapply(i, function(x) d[[x]]$age[d.k[[x]]] <<- age.k[[x]])) 
+    }
     N_sim[,k] <- vapply(z.k, length, 1)
     nSd[,k] <- vapply(i, function(x) sum(d[[x]]$seed[d.k[[x]]], na.rm=TRUE), 1)
     
