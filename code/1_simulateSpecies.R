@@ -50,7 +50,7 @@ p=list(n=50,  # ncells in IPM matrix
        sdd_rate=1  # SDD dispersal rate
 )
 p$NDD_n <- p$n0/2  # mean number of recruits if NDD
-p$p_emig <- pexp(0.5, p$sdd_rate, lower.tail=F) # p(seed emigrates)
+p$p_emig <- pexp(0.5, p$sdd_rate, lower.tail=F) # p(seed emigrants)
 n_z <- list(s=length(p$s_z),  # n size covariates for each vital rate
             g=length(p$g_z),
             fl=length(p$fl_z), 
