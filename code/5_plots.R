@@ -12,8 +12,7 @@ sp <- "sp1"
 
 theme_set(theme_bw())
 # barplots showing % correct for presence/absence; fill=SDM; facet=issues
-ggplot(out_IPM, aes(fill=sign(round(Surv.S.f))==sign(Surv.S), x=s_Iss)) + 
-  geom_bar(position="fill")
+ggplot(out_IPM, aes(fill=outcome, x=s_Iss)) + geom_bar(position="fill") 
 ggplot(out_IPM, aes(fill=sign(log(lambda.f))==sign(log(lambda)), x=s_Iss)) + 
   geom_bar(position="fill")
 ggplot(out_IPM, aes(fill=sign(log(lam.U.f))==sign(log(lam.U)), x=s_Iss)) + 
@@ -23,6 +22,9 @@ ggplot(out_IPM, aes(fill=sign(log(lam.S.f))==sign(log(lam.S)), x=s_Iss)) +
 
 ggplot(out_IPM, aes(x=lon, y=lat, fill=Surv.S.f-Surv.S)) +
   geom_tile() + facet_wrap(~s_Iss) + scale_fill_gradient2()
+
+ggplot(out_IPM, aes(x=lon, y=lat, fill=outcome)) +
+  geom_tile() + facet_wrap(~s_Iss)
 
 ggplot(out_IPM, aes(x=lon, y=lat, fill=Surv.S.f)) +
   geom_tile() + facet_wrap(~s_Iss) + scale_fill_gradient(low="white", high="red")
