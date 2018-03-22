@@ -11,29 +11,30 @@
 ########
 # file specifications
 sp <- "sp1"
+overwrite <- TRUE
 sampling.issue <- c("none", "error", "geog", "bias")[4]
 modeling.issue <- c("none")[1]
 
 # load workspace
 pkgs <- c("gbPopMod", "tidyverse", "magrittr", "MuMIn")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
-source("code/fn_IPM.R"); source("code/fn_aux.R"); source("code/fn_sim.R")
-p <- readRDS(paste0("out/", sp, "_p.rds"))
-S <- readRDS(paste0("out/", sp, "_S.rds"))
-U <- readRDS(paste0("out/", sp, "_U.rds"))
-sdd.pr <- readRDS(paste0("out/", sp, "_sdd.rds"))
-lam.df <- readRDS(paste0("out/", sp, "_lam_df.rds"))
-env.in <- readRDS(paste0("out/", sp, "_env_in.rds"))
+walk(paste0("code/fn_", c("IPM", "aux", "sim"), ".R"), ~source(here(.)))
+p <- here(readRDS(paste0("out/", sp, "_p.rds")))
+S <- here(readRDS(paste0("out/", sp, "_S.rds")))
+U <- here(readRDS(paste0("out/", sp, "_U.rds")))
+sdd.pr <- here(readRDS(paste0("out/", sp, "_sdd.rds")))
+lam.df <- here(readRDS(paste0("out/", sp, "_lam_df.rds")))
+env.in <- here(readRDS(paste0("out/", sp, "_env_in.rds")))
 n.cell <- nrow(env.in)
-O_Mx <- readRDS(paste0("out/", sp, "_O_Mx_", sampling.issue, ".rds"))
-O_CA <- readRDS(paste0("out/", sp, "_O_CA_", sampling.issue, ".rds"))
-O_IPM <- readRDS(paste0("out/", sp, "_O_IPM_", sampling.issue, ".rds"))
+O_Mx <- here(readRDS(paste0("out/", sp, "_O_Mx_", sampling.issue, ".rds")))
+O_CA <- here(readRDS(paste0("out/", sp, "_O_CA_", sampling.issue, ".rds")))
+O_IPM <- here(readRDS(paste0("out/", sp, "_O_IPM_", sampling.issue, ".rds")))
 
 
 ########
 ## Set model details
 ########
-n_sim <- 10  # number of simulations per sample (mechanistic only)
+n_sim <- 5  # number of simulations per sample (mechanistic only)
 v <- c("(Intercept)"=0, "size"=0, "size2"=0,# "size3"=0, 
        "temp"=0, "temp2"=0, "prec"=0, "prec2"=0, 
        "pOpn"=0, "pOth"=0, "pDec"=0)#, "pEvg"=0, "pMxd"=0)
@@ -127,9 +128,10 @@ P_IPM <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>%
          N.U.f=apply(out$Uf$Nt.mn[,,p.ipm$tmax],2,sum), 
          lam.U.f=out$Uf$lam.mn[,p.ipm$tmax-1])
 
-
-saveRDS(P_IPM, paste0("out/", sp, "_P_IPM_", sampling.issue, "_",
-                      modeling.issue, ".rds"))
+if(overwrite) {
+  here(saveRDS(P_IPM, paste0("out/", sp, "_P_IPM_", sampling.issue, "_",
+                        modeling.issue, ".rds")))
+}
 
 
 

@@ -12,26 +12,27 @@
 ########
 # file specifications
 sp <- "sp1"
+overwrite <- TRUE
 sampling.issue <- c("none", "noise", "geog", "bias")[4]
 
 # load workspace
-pkgs <- c("tidyverse", "magrittr")
+pkgs <- c("tidyverse", "magrittr", "here")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
-source("code/fn_IPM.R"); source("code/fn_aux.R"); source("code/fn_sim.R")
-env.in <- readRDS(paste0("out/", sp, "_env_in.rds"))
+walk(paste0("code/fn_", c("IPM", "aux", "sim"), ".R"), ~source(here(.)))
+env.in <- here(readRDS(paste0("out/", sp, "_env_in.rds")))
 n.cell <- nrow(env.in)
-p <- readRDS(paste0("out/", sp, "_p.rds"))
-S <- readRDS(paste0("out/", sp, "_S.rds"))
-U <- readRDS(paste0("out/", sp, "_U.rds"))
-lam.df <- readRDS(paste0("out/", sp, "_lam_df.rds")) # env + true pop values
+p <- here(readRDS(paste0("out/", sp, "_p.rds")))
+S <- here(readRDS(paste0("out/", sp, "_S.rds")))
+U <- here(readRDS(paste0("out/", sp, "_U.rds")))
+lam.df <- here(readRDS(paste0("out/", sp, "_lam_df.rds"))) # env + true pop vals
 
 
 ########
 ## Set sampling details
 ########
-n_samp <- 10  # number of unique samples to average across
+n_samp <- 5  # number of unique samples to average across
 O_n <- list(Corr=100, Mech=20)  # number of cells in sample
-O_yr <- list(Mx=p$tmax, CA=(p$tmax-10):p$tmax, IPM=p$tmax)  # years to sample
+O_yr <- list(Mx=p$tmax, CA=(p$tmax-3):p$tmax, IPM=p$tmax)  # years to sample
 P.i <- which(lam.df$Surv.S > 0)  # presences: survival past recruit stage
 P.pr <- rep(1, length(P.i))  # pr(sample cell | presence)
 prop.sampled <- 1  # proportion of individuals sampled per sampled cell 
@@ -39,9 +40,9 @@ geog.excl <- which(env.in$x < 40 & env.in$y < 50)
 noise <- list(Mx=0.2, # proportion of observed presences that are false
             CA=NA,
             IPM=list(s=0,  # proportion of incorrectly assessed surv
-                     g=.05,  # sizeNext.obs = SizeNext.true + rnorm(0,g) 
+                     g=.05,  # sizeNext.obs = rnorm(SizeNext.true, g) 
                      fl=0,  # proportion of incorrectly assessed fl
-                     seed=.05)  # seed.obs = seed.true + rnorm(0,seed.true*seed)
+                     seed=.05)  # seed.obs = rnorm(seed.true, seed.true*seed)
             )
 
 
@@ -66,6 +67,23 @@ O_CA <- vector("list", n_samp)
 for(s in 1:n_samp) {
   CA.d <- vector("list", O_n$Mech)
   for(i in Mech.sample[[s]]) {
+    # need to estimate or set:
+    # - K 
+    # - s.jv
+    # - s.ad
+    # - p.f (fruit)
+    # - fec
+    # - age.f
+    #   s.sb=p$s_sb
+    #   nSdFrt=1
+    # - p.est
+    #   n.ldd=1
+    #   sdd.max=p$sdd_max
+    #   sdd.rate=p$sdd_rate
+    # - p.eat
+    #   bird.hab=p$bird_hab
+    # - s.bird
+    #   method=lm
     CA.d[[i]] <- data.frame(S$d[[i]]) %>% filter(yr %in% O_yr$CA) %>%
       add_column(id.inbd=i) %>%
       full_join(env.in[i,], by="id.inbd")
@@ -117,9 +135,12 @@ if(sampling.issue=="noise") {
 ########
 ## Store samples
 ########
-saveRDS(O_Mx, paste0("out/", sp, "_O_Mx_", sampling.issue, ".rds"))
-saveRDS(O_CA, paste0("out/", sp, "_O_CA_", sampling.issue, ".rds"))
-saveRDS(O_IPM, paste0("out/", sp, "_O_IPM_", sampling.issue, ".rds"))
+if(overwrite) {
+  here(saveRDS(O_Mx, paste0("out/", sp, "_O_Mx_", sampling.issue, ".rds")))
+  here(saveRDS(O_CA, paste0("out/", sp, "_O_CA_", sampling.issue, ".rds")))
+  here(saveRDS(O_IPM, paste0("out/", sp, "_O_IPM_", sampling.issue, ".rds")))
+}
+
 
 
 

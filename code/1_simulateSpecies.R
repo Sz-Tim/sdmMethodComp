@@ -12,15 +12,17 @@
 ########
 # file specifications
 sp <- "sp1"
+overwrite <- TRUE
 env.f <- "data/landcover_5km.csv"  # file with environmental data
 
 # load workspace
-pkgs <- c("gbPopMod", "tidyverse", "magrittr")
+pkgs <- c("gbPopMod", "tidyverse", "magrittr", "here")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
-source("code/fn_IPM.R"); source("code/fn_aux.R"); source("code/fn_sim.R")
-L <- build_landscape(f=env.f, 
-                     x_max=30, # ncol in landscape; Inf for full dataset
-                     y_max=30) # nrow in landscape; Inf for full dataset
+walk(paste0("code/fn_", c("IPM", "aux", "sim"), ".R"), ~source(here(.)))
+
+L <- build_landscape(f=here(env.f), 
+                     x_max=20, # ncol in landscape; Inf for full dataset
+                     y_max=20) # nrow in landscape; Inf for full dataset
 n.cell <- sum(L$env.rct$inbd)
 
 
@@ -47,7 +49,8 @@ p=list(n=50,  # ncells in IPM matrix
        rcr_dir=0.5,  # p(recruit directly)
        s_SB=0.3,  # p(survive in seedbank additional year)
        sdd_max=5,  # max SDD distance in cells
-       sdd_rate=1  # SDD dispersal rate
+       sdd_rate=1,  # SDD dispersal rate
+       bird_hab=rep(1,5)  # bird habitat preferences among LC types
 )
 p$NDD_n <- p$n0/2  # mean number of recruits if NDD
 p$p_emig <- pexp(0.5, p$sdd_rate, lower.tail=F) # p(seed emigrants)
@@ -63,7 +66,7 @@ X <- map(n_x, ~as.matrix(L$env.in[,1:.]))  # env covariates for each vital rate
 sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=L$env.rct, lc.col=8:12,
                         g.p=list(sdd.max=p$sdd_max, 
                                  sdd.rate=p$sdd_rate, 
-                                 bird.hab=rep(1,5)))
+                                 bird.hab=p$bird_hab))
 # NOTE: sdd.pr[,,2,] indexes based on `id` (id for each cell in grid) instead  
 # of `id.inbd` (id for inbound cells only), but sdd.pr[,,,i] includes only
 # inbound cells, so the layer index aligns with `id.inbd`. This makes 
@@ -94,18 +97,29 @@ lam.df <- L$env.in %>%
          nSdStay=nSeed*(1-p$p_emig), 
          nSdLeave=nSeed*p$p_emig,
          N.U=apply(U$Nt[-1,,p$tmax+1],2,sum), 
-         lam.U=U$lam.t[,p$tmax])
+         lam.U=U$lam.t[,p$tmax], 
+         mn.age.z=map_dbl(S$d, ~mean(.$age[.$yr==p$tmax & 
+                                           !is.na(.$sizeNext) &
+                                           !is.na(.$size)])),
+         med.age.z=map_dbl(S$d, ~median(.$age[.$yr==p$tmax & 
+                                              !is.na(.$sizeNext) &
+                                              !is.na(.$size)])),
+         mn.age=map_dbl(S$d, ~mean(.$age[.$yr==p$tmax])),
+         med.age=map_dbl(S$d, ~median(.$age[.$yr==p$tmax])),
+         max.age=map_dbl(S$d, ~max(.$age)))
 
 
 ########
 ## Store true species distribution
 ########
-saveRDS(L$env.in, paste0("out/", sp, "_env_in.rds"))
-saveRDS(p, paste0("out/", sp, "_p.rds"))
-saveRDS(sdd.pr, paste0("out/", sp, "_sdd.rds"))
-saveRDS(U, paste0("out/", sp, "_U.rds"))
-saveRDS(S, paste0("out/", sp, "_S.rds"))
-saveRDS(lam.df, paste0("out/", sp, "_lam_df.rds"))
+if(overwrite) {
+  here(saveRDS(L$env.in, paste0("out/", sp, "_env_in.rds")))
+  here(saveRDS(p, paste0("out/", sp, "_p.rds")))
+  here(saveRDS(sdd.pr, paste0("out/", sp, "_sdd.rds")))
+  here(saveRDS(U, paste0("out/", sp, "_U.rds")))
+  here(saveRDS(S, paste0("out/", sp, "_S.rds")))
+  here(saveRDS(lam.df, paste0("out/", sp, "_lam_df.rds")))
+}
 
 
 
