@@ -65,43 +65,59 @@ O_Mx <- map(Corr.sample, ~(1:nrow(lam.df) %in% .))
 # CA: population samples
 O_CA <- vector("list", n_samp)
 for(s in 1:n_samp) {
-  CA.d <- vector("list", O_n$Mech)
-  for(i in Mech.sample[[s]]) {
+  CA.d <- CA.B <- CA.D <- vector("list", O_n$Mech)
+  for(j in seq_along(Mech.sample[[s]])) {
     # need to estimate or set:
-    # - K 
-    # - s.jv
-    # - s.ad
-    # - p.f (fruit)
-    # - fec
-    # - age.f
+    # . K == N
+    # . s.jv
+    # . s.ad
+    # . p.f (fruit)
+    # . fec
+    # . age.f == set manually; could inform with age where p.fl > .5
     #   s.sb=p$s_sb
     #   nSdFrt=1
     # - p.est
     #   n.ldd=1
     #   sdd.max=p$sdd_max
     #   sdd.rate=p$sdd_rate
-    # - p.eat
+    #   p.eat=1
     #   bird.hab=p$bird_hab
-    # - s.bird
+    #   s.bird=1
     #   method=lm
-    CA.d[[i]] <- data.frame(S$d[[i]]) %>% filter(yr %in% O_yr$CA) %>%
+    i <- Mech.sample[[s]][j]
+    CA.d[[j]] <- data.frame(S$d[[i]]) %>% filter(yr %in% O_yr$CA)
+    CA.d[[j]] <- sample_frac(CA.d[[j]], prop.sampled)
+    CA.d[[j]] <- CA.d[[j]] %>% group_by(yr) %>% 
+      summarise(N=sum(!is.na(size)), 
+                s.ad=mean(surv[age>2], na.rm=TRUE),
+                s.jv=mean(surv[age<3], na.rm=TRUE),
+                p.f=mean(fl, na.rm=TRUE),
+                fec=mean(seed, na.rm=TRUE),
+                nSeed=sum(seed, na.rm=TRUE),
+                N.rcr=sum(is.na(size))) %>%
       add_column(id.inbd=i) %>%
       full_join(env.in[i,], by="id.inbd")
-    CA.d[[i]] <- sample_frac(CA.d[[i]], prop.sampled)
+    CA.B[[j]] <- S$B[i,O_yr$CA]
+    CA.D[[j]] <- S$D[i,O_yr$CA]
   }
-  O_CA[[s]] <- do.call(rbind, CA.d)
+  O_CA[[s]] <- list(d=do.call(rbind, CA.d),
+                    B=do.call(rbind, CA.B),
+                    D=do.call(rbind, CA.D))
+  O_CA[[s]]$d$p.est <- with(O_CA[[s]], d$N.rcr/(d$nSeed*p$p_emig*p$rcr_dir + 
+                                                  B*p$rcr_SB + D*p$rcr_dir))
 }
 
 # IPM: population samples
 O_IPM <- vector("list", n_samp)
 for(s in 1:n_samp) {
   IPM.d <- vector("list", O_n$Mech)
-  for(i in Mech.sample[[s]]) {
-    IPM.d[[i]] <- data.frame(S$d[[i]]) %>% filter(yr %in% O_yr$IPM) %>%
+  for(j in seq_along(Mech.sample[[s]])) {
+    i <- Mech.sample[[s]][j]
+    IPM.d[[j]] <- data.frame(S$d[[i]]) %>% filter(yr %in% O_yr$IPM) %>%
       mutate(size2=size^2, size3=size^3) %>%
       add_column(id.inbd=i) %>%
       full_join(env.in[i,], by="id.inbd")
-    IPM.d[[i]] <- sample_frac(IPM.d[[i]], prop.sampled)
+    IPM.d[[j]] <- sample_frac(IPM.d[[j]], prop.sampled)
   }
   O_IPM[[s]] <- do.call(rbind, IPM.d)
 }
