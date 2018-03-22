@@ -19,12 +19,12 @@ sampling.issue <- c("none", "noise", "geog", "bias")[4]
 pkgs <- c("tidyverse", "magrittr", "here")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
 walk(paste0("code/fn_", c("IPM", "aux", "sim"), ".R"), ~source(here(.)))
-env.in <- here(readRDS(paste0("out/", sp, "_env_in.rds")))
+env.in <- readRDS(here(paste0("out/", sp, "_env_in.rds")))
 n.cell <- nrow(env.in)
-p <- here(readRDS(paste0("out/", sp, "_p.rds")))
-S <- here(readRDS(paste0("out/", sp, "_S.rds")))
-U <- here(readRDS(paste0("out/", sp, "_U.rds")))
-lam.df <- here(readRDS(paste0("out/", sp, "_lam_df.rds"))) # env + true pop vals
+p <- readRDS(here(paste0("out/", sp, "_p.rds")))
+S <- readRDS(here(paste0("out/", sp, "_S.rds")))
+U <- readRDS(here(paste0("out/", sp, "_U.rds")))
+lam.df <- readRDS(here(paste0("out/", sp, "_lam_df.rds"))) # env + true pop vals
 
 
 ########
@@ -32,7 +32,7 @@ lam.df <- here(readRDS(paste0("out/", sp, "_lam_df.rds"))) # env + true pop vals
 ########
 n_samp <- 5  # number of unique samples to average across
 O_n <- list(Corr=100, Mech=20)  # number of cells in sample
-O_yr <- list(Mx=p$tmax, CA=(p$tmax-3):p$tmax, IPM=p$tmax)  # years to sample
+O_yr <- list(Mx=p$tmax, CA=p$tmax, IPM=p$tmax)  # years to sample
 P.i <- which(lam.df$Surv.S > 0)  # presences: survival past recruit stage
 P.pr <- rep(1, length(P.i))  # pr(sample cell | presence)
 prop.sampled <- 1  # proportion of individuals sampled per sampled cell 
@@ -136,9 +136,9 @@ if(sampling.issue=="noise") {
 ## Store samples
 ########
 if(overwrite) {
-  here(saveRDS(O_Mx, paste0("out/", sp, "_O_Mx_", sampling.issue, ".rds")))
-  here(saveRDS(O_CA, paste0("out/", sp, "_O_CA_", sampling.issue, ".rds")))
-  here(saveRDS(O_IPM, paste0("out/", sp, "_O_IPM_", sampling.issue, ".rds")))
+  saveRDS(O_Mx, here(paste0("out/", sp, "_O_Mx_", sampling.issue, ".rds")))
+  saveRDS(O_CA, here(paste0("out/", sp, "_O_CA_", sampling.issue, ".rds")))
+  saveRDS(O_IPM, here(paste0("out/", sp, "_O_IPM_", sampling.issue, ".rds")))
 }
 
 

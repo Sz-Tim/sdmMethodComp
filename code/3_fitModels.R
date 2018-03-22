@@ -12,35 +12,35 @@
 # file specifications
 sp <- "sp1"
 overwrite <- TRUE
-sampling.issue <- c("none", "error", "geog", "bias")[4]
+sampling.issue <- c("none", "noise", "geog", "bias")[3]
 modeling.issue <- c("none")[1]
 
 # load workspace
 pkgs <- c("gbPopMod", "tidyverse", "magrittr", "MuMIn")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
 walk(paste0("code/fn_", c("IPM", "aux", "sim"), ".R"), ~source(here(.)))
-p <- here(readRDS(paste0("out/", sp, "_p.rds")))
-S <- here(readRDS(paste0("out/", sp, "_S.rds")))
-U <- here(readRDS(paste0("out/", sp, "_U.rds")))
-sdd.pr <- here(readRDS(paste0("out/", sp, "_sdd.rds")))
-lam.df <- here(readRDS(paste0("out/", sp, "_lam_df.rds")))
-env.in <- here(readRDS(paste0("out/", sp, "_env_in.rds")))
+p <- readRDS(here(paste0("out/", sp, "_p.rds")))
+S <- readRDS(here(paste0("out/", sp, "_S.rds")))
+U <- readRDS(here(paste0("out/", sp, "_U.rds")))
+sdd.pr <- readRDS(here(paste0("out/", sp, "_sdd.rds")))
+lam.df <- readRDS(here(paste0("out/", sp, "_lam_df.rds")))
+env.in <- readRDS(here(paste0("out/", sp, "_env_in.rds")))
 n.cell <- nrow(env.in)
-O_Mx <- here(readRDS(paste0("out/", sp, "_O_Mx_", sampling.issue, ".rds")))
-O_CA <- here(readRDS(paste0("out/", sp, "_O_CA_", sampling.issue, ".rds")))
-O_IPM <- here(readRDS(paste0("out/", sp, "_O_IPM_", sampling.issue, ".rds")))
+O_Mx <- readRDS(here(paste0("out/", sp, "_O_Mx_", sampling.issue, ".rds")))
+O_CA <- readRDS(here(paste0("out/", sp, "_O_CA_", sampling.issue, ".rds")))
+O_IPM <- readRDS(here(paste0("out/", sp, "_O_IPM_", sampling.issue, ".rds")))
 
 
 ########
 ## Set model details
 ########
 n_sim <- 5  # number of simulations per sample (mechanistic only)
-v <- c("(Intercept)"=0, "size"=0, "size2"=0,# "size3"=0, 
+v.IPM <- c("(Intercept)"=0, "size"=0, "size2"=0,# "size3"=0, 
        "temp"=0, "temp2"=0, "prec"=0, "prec2"=0, 
        "pOpn"=0, "pOth"=0, "pDec"=0)#, "pEvg"=0, "pMxd"=0)
-m.full <- paste(names(v)[-1], collapse=" + ")
-n_z <- rep(list(sum(grepl("size", names(v))) + 1), 4)# include intercept
-n_x <- rep(list(length(v) - n_z[[1]]), 4)
+m.IPM <- paste(names(v.IPM)[-1], collapse=" + ")
+n_z <- rep(list(sum(grepl("size", names(v.IPM))) + 1), 4)# include intercept
+n_x <- rep(list(length(v.IPM) - n_z[[1]]), 4)
 names(n_z) <- names(n_x) <- c("s", "g", "fl", "seed")
 X <- map(n_x, ~as.matrix(env.in[,1:.]))
 
@@ -61,13 +61,13 @@ for(i in 1:length(O_IPM)) {
   
   # global models
   options(na.action="na.fail")
-  global.m <- list(s=glm(as.formula(paste("surv ~", m.full, collapse="")), 
+  global.m <- list(s=glm(as.formula(paste("surv ~", m.IPM, collapse="")), 
                          data=O_IPM.i.s, family="binomial"),
-                   g=lm(as.formula(paste("sizeNext ~", m.full, collapse="")), 
+                   g=lm(as.formula(paste("sizeNext ~", m.IPM, collapse="")), 
                         data=O_IPM.i.g),
-                   fl=glm(as.formula(paste("fl ~", m.full, collapse="")), 
+                   fl=glm(as.formula(paste("fl ~", m.IPM, collapse="")), 
                           data=O_IPM.i.fl, family="binomial"),
-                   seed=glm(as.formula(paste("seed ~", m.full, collapse="")), 
+                   seed=glm(as.formula(paste("seed ~", m.IPM, collapse="")), 
                             data=O_IPM.i.seed, family="poisson"))
   
   # optimal models
@@ -129,7 +129,7 @@ P_IPM <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>%
          lam.U.f=out$Uf$lam.mn[,p.ipm$tmax-1])
 
 if(overwrite) {
-  here(saveRDS(P_IPM, paste0("out/", sp, "_P_IPM_", sampling.issue, "_",
+  saveRDS(P_IPM, here(paste0("out/", sp, "_P_IPM_", sampling.issue, "_",
                         modeling.issue, ".rds")))
 }
 
