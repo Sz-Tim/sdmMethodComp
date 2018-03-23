@@ -3,10 +3,23 @@
 # Tim Szewczyk
 
 
+##-- antilogit
+antilogit <- function (x) {
+  exp(x)/(1 + exp(x))
+}
+
+
+
+##-- logit
+logit <- function (x) {
+  log(x/(1-x))
+}
+
+
+
 ##-- generate landscape
 build_landscape <- function(f, x_max=Inf, y_max=Inf) {
-  require(tidyverse)
-  
+  library(tidyverse)
   # load GIS data
   lc.df <- read_csv(f) %>% 
     filter(!is.na(bio1_mean)) %>%
@@ -131,21 +144,10 @@ summarize_IPM_samples <- function(U.f, S.f) {
 }
 
 
-##-- antilogit
-antilogit <- function (x) {
-  exp(x)/(1 + exp(x))
-}
-
-
-##-- logit
-logit <- function (x) {
-  log(x/(1-x))
-}
-
 
 ##-- extract SDM sampling & modeling issues from file names
 extract_SDM_issues <- function(f, SDM) {
-  require(stringr)
+  library(stringr)
   issues <- str_remove(str_split(f, paste0(SDM, "_"), Inf, T)[,2], ".rds")
   return(str_split(issues, "_"))
 }
