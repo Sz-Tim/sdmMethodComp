@@ -113,6 +113,7 @@ lam.df <- L$env.in %>%
 ## Store true species distribution
 ########
 if(overwrite) {
+  saveRDS(L$env.rct, here(paste0("out/", sp, "_env_rct.rds")))
   saveRDS(L$env.in, here(paste0("out/", sp, "_env_in.rds")))
   saveRDS(p, here(paste0("out/", sp, "_p.rds")))
   saveRDS(sdd.pr, here(paste0("out/", sp, "_sdd.rds")))
