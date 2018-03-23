@@ -53,9 +53,9 @@ build_landscape <- function(f, x_max=Inf, y_max=Inf) {
   env.in <- filter(env.rct, inbd) %>% select(4:12, 1:3, 13:18) %>%
     mutate(pOpn=c(scale(pOpn)), pOth=c(scale(pOth)), pDec=c(scale(pDec)),
            pEvg=c(scale(pEvg)), pMxd=c(scale(pMxd)))
-  
   return(list(env.rct=env.rct, env.in=env.in))
 }
+
 
 
 ##-- create design matrix from vector of sizes
@@ -71,41 +71,75 @@ z_pow <- function(z.vec, n_z) {
 }
 
 
-##-- calculate means and sds from multiple IPM simulations
-summarize_IPM_simulations <- function(S.i, tmax) {
-  
-  require(tidyverse)
-  
-  S.sum <- list(B=map(S.i, ~.$B),
-                nSd=map(S.i, ~.$nSd),
-                D=map(S.i, ~.$D),
-                p_est=map(S.i, ~.$p_est.i),
-                N_sim=map(S.i, ~.$N_sim),
-                N_tot=map(S.i, 
-                          ~map_dbl(.$d, ~sum(!is.na(.$sizeNext[.$yr==tmax])))),
-                N_surv=map(S.i, 
-                           ~map_dbl(.$d, ~sum(.$surv[.$yr==tmax], na.rm=T))),
-                N_rcr=map(S.i, 
-                          ~map_dbl(.$d, ~sum(is.na(.$size[.$yr==tmax]))))) %>% 
+
+##-- calculate means and sds from multiple CA simulations
+summarize_CA_simulations <- function(sim.ls, tmax, y.ad) {
+  library(tidyverse)
+  s.a <- list(B=map(sim.ls, ~.$B),
+              nSd=map(sim.ls, ~.$nSd),
+              nSdStay=map(sim.ls, ~.$nSdStay),
+              D=map(sim.ls, ~.$D),
+              N_tot=map(sim.ls, ~apply(.$N, 1:2, sum)),
+              N_ad=map(sim.ls, ~.$N[,,y.ad]),
+              N_rcr=map(sim.ls, ~.$N[,,1])) %>%
     map(simplify2array)
-  
-  return(list(B.mn=apply(S.sum$B, 1:2, mean), 
-              B.sd=apply(S.sum$B, 1:2, sd), 
-              nSd.mn=apply(S.sum$nSd, 1:2, mean), 
-              nSd.sd=apply(S.sum$nSd, 1:2, sd), 
-              D.mn=apply(S.sum$D, 1:2, mean), 
-              D.sd=apply(S.sum$D, 1:2, sd), 
-              p_est.mn=apply(S.sum$p_est, 1:2, mean), 
-              p_est.sd=apply(S.sum$p_est, 1:2, sd), 
-              N_sim.mn=apply(S.sum$N_sim, 1:2, mean), 
-              N_sim.sd=apply(S.sum$N_sim, 1:2, sd),
-              N_tot.mn=apply(S.sum$N_tot, 1, mean),
-              N_tot.sd=apply(S.sum$N_tot, 1, sd),
-              N_surv.mn=apply(S.sum$N_surv, 1, mean),
-              N_surv.sd=apply(S.sum$N_surv, 1, mean),
-              N_rcr.mn=apply(S.sum$N_rcr, 1, mean),
-              N_rcr.sd=apply(S.sum$N_rcr, 1, mean)))
+  return(list(B.mn=apply(s.a$B, 1:2, mean), 
+              nSd.mn=apply(s.a$nSd, 1:2, mean), 
+              nSdStay.mn=apply(s.a$nSdStay, 1:2, mean), 
+              D.mn=apply(s.a$D, 1:2, mean), 
+              N_tot.mn=apply(s.a$N_tot, 1:2, mean),
+              N_ad.mn=apply(s.a$N_ad, 1:2, mean),
+              N_rcr.mn=apply(s.a$N_rcr, 1:2, mean)))
 }
+
+
+
+##-- calculate means from multiple IPM simulations
+summarize_IPM_simulations <- function(sim.ls, tmax) {
+  library(tidyverse)
+  s.a <- list(B=map(sim.ls, ~.$B),
+              nSd=map(sim.ls, ~.$nSd),
+              D=map(sim.ls, ~.$D),
+              p_est=map(sim.ls, ~.$p_est.i),
+              N_sim=map(sim.ls, ~.$N_sim),
+              N_tot=map(sim.ls, 
+                        ~map_dbl(.$d, ~sum(!is.na(.$sizeNext[.$yr==tmax])))),
+              N_surv=map(sim.ls, 
+                         ~map_dbl(.$d, ~sum(.$surv[.$yr==tmax], na.rm=T))),
+              N_rcr=map(sim.ls, 
+                        ~map_dbl(.$d, ~sum(is.na(.$size[.$yr==tmax]))))) %>% 
+    map(simplify2array)
+  return(list(B.mn=apply(s.a$B, 1:2, mean), 
+              nSd.mn=apply(s.a$nSd, 1:2, mean), 
+              D.mn=apply(s.a$D, 1:2, mean), 
+              p_est.mn=apply(s.a$p_est, 1:2, mean), 
+              N_sim.mn=apply(s.a$N_sim, 1:2, mean), 
+              N_tot.mn=apply(s.a$N_tot, 1, mean),
+              N_surv.mn=apply(s.a$N_surv, 1, mean),
+              N_rcr.mn=apply(s.a$N_rcr, 1, mean)))
+}
+
+
+
+##-- calculate means from simulation means of multiple CA samples
+summarize_CA_samples <- function(CA.f, in.id) {
+  Sa <- list(B.mn=map(CA.f, ~.$B.mn),
+             nSd.mn=map(CA.f, ~.$nSd.mn),
+             nSdStay.mn=map(CA.f, ~.$nSdStay.mn),
+             D.mn=map(CA.f, ~.$D.mn),
+             N_tot.mn=map(CA.f, ~.$N_tot.mn),
+             N_ad.mn=map(CA.f, ~.$N_ad.mn),
+             N_rcr.mn=map(CA.f, ~.$N_rcr.mn)) %>%
+    map(simplify2array)
+  return(list(B.mn=apply(Sa$B.mn[in.id,,], 1:2, mean),
+             nSd.mn=apply(Sa$nSd.mn[in.id,,], 1:2, mean),
+             nSdStay.mn=apply(Sa$nSdStay.mn[in.id,,], 1:2, mean),
+             D.mn=apply(Sa$D.mn[in.id,,], 1:2, mean),
+             N_tot.mn=apply(Sa$N_tot.mn[in.id,,], 1:2, mean),
+             N_ad.mn=apply(Sa$N_ad.mn[in.id,,], 1:2, mean),
+             N_rcr.mn=apply(Sa$N_rcr.mn[in.id,,], 1:2, mean)))
+}
+
 
 
 ##-- calculate means from simulation means of multiple IPM samples
