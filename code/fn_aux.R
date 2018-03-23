@@ -137,6 +137,12 @@ antilogit <- function (x) {
 }
 
 
+##-- logit
+logit <- function (x) {
+  log(x/(1-x))
+}
+
+
 ##-- extract SDM sampling & modeling issues from file names
 extract_SDM_issues <- function(f, SDM) {
   require(stringr)
