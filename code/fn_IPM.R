@@ -44,6 +44,7 @@ calc_surv <- function(z.v, p, n_sz, X.s) {
 }
 
 
+
 ##-- Growth
 ##   z' ~ N(size + environment, sd)
 calc_grow <- function(z1, z.v, p, n_gz, X.g) {
@@ -51,6 +52,7 @@ calc_grow <- function(z1, z.v, p, n_gz, X.g) {
   g <- dnorm(z1, mean=z %*% p$g_z + c(t(X.g) %*% p$g_x), sd=p$g_sig)
   return(g)
 }
+
 
 
 ##-- Flowering
@@ -62,12 +64,14 @@ calc_flwr <- function(z.v, p, n_flz, X.fl) {
 }
 
 
+
 ##-- Seed production
 ##   nSeeds ~ exp(size + environment)
 calc_seeds <- function(z.v, p, n_seedz, X.seed) {
   z <- z_pow(z.v, n_seedz)
   exp(z %*% p$seed_z + c(t(X.seed) %*% p$seed_x))
 }
+
 
 
 ##-- Recruits (direct)
@@ -80,11 +84,13 @@ calc_rcrDir <- function(z1, z.v, p, n_seedz, n_flz, X.seed, X.fl) {
 }
 
 
+
 ##-- Recruits (seedbank)
 ##   z' ~ P(s.SB) * N(mn, sd)
 calc_rcrSB <- function(z1, p) {
   p$s_SB * dnorm(z1, p$rcr_z[1], p$rcr_z[2])
 }
+
 
 
 ##-- Add to seedbank
@@ -96,6 +102,7 @@ calc_addSB <- function(z.v, p, n_seedz, n_flz, X.seed, X.fl) {
     (1 - p$rcr_dir) *
     p$s_SB
 }
+
 
 
 ##-- Stay in seedbank
@@ -113,7 +120,6 @@ calc_staySB <- function(p) {
 ########
 
 ##-- Set boundaries, meshpoints, & step size for IPM matrix
-##   create objects in global environment
 setup_IPM_matrix <- function(n=100, z.rng=c(1,10), buffer=0.25) {
   lo <- z.rng[1]*(1-buffer)  # IPM matrix lower limit
   hi <- z.rng[2]*(1+buffer)  # IPM matrix upper limit
@@ -124,8 +130,8 @@ setup_IPM_matrix <- function(n=100, z.rng=c(1,10), buffer=0.25) {
 }
 
 
+
 ##-- Fill P matrix: local 
-##   
 fill_P <- function(h, y, z.i, p, n_z, n_x, X_s, X_g) {
   P.mx <- matrix(0, nrow=p$n+1, ncol=p$n+1)
   # survival & growth
@@ -141,8 +147,8 @@ fill_P <- function(h, y, z.i, p, n_z, n_x, X_s, X_g) {
 }
 
 
+
 ##-- Fill F matrix 
-##   
 fill_F <- function(h, y, z.i, p, n_z, n_x, X_fl, X_seed) {
   F.mx <- matrix(0, nrow=p$n+1, ncol=p$n+1)
   F.mx[z.i,z.i] <- outer(y, y, calc_rcrDir, p=p, n_seedz=n_z$seed, n_flz=n_z$fl, 
@@ -154,11 +160,11 @@ fill_F <- function(h, y, z.i, p, n_z, n_x, X_fl, X_seed) {
 }
 
 
+
 ##-- Fill all IPM objects
-##
 fill_IPM_matrices <- function(n.cell, buffer, discrete, p, n_z, n_x, 
                               X, sdd, sdd.i, verbose=FALSE) {
-  require(tidyverse)
+  library(tidyverse)
   i <- 1:n.cell
   
   # storage objects
@@ -180,6 +186,7 @@ fill_IPM_matrices <- function(n.cell, buffer, discrete, p, n_z, n_x,
   Fs[1,z.i,] <- (1-p$p_emig) * Fb[1,z.i,]
   Fs[z.i,1,] <- Fb[z.i,1,]
   if(verbose) cat("Finished local growth \n")
+  
   ## dispersal & density dependence
   sdd.j <- lapply(i, function(x) which(sdd[,,2,]==sdd.i[x], arr.ind=T)) 
   p.ij <- lapply(i, function(x) sdd[,,1,][sdd.j[[x]]]) 

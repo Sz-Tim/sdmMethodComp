@@ -1,9 +1,10 @@
-
+# Simulation functions
+# Comparison of SDM approaches
+# Tim Szewczyk
 
 
 
 ##--- simulate expected values
-## 
 sim_expected <- function(k, z.i, e.k, E, p, X, n_z) {
   if(length(z.i) > 0) {
     z.mx <- cbind(1, z.i, z.i^2, z.i^3)
@@ -18,8 +19,8 @@ sim_expected <- function(k, z.i, e.k, E, p, X, n_z) {
 }
 
 
+
 ##--- simulate realized values
-##
 sim_realized <- function(k, z.i, d_i, d.k, e.k, E, p, lo, hi) {
   n_t <- length(d.k)
   if(n_t > 0) {
@@ -37,8 +38,8 @@ sim_realized <- function(k, z.i, d_i, d.k, e.k, E, p, lo, hi) {
 }
 
 
+
 ##--- simulate number of recruits
-##
 sim_recruits <- function(k, d_i, p_est_ik, nSd_ik, B_ik, D_ik, p) {
   n <- round(p_est_ik * (nSd_ik * (1-p$p_emig) * p$rcr_dir + 
                            B_ik * p$rcr_SB + 
@@ -54,8 +55,8 @@ sim_recruits <- function(k, d_i, p_est_ik, nSd_ik, B_ik, D_ik, p) {
 }
 
 
+
 ##--- simulate addition to seed bank
-##
 sim_seedbank <- function(nSd_ik, B_ik, D_ik, p) {
   round(p$s_SB * (B_ik * (1-p$rcr_SB) + 
                     nSd_ik * (1-p$p_emig) * (1-p$rcr_dir) + 
@@ -63,10 +64,10 @@ sim_seedbank <- function(nSd_ik, B_ik, D_ik, p) {
 }
 
 
+
 ##--- simulate full dataset
-##
 simulate_data <- function(n.cell, lo, hi, p, X, n_z, sdd, sdd.j, verbose=F) {
-  require(tidyverse)
+  library(tidyverse)
   i <- 1:n.cell
   
   # storage objects
