@@ -61,13 +61,13 @@ for(i in 1:length(O_IPM)) {
   
   # global models
   options(na.action="na.fail")
-  global.m <- list(s=glm(as.formula(paste("surv ~", m.IPM, collapse="")), 
+  global.m <- list(s=glm(as.formula(paste("surv ~", m$IPM, collapse="")), 
                          data=O_IPM.i.s, family="binomial"),
-                   g=lm(as.formula(paste("sizeNext ~", m.IPM, collapse="")), 
+                   g=lm(as.formula(paste("sizeNext ~", m$IPM, collapse="")), 
                         data=O_IPM.i.g),
-                   fl=glm(as.formula(paste("fl ~", m.IPM, collapse="")), 
+                   fl=glm(as.formula(paste("fl ~", m$IPM, collapse="")), 
                           data=O_IPM.i.fl, family="binomial"),
-                   seed=glm(as.formula(paste("seed ~", m.IPM, collapse="")), 
+                   seed=glm(as.formula(paste("seed ~", m$IPM, collapse="")), 
                             data=O_IPM.i.seed, family="poisson"))
   
   # optimal models
@@ -75,39 +75,39 @@ for(i in 1:length(O_IPM)) {
   
   # store coefficients
   vars.opt <- map(opt.m, coef)
-  vars.ls <- list(s=v, g=v, fl=v, seed=v)
-  vars.ls$s[names(vars.opt$s)] <- vars.opt$s
-  vars.ls$g[names(vars.opt$g)] <- vars.opt$g
-  vars.ls$fl[names(vars.opt$fl)] <- vars.opt$fl
-  vars.ls$seed[names(vars.opt$seed)] <- vars.opt$seed
+  vars.ls <- list(s=v$IPM, g=v$IPM, fl=v$IPM, seed=v$IPM)
+  for(j in seq_along(vars.ls)) {
+    vars.ls[[j]][names(vars.opt[[j]])] <- vars.opt[[j]]
+  }
   
   # update parameters
   p.ipm <- p
-  p.ipm$s_z <- vars.ls$s[1:n_z$s]
-  p.ipm$s_x <- vars.ls$s[(n_z$s+1):length(v)]
-  p.ipm$g_z <- vars.ls$g[1:n_z$g]
-  p.ipm$g_x <- vars.ls$g[(n_z$g+1):length(v)]
+  p.ipm$s_z <- vars.ls$s[1:n$IPM$z$s]
+  p.ipm$s_x <- vars.ls$s[(n$IPM$z$s+1):length(v)]
+  p.ipm$g_z <- vars.ls$g[1:n$IPM$z$g]
+  p.ipm$g_x <- vars.ls$g[(n$IPM$z$g+1):length(v)]
   p.ipm$g_sig <- summary(opt.m$g)$sigma
-  p.ipm$fl_z <- vars.ls$fl[1:n_z$fl]
-  p.ipm$fl_x <- vars.ls$fl[(n_z$fl+1):length(v)]
-  p.ipm$seed_z <- vars.ls$seed[1:n_z$seed]
-  p.ipm$seed_x <- vars.ls$seed[(n_z$seed+1):length(v)]
+  p.ipm$fl_z <- vars.ls$fl[1:n$IPM$z$fl]
+  p.ipm$fl_x <- vars.ls$fl[(n$IPM$z$fl+1):length(v)]
+  p.ipm$seed_z <- vars.ls$seed[1:n$IPM$z$seed]
+  p.ipm$seed_x <- vars.ls$seed[(n$IPM$z$seed+1):length(v)]
   p.ipm$rcr_z <- filter(O_IPM[[i]], is.na(size)) %>% 
     summarise(mn=mean(sizeNext), sd=sd(sizeNext)) %>% unlist
   
   # use estimated slopes to fill IPM matrix
   U.f[[i]] <- fill_IPM_matrices(n.cell, buffer=0.75, discrete=1, p.ipm, 
-                                n_z, n_x, X, sdd.pr, env.in$id)
+                                n$IPM$z, n$IPM$x, X.IPM, sdd.pr, env.in$id)
   
   # use estimated slopes to generate simulated data
-  Si <- vector("list", n_sim)
+  sim.ls <- vector("list", n_sim)
   cat("||-- Starting simulations\n")
   for(s in 1:n_sim) {
-    Si[[s]] <- simulate_data(n.cell, U$lo, U$hi, p.ipm, X, n_z, sdd.pr, U$sdd.j)
+    sim.ls[[s]] <- simulate_data(n.cell, U$lo, U$hi, p.ipm, X.IPM, n$IPM$z, 
+                             sdd.pr, U$sdd.j)
     cat("||-- Finished simulation", s, "\n")
   }
-  S.f[[i]] <- summarize_IPM_simulations(Si, p.ipm$tmax)
-  rm(Si)
+  S.f[[i]] <- summarize_IPM_simulations(sim.ls, p.ipm$tmax)
+  rm(sim.ls)
   cat("\n  Finished dataset", i, "\n")
 }
 out <- summarize_IPM_samples(U.f, S.f)
