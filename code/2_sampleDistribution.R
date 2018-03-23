@@ -89,10 +89,13 @@ for(s in 1:n_samp) {
     CA.d[[j]] <- sample_frac(CA.d[[j]], prop.sampled)
     CA.d[[j]] <- CA.d[[j]] %>% group_by(yr) %>% 
       summarise(N=sum(!is.na(size)), 
-                s.ad=mean(surv[age>2], na.rm=TRUE),
-                s.jv=mean(surv[age<3], na.rm=TRUE),
-                p.f=mean(fl, na.rm=TRUE),
-                fec=mean(seed, na.rm=TRUE),
+                s.ad.0=sum(surv[age>2]==0, na.rm=TRUE),
+                s.ad.1=sum(surv[age>2]==1, na.rm=TRUE),
+                s.jv.0=sum(surv[age<3]==0, na.rm=TRUE),
+                s.jv.1=sum(surv[age<3]==1, na.rm=TRUE),
+                f.0=sum(fl==0, na.rm=TRUE),
+                f.1=sum(fl==1, na.rm=TRUE),
+                fec=mean(seed, na.rm=TRUE) %>% round,
                 nSeed=sum(seed, na.rm=TRUE),
                 N.rcr=sum(is.na(size))) %>%
       add_column(id.inbd=i) %>%
