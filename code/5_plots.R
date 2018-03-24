@@ -12,19 +12,25 @@ sp <- "sp1"
 
 theme_set(theme_bw())
 # barplots showing % correct for presence/absence; fill=SDM; facet=issues
-ggplot(out_IPM, aes(fill=outcome, x=s_Iss)) + geom_bar(position="fill") 
+ggplot(out, aes(fill=outcome, x=SDM)) + geom_bar(position="fill") + facet_wrap(~s_Iss)
 ggplot(out_IPM, aes(fill=sign(log(lambda.f))==sign(log(lambda)), x=s_Iss)) + 
   geom_bar(position="fill")
 ggplot(out_IPM, aes(fill=sign(log(lam.U.f))==sign(log(lam.U)), x=s_Iss)) + 
   geom_bar(position="fill")
-ggplot(out_IPM, aes(fill=sign(log(lam.S.f))==sign(log(lam.S)), x=s_Iss)) + 
-  geom_bar(position="fill")
+ggplot(out, aes(fill=sign(log(lam.S.f))==sign(log(lam.S)), x=SDM)) + 
+  geom_bar(position="fill") + facet_wrap(~s_Iss)
 
-ggplot(out_IPM, aes(x=lon, y=lat, fill=Surv.S.f-Surv.S)) +
-  geom_tile() + facet_wrap(~s_Iss) + scale_fill_gradient2()
+ggplot(out, aes(x=lon, y=lat, fill=Surv.S.f-Surv.S)) +
+  geom_tile() + facet_grid(SDM~s_Iss) + scale_fill_gradient2()
+ggplot(out, aes(x=lon, y=lat, fill=(Surv.S.f-Surv.S)/Surv.S)) +
+  geom_tile() + facet_grid(SDM~s_Iss) + scale_fill_gradient()
 
-ggplot(out_IPM, aes(x=lon, y=lat, fill=outcome)) +
-  geom_tile() + facet_wrap(~s_Iss)
+ggplot(out, aes(x=lon, y=lat, fill=outcome)) +
+  geom_tile() + facet_grid(SDM~s_Iss)
+ggplot(out, aes(x=lon, y=lat, fill=Surv.S.f)) +
+  geom_tile() + facet_grid(SDM~s_Iss)
+ggplot(out, aes(x=lon, y=lat, fill=Surv.S.f > 1)) +
+  geom_tile() + facet_grid(SDM~s_Iss)
 
 ggplot(out_IPM, aes(x=lon, y=lat, fill=Surv.S.f)) +
   geom_tile() + facet_wrap(~s_Iss) + scale_fill_gradient(low="white", high="red")
@@ -33,7 +39,7 @@ ggplot(out_IPM, aes(x=lon, y=lat, fill=sign(round(lam.S.f))==sign(lam.S))) +
   geom_tile() + facet_wrap(~s_Iss)
 
 ggplot(out_IPM, aes(x=lon, y=lat, fill=sign(log(lam.S.f))==sign(log(lam.S)))) +
-  geom_tile() + facet_wrap(~s_Iss)
+  geom_tile() + facet_grid(SDM~s_Iss)
 
 ggplot(out_IPM, aes(x=lon, y=lat, fill=sign(log(lambda.f))==sign(log(lambda)))) +
   geom_tile() + facet_wrap(~s_Iss)
@@ -59,18 +65,18 @@ ggplot(out_IPM, aes(x=lon, y=lat, fill=Rcr.S.f-Rcr.S)) +
 ggplot(out_IPM, aes(x=lon, y=lat, fill=N.S.f-N.S)) +
   geom_tile() + facet_wrap(~s_Iss) + scale_fill_gradient2()
 
-ggplot(out_IPM, aes(x=N.S, y=N.S.f)) + geom_point(alpha=0.5) + 
-  facet_wrap(~s_Iss) +
+ggplot(out_IPM, aes(x=N.S, y=N.S.f, colour=SDM, group=SDM)) + 
+  geom_point(alpha=0.5) + facet_wrap(~s_Iss) +
   stat_smooth(se=F, method="loess") + geom_abline(slope=1, size=1)
 
-ggplot(out_IPM, aes(x=Surv.S, y=Surv.S.f)) + geom_point(alpha=0.5) + 
-  facet_wrap(~s_Iss) +
+ggplot(out, aes(x=Surv.S, y=Surv.S.f, colour=SDM, group=SDM)) + 
+  geom_point(alpha=0.5) + facet_wrap(~s_Iss) +
   stat_smooth(se=F, method="loess") + geom_abline(slope=1, size=1)
 
-ggplot(out_IPM, aes(x=Rcr.S, y=Rcr.S.f)) + geom_point(alpha=0.5) + 
-  facet_wrap(~s_Iss) +
+ggplot(out, aes(x=Rcr.S, y=Rcr.S.f, colour=SDM, group=SDM)) + 
+  geom_point(alpha=0.5) + facet_wrap(~s_Iss) +
   stat_smooth(se=F, method="loess") + geom_abline(slope=1, size=1)
-ggplot(out_IPM, aes(x=Rcr.S.f-Rcr.S, colour=s_Iss)) + geom_density()
+ggplot(out, aes(x=Rcr.S.f-Rcr.S, colour=s_Iss)) + geom_density()
 
 ggplot(out_IPM, aes(x=lambda, y=lambda.f)) + geom_point(alpha=0.5) + 
   facet_wrap(~s_Iss) +
