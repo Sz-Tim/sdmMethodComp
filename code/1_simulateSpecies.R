@@ -21,8 +21,8 @@ suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
 walk(paste0("code/fn_", c("IPM", "aux", "sim"), ".R"), ~source(here(.)))
 
 L <- build_landscape(f=here(env.f), 
-                     x_max=20, # ncol in landscape; Inf for full dataset
-                     y_max=20) # nrow in landscape; Inf for full dataset
+                     x_max=50, # ncol in landscape; Inf for full dataset
+                     y_max=50) # nrow in landscape; Inf for full dataset
 n.cell <- sum(L$env.rct$inbd)
 
 
@@ -30,11 +30,11 @@ n.cell <- sum(L$env.rct$inbd)
 ## Set species traits
 ########
 p=list(n=50,  # ncells in IPM matrix
-       tmax=30,  # time steps for NDD & simulations
+       tmax=10,  # time steps for NDD & simulations
        n0=200,  # initial pop sizes
        z.rng=c(1,12),  # initial size range
        s_z=c(-8, 2.1, -.09),  # b1 + b2*z + b3*z^2
-       s_x=c(2, -.1, -2, -.1, 2, -2, -.4),  # b1*x1 + ...
+       s_x=c(3, -.1, -2, -.1, 2, -2, -.4),  # b1*x1 + ...
        g_z=c(.2, 2, -0.1),  # b1 + b2*z + b3*z^2
        g_x=c(2, -.1, 2, -.1, 2, -2),  # b1*x1 + ...
        g_sig=1,  # growth ~ N(E, g_sig)
