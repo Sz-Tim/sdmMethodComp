@@ -40,7 +40,7 @@ v <- m <- n <- list(CA=NULL, IPM=NULL)
 
 ##--- CA
 v$CA <- c("(Intercept)"=0, "temp"=0, "temp2"=0, "prec"=0, "prec2"=0, 
-          "pOpn"=0, "pOth"=0, "pDec"=0)#, "pEvg"=0, "pMxd"=0)
+          "pOpn"=0, "pOth"=0, "pDec"=0, "pEvg"=0, "pMxd"=0)
 m$CA <- paste(names(v$CA)[-1], collapse=" + ")
 n$CA <- rep(list(length(v$CA)), 5)
 names(n$CA) <- c("K", "s.jv", "s.ad", "p.f", "fec")
