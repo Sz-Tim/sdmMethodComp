@@ -32,17 +32,18 @@ lam.df <- readRDS(here(paste0("out/", sp, "_lam_df.rds"))) # env + true pop vals
 ########
 n_samp <- 5  # number of unique samples to average across
 O_n <- list(Corr=100, Mech=20)  # number of cells in sample
-O_yr <- list(Mx=p$tmax, CA=p$tmax, IPM=p$tmax)  # years to sample
+O_yr <- list(Mx=p$tmax, CA=(-1:0)+p$tmax, IPM=p$tmax)  # years to sample
 P.i <- which(lam.df$Surv.S > 0)  # presences: survival past recruit stage
 P.pr <- rep(1, length(P.i))  # pr(sample cell | presence)
 prop.sampled <- 1  # proportion of individuals sampled per sampled cell 
-geog.excl <- which(env.in$x < 40 & env.in$y < 50)
+geog.excl <- which(env.in$x > 20 & env.in$y < 50)
 noise <- list(Mx=0.2, # proportion of observed presences that are false
-            CA=NA,
+            CA=list(N=0.05,  # N.obs = rnorm(N.true, N.true*N)
+                    fec=0.05),  # fec.obs = rnorm(fec.true, fec.true*fec)
             IPM=list(s=0,  # proportion of incorrectly assessed surv
-                     g=.05,  # sizeNext.obs = rnorm(SizeNext.true, g) 
+                     g=0.05,  # sizeNext.obs = rnorm(SizeNext.true, g) 
                      fl=0,  # proportion of incorrectly assessed fl
-                     seed=.05)  # seed.obs = rnorm(seed.true, seed.true*seed)
+                     seed=0.05)  # seed.obs = rnorm(seed.true, seed.true*seed)
             )
 
 
@@ -113,23 +114,28 @@ for(s in 1:n_samp) {
 
 # add error
 if(sampling.issue=="noise") {
-  # MaxEnt: substitute in some % false presences
+  # MaxEnt: substitute false presences
   n.err <- noise$Mx*O_n$Corr
   for(s in 1:n_samp) {
     Corr.sample[[s]][1:n.err] <- sample((1:n.cell)[-P.i], n.err, F)
   }
   O_Mx <- map(Corr.sample, ~(1:nrow(lam.df) %in% .))
-  # CA: add noise... 
-  # IPM: add noise
+  # CA: add error to N and seed counts
+  for(s in 1:n_samp) {
+    n_obs <- nrow(O_CA[[s]]$d)
+    O_CA[[s]]$d$N <- pmax(round(O_CA[[s]]$d$N +
+                                  rnorm(n_obs, 0, O_CA[[s]]$d$N*noise$CA$N)),
+                          0)
+    O_CA[[s]]$d$fec <- pmax(round(O_CA[[s]]$d$fec +
+                                rnorm(n_obs, 0, O_CA[[s]]$d$fec*noise$CA$fec)),
+                            0)
+  }
+  # IPM: add error to growth measurements and seed counts
   for(s in 1:n_samp) {
     n_obs <- nrow(O_IPM[[s]])
-    # adjust survival
-    # adjust growth, flowering based on survival
     O_IPM[[s]]$sizeNext <- O_IPM[[s]]$sizeNext + rnorm(n_obs, 0, noise$IPM$g)
     O_IPM[[s]]$sizeNext <- pmin(O_IPM[[s]]$sizeNext, U$hi)
     O_IPM[[s]]$sizeNext <- pmax(O_IPM[[s]]$sizeNext, U$lo)
-    # adjust flowering
-    # adjust seed based on flowering
     O_IPM[[s]]$seed <- pmax(round(O_IPM[[s]]$seed +
                               rnorm(n_obs, 0, O_IPM[[s]]$seed*noise$IPM$seed)), 
                             0)
