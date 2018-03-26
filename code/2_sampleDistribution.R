@@ -67,28 +67,11 @@ O_CA <- vector("list", n_samp)
 for(s in 1:n_samp) {
   CA.d <- CA.B <- CA.D <- vector("list", O_n$Mech)
   for(j in seq_along(Mech.sample[[s]])) {
-    # need to estimate or set:
-    # . K == N
-    # . s.jv
-    # . s.ad
-    # . p.f (fruit)
-    # . fec
-    # . age.f == set manually; could inform with age where p.fl > .5
-    #   s.sb=p$s_sb
-    #   nSdFrt=1
-    # - p.est
-    #   n.ldd=1
-    #   sdd.max=p$sdd_max
-    #   sdd.rate=p$sdd_rate
-    #   p.eat=1
-    #   bird.hab=p$bird_hab
-    #   s.bird=1
-    #   method=lm
     i <- Mech.sample[[s]][j]
     CA.d[[j]] <- data.frame(S$d[[i]]) %>% filter(yr %in% O_yr$CA)
     CA.d[[j]] <- sample_frac(CA.d[[j]], prop.sampled)
     CA.d[[j]] <- CA.d[[j]] %>% group_by(yr) %>% 
-      summarise(N=sum(!is.na(size)), 
+      summarise(N=sum(!is.na(size) & age>2), 
                 s.ad.0=sum(surv[age>2]==0, na.rm=TRUE),
                 s.ad.1=sum(surv[age>2]==1, na.rm=TRUE),
                 s.jv.0=sum(surv[age<3]==0, na.rm=TRUE),
@@ -98,6 +81,9 @@ for(s in 1:n_samp) {
                 fec=mean(seed, na.rm=TRUE) %>% round,
                 nSeed=sum(seed, na.rm=TRUE),
                 N.rcr=sum(is.na(size))) %>%
+      mutate(fec=ifelse(is.nan(fec), 0, fec)) %>%
+      ungroup() %>%
+      mutate(lambda=N/lag(N,1)) %>%
       add_column(id.inbd=i) %>%
       full_join(env.in[i,], by="id.inbd")
     CA.B[[j]] <- S$B[i,O_yr$CA]
@@ -106,8 +92,8 @@ for(s in 1:n_samp) {
   O_CA[[s]] <- list(d=do.call(rbind, CA.d),
                     B=do.call(rbind, CA.B),
                     D=do.call(rbind, CA.D))
-  O_CA[[s]]$d$p.est <- with(O_CA[[s]], d$N.rcr/(d$nSeed*p$p_emig*p$rcr_dir + 
-                                                  B*p$rcr_SB + D*p$rcr_dir))
+  O_CA[[s]]$d$p.est <- c(t(with(O_CA[[s]], d$N.rcr/(d$nSeed*p$p_emig*p$rcr_dir + 
+                                                  B*p$rcr_SB + D*p$rcr_dir))))
 }
 
 # IPM: population samples
