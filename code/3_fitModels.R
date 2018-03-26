@@ -40,7 +40,7 @@ v <- m <- n <- list(CA=NULL, IPM=NULL)
 
 ##--- CA
 v$CA <- c("(Intercept)"=0, "temp"=0, "temp2"=0, "prec"=0, "prec2"=0, 
-          "pOpn"=0, "pOth"=0, "pDec"=0, "pEvg"=0, "pMxd"=0)
+          "pOpn"=0, "pOth"=0, "pDec"=0)#, "pEvg"=0, "pMxd"=0)
 m$CA <- paste(names(v$CA)[-1], collapse=" + ")
 n$CA <- rep(list(length(v$CA)), 5)
 names(n$CA) <- c("K", "s.jv", "s.ad", "p.f", "fec")
@@ -64,36 +64,37 @@ X.IPM <- map(n$IPM$x, ~as.matrix(env.in[,1:.]))
 cat("||||---- Beginning CA -------------------------------------------------\n")
 CA.f <- vector("list", length(O_CA))
 for(i in 1:length(O_CA)) {
-  O_CA.i <- O_CA[[i]]
+  O_CA.i <- O_CA[[i]]$d %>% filter(yr==p$tmax)
+  O_CA.lam <- O_CA[[i]]$d %>% filter(!is.na(lambda))
+  O_CA.K <- O_CA.i %>% filter(id %in% O_CA.lam$id[abs(O_CA.lam$lambda-1)<0.05])
+  sim.ls <- vector("list", n_sim)
   
   # global models
   options(na.action="na.fail")
-  global.m <- list(K=glm(as.formula(paste("N ~", m$CA, collapse="")),
-                        data=O_CA.i$d, family="poisson"),
-                   s.jv=glm(as.formula(paste("cbind(s.jv.1, s.jv.0) ~", m$CA,
-                                             collapse="")), 
-                            data=O_CA.i$d, family="binomial"),
-                   s.ad=glm(as.formula(paste("cbind(s.ad.1, s.ad.0) ~", m$CA,
-                                             collapse="")), 
-                            data=O_CA.i$d, family="binomial"),
-                   p.f=glm(as.formula(paste("cbind(f.1, f.0) ~", m$CA,
-                                            collapse="")), 
-                           data=O_CA.i$d, family="binomial"),
-                   fec=glm(as.formula(paste("fec ~", m$CA, collapse="")), 
-                           data=O_CA.i$d, family="poisson"))
+  full.m <- list(K=glm(as.formula(paste("N ~", m$CA, collapse="")),
+                       data=O_CA.K, family="poisson"),
+                 s.jv=glm(as.formula(paste("cbind(s.jv.1, s.jv.0) ~", m$CA,
+                                           collapse="")), 
+                          data=O_CA.i, family="binomial"),
+                 s.ad=glm(as.formula(paste("cbind(s.ad.1, s.ad.0) ~", m$CA,
+                                           collapse="")), 
+                          data=O_CA.i, family="binomial"),
+                 p.f=glm(as.formula(paste("cbind(f.1, f.0) ~", m$CA,
+                                          collapse="")), 
+                         data=O_CA.i, family="binomial"),
+                 fec=glm(as.formula(paste("fec ~", m$CA, collapse="")), 
+                         data=O_CA.i, family="poisson"))
   
-  # optimal models
-  opt.m <- map(global.m, ~get.models(dredge(.), subset=1)[[1]])
-  
-  # store coefficients
+  # store coefficients from optimal models
+  opt.m <- map(full.m, ~get.models(dredge(.), subset=1)[[1]])
   vars.opt <- map(opt.m, coef)
-  vars.ls <- list(K=v$CA, s.jv=v$CA, s.ad=v$CA, p.f=v$CA, fec=v$CA)
+  vars.ls <- rep(list(v$CA), 5); names(vars.ls) <- names(opt.m)
   for(j in seq_along(vars.ls)) {
     vars.ls[[j]][names(vars.opt[[j]])] <- vars.opt[[j]]
   }
   
   # update parameters
-  p.CA <- set_g_p(tmax=p$tmax, 
+  p.CA <- set_g_p(tmax=50, 
                   lc.r=diff(range(env.in$y)), lc.c=diff(range(env.in$x)),
                   n.lc=5, N.p.t0=n.cell, 
                   K=vars.ls$K, 
@@ -112,7 +113,6 @@ for(i in 1:length(O_CA)) {
   N.init <- matrix(0, n.grid, p.CA$age.f)  # column for each age class
   N.init[CA.lc$id[CA.lc$inbd], p.CA$age.f] <- p$n0
   N.init[CA.lc$id[CA.lc$inbd], -p.CA$age.f] <- round(p$n0/5)
-  sim.ls <- vector("list", n_sim)
   cat("||-- Starting simulations\n")
   for(s in 1:n_sim) {
     sim.ls[[s]] <- run_sim(n.grid, n.cell, p.CA, CA.lc, sdd.pr, N.init, NULL, F)
@@ -125,7 +125,7 @@ for(i in 1:length(O_CA)) {
 out <- summarize_CA_samples(CA.f, lam.df$id)
 P_CA <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
   mutate(lam.S.f=rowMeans(out$N_ad.mn[,(-3:0)+p.CA$tmax]/
-                            (out$N_ad.mn[,(-4:-1)+p.CA$tmax]+0.0001)),
+                            (out$N_ad.mn[,(-4:-1)+p.CA$tmax])),
          nSeed.f=out$nSd.mn[,p.CA$tmax], 
          D.f=out$D.mn[,p.CA$tmax],
          B0.f=out$B.mn[,1], 
@@ -135,6 +135,7 @@ P_CA <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>%
          Rcr.S.f=out$N_rcr.mn[,p.CA$tmax+1],
          nSdStay.f=nSeed.f*(1-p.CA$p_emig), 
          nSdLeave.f=nSeed.f*p.CA$p_emig)
+P_CA$lam.S.f[is.nan(P_CA$lam.S.f)] <- NA
 
 ##--- IPM
 cat("||||---- Beginning IPM ------------------------------------------------\n")
@@ -147,23 +148,21 @@ for(i in 1:length(O_IPM)) {
   O_IPM.i.fl <- filter(O_IPM[[i]], !is.na(fl))
   O_IPM.i.seed <- filter(O_IPM[[i]], !is.na(seed))
   
-  # global models
+  # full models
   options(na.action="na.fail")
-  global.m <- list(s=glm(as.formula(paste("surv ~", m$IPM, collapse="")), 
-                         data=O_IPM.i.s, family="binomial"),
-                   g=lm(as.formula(paste("sizeNext ~", m$IPM, collapse="")), 
-                        data=O_IPM.i.g),
-                   fl=glm(as.formula(paste("fl ~", m$IPM, collapse="")), 
-                          data=O_IPM.i.fl, family="binomial"),
-                   seed=glm(as.formula(paste("seed ~", m$IPM, collapse="")), 
-                            data=O_IPM.i.seed, family="poisson"))
+  full.m <- list(s=glm(as.formula(paste("surv ~", m$IPM, collapse="")), 
+                       data=O_IPM.i.s, family="binomial"),
+                 g=lm(as.formula(paste("sizeNext ~", m$IPM, collapse="")), 
+                      data=O_IPM.i.g),
+                 fl=glm(as.formula(paste("fl ~", m$IPM, collapse="")), 
+                        data=O_IPM.i.fl, family="binomial"),
+                 seed=glm(as.formula(paste("seed ~", m$IPM, collapse="")), 
+                          data=O_IPM.i.seed, family="poisson"))
   
-  # optimal models
-  opt.m <- map(global.m, ~get.models(dredge(.), subset=1)[[1]])
-  
-  # store coefficients
+  # store coefficients from optimal models
+  opt.m <- map(full.m, ~get.models(dredge(.), subset=1)[[1]])
   vars.opt <- map(opt.m, coef)
-  vars.ls <- list(s=v$IPM, g=v$IPM, fl=v$IPM, seed=v$IPM)
+  vars.ls <- rep(list(v$IPM), 4); names(vars.ls) <- names(opt.m)
   for(j in seq_along(vars.ls)) {
     vars.ls[[j]][names(vars.opt[[j]])] <- vars.opt[[j]]
   }
