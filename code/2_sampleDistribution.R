@@ -126,6 +126,7 @@ if(sampling.issue=="noise") {
     O_CA[[s]]$d$N <- pmax(round(O_CA[[s]]$d$N +
                                   rnorm(n_obs, 0, O_CA[[s]]$d$N*noise$CA$N)),
                           0)
+    O_CA[[s]]$d$lambda <- O_CA[[s]]$d$N/lag(O_CA[[s]]$d$N,1)
     O_CA[[s]]$d$fec <- pmax(round(O_CA[[s]]$d$fec +
                                 rnorm(n_obs, 0, O_CA[[s]]$d$fec*noise$CA$fec)),
                             0)
