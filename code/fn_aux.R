@@ -73,7 +73,7 @@ z_pow <- function(z.vec, n_z) {
 
 
 ##-- calculate means and sds from multiple CA simulations
-summarize_CA_simulations <- function(sim.ls, tmax, y.ad) {
+summarize_CA_simulations <- function(sim.ls, tmax, y.ad, sim.lam=NULL) {
   library(tidyverse)
   s.a <- list(B=map(sim.ls, ~.$B),
               nSd=map(sim.ls, ~.$nSd),
@@ -83,13 +83,22 @@ summarize_CA_simulations <- function(sim.ls, tmax, y.ad) {
               N_ad=map(sim.ls, ~.$N[,,y.ad]),
               N_rcr=map(sim.ls, ~.$N[,,1])) %>%
     map(simplify2array)
+  if(!is.null(sim.lam)) {
+    CA_lam.N <- simplify2array(map(sim.lam, ~.$N)) %>% apply(., 1:2, mean)
+    CA_lam.lam <- simplify2array(map(sim.lam, ~.$lam.E)) %>% apply(., 1, mean)
+  } else {
+    CA_lam.N <- NA
+    CA_lam.lam <- NA
+  }
   return(list(B.mn=apply(s.a$B, 1:2, mean), 
               nSd.mn=apply(s.a$nSd, 1:2, mean), 
               nSdStay.mn=apply(s.a$nSdStay, 1:2, mean), 
               D.mn=apply(s.a$D, 1:2, mean), 
               N_tot.mn=apply(s.a$N_tot, 1:2, mean),
               N_ad.mn=apply(s.a$N_ad, 1:2, mean),
-              N_rcr.mn=apply(s.a$N_rcr, 1:2, mean)))
+              N_rcr.mn=apply(s.a$N_rcr, 1:2, mean),
+              CA_lam.N=CA_lam.N,
+              CA_lam.lam=CA_lam.lam))
 }
 
 
@@ -129,7 +138,9 @@ summarize_CA_samples <- function(CA.f, in.id) {
              D.mn=map(CA.f, ~.$D.mn),
              N_tot.mn=map(CA.f, ~.$N_tot.mn),
              N_ad.mn=map(CA.f, ~.$N_ad.mn),
-             N_rcr.mn=map(CA.f, ~.$N_rcr.mn)) %>%
+             N_rcr.mn=map(CA.f, ~.$N_rcr.mn),
+             CA_lam.N=map(CA.f, ~.$CA_lam.N),
+             CA_lam.lam=map(CA.f, ~.$CA_lam.lam)) %>%
     map(simplify2array)
   return(list(B.mn=apply(Sa$B.mn[in.id,,], 1:2, mean),
              nSd.mn=apply(Sa$nSd.mn[in.id,,], 1:2, mean),
@@ -137,7 +148,9 @@ summarize_CA_samples <- function(CA.f, in.id) {
              D.mn=apply(Sa$D.mn[in.id,,], 1:2, mean),
              N_tot.mn=apply(Sa$N_tot.mn[in.id,,], 1:2, mean),
              N_ad.mn=apply(Sa$N_ad.mn[in.id,,], 1:2, mean),
-             N_rcr.mn=apply(Sa$N_rcr.mn[in.id,,], 1:2, mean)))
+             N_rcr.mn=apply(Sa$N_rcr.mn[in.id,,], 1:2, mean),
+             CA_lam.N=apply(Sa$CA_lam.N[in.id,,], 1:2, mean),
+             CA_lam.lam=apply(Sa$CA_lam.lam[in.id,], 1, mean)))
 }
 
 

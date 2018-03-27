@@ -35,15 +35,15 @@ O_IPM <- readRDS(here(paste0("out/", sp, "_O_IPM_", sampling.issue, ".rds")))
 ########
 ## Set model details
 ########
-n_sim <- 5  # number of simulations per sample (mechanistic only)
+n_sim <- 2  # number of simulations per sample (mechanistic only)
 v <- m <- n <- list(CA=NULL, IPM=NULL)
 
 ##--- CA
 v$CA <- c("(Intercept)"=0, "temp"=0, "temp2"=0, "prec"=0, "prec2"=0, 
           "pOpn"=0, "pOth"=0, "pDec"=0)#, "pEvg"=0, "pMxd"=0)
 m$CA <- paste(names(v$CA)[-1], collapse=" + ")
-n$CA <- rep(list(length(v$CA)), 5)
-names(n$CA) <- c("K", "s.jv", "s.ad", "p.f", "fec")
+n$CA <- rep(list(length(v$CA)), 6)
+names(n$CA) <- c("K", "s.jv", "s.ad", "p.f", "fec", "lam")
 X.CA <- map(n$CA, ~cbind(1, as.matrix(env.in[,1:(.-1)])))
 
 ##--- IPM
@@ -67,7 +67,7 @@ for(i in 1:length(O_CA)) {
   O_CA.i <- O_CA[[i]]$d %>% filter(yr==p$tmax)
   O_CA.lam <- O_CA[[i]]$d %>% filter(!is.na(lambda))
   O_CA.K <- O_CA.i %>% filter(id %in% O_CA.lam$id[abs(O_CA.lam$lambda-1)<0.05])
-  sim.ls <- vector("list", n_sim)
+  sim.ls <- sim.lam <- vector("list", n_sim)
   
   # global models
   options(na.action="na.fail")
@@ -83,18 +83,20 @@ for(i in 1:length(O_CA)) {
                                           collapse="")), 
                          data=O_CA.i, family="binomial"),
                  fec=glm(as.formula(paste("fec ~", m$CA, collapse="")), 
-                         data=O_CA.i, family="poisson"))
+                         data=O_CA.i, family="poisson"),
+                 lam=lm(as.formula(paste("log(lambda) ~", m$CA, collapse="")),
+                         data=O_CA.lam))
   
   # store coefficients from optimal models
   opt.m <- map(full.m, ~get.models(dredge(.), subset=1)[[1]])
   vars.opt <- map(opt.m, coef)
-  vars.ls <- rep(list(v$CA), 5); names(vars.ls) <- names(opt.m)
+  vars.ls <- rep(list(v$CA), 6); names(vars.ls) <- names(opt.m)
   for(j in seq_along(vars.ls)) {
     vars.ls[[j]][names(vars.opt[[j]])] <- vars.opt[[j]]
   }
   
   # update parameters
-  p.CA <- set_g_p(tmax=50, 
+  p.CA <- set_g_p(tmax=20, 
                   lc.r=diff(range(env.in$y)), lc.c=diff(range(env.in$x)),
                   n.lc=5, N.p.t0=n.cell, 
                   K=vars.ls$K, 
@@ -116,9 +118,12 @@ for(i in 1:length(O_CA)) {
   cat("||-- Starting simulations\n")
   for(s in 1:n_sim) {
     sim.ls[[s]] <- run_sim(n.grid, n.cell, p.CA, CA.lc, sdd.pr, N.init, NULL, F)
+    sim.lam[[s]] <- run_sim_lambda(n.grid, n.cell, p.CA, vars.ls$lam, CA.lc, 
+                                   sdd.pr, N.init, "lm", F)
     cat("||-- Finished simulation", s, "\n")
   }
-  CA.f[[i]] <- summarize_CA_simulations(sim.ls, p.CA$tmax, max(p.CA$age.f))
+  CA.f[[i]] <- summarize_CA_simulations(sim.ls, p.CA$tmax, 
+                                        max(p.CA$age.f), sim.lam)
   rm(sim.ls)
   cat("\n  Finished dataset", i, "\n")
 }
@@ -134,7 +139,9 @@ P_CA <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>%
          Surv.S.f=out$N_ad.mn[,p.CA$tmax+1], 
          Rcr.S.f=out$N_rcr.mn[,p.CA$tmax+1],
          nSdStay.f=nSeed.f*(1-p.CA$p_emig), 
-         nSdLeave.f=nSeed.f*p.CA$p_emig)
+         nSdLeave.f=nSeed.f*p.CA$p_emig,
+         CA_lam.N=out$CA_lam.N[,p.CA$tmax+1],
+         CA_lam.lam=out$CA_lam.lam)
 P_CA$lam.S.f[is.nan(P_CA$lam.S.f)] <- NA
 
 ##--- IPM
