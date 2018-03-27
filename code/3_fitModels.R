@@ -128,7 +128,7 @@ for(i in 1:length(O_CA)) {
   cat("\n  Finished dataset", i, "\n")
 }
 out <- summarize_CA_samples(CA.f, lam.df$id)
-P_CA <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
+P_CAd <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
   mutate(lam.S.f=rowMeans(out$N_ad.mn[,(-3:0)+p.CA$tmax]/
                             (out$N_ad.mn[,(-4:-1)+p.CA$tmax])),
          nSeed.f=out$nSd.mn[,p.CA$tmax], 
@@ -139,12 +139,13 @@ P_CA <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>%
          Surv.S.f=out$N_ad.mn[,p.CA$tmax+1], 
          Rcr.S.f=out$N_rcr.mn[,p.CA$tmax+1],
          nSdStay.f=nSeed.f*(1-p.CA$p_emig), 
-         nSdLeave.f=nSeed.f*p.CA$p_emig,
-         CA_lam.N=out$CA_lam.N[,p.CA$tmax+1],
-         CA_lam.lam=out$CA_lam.lam)
-P_CA$lam.S.f[is.nan(P_CA$lam.S.f)] <- NA
+         nSdLeave.f=nSeed.f*p.CA$p_emig)
+P_CAd$lam.S.f[is.nan(P_CAd$lam.S.f)] <- NA
+P_CAl <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
+  mutate(lam.S.f=out$CA_lam.N[,p.CA$tmax+1],
+         Surv.S.f=out$CA_lam.lam)
 
-if(sum(is.na(P_CA$Surv.S.f)>0)) cat("\n\n--------!! CA error\n\n")
+if(sum(is.na(P_CAd$Surv.S.f)>0)) cat("\n\n--------!! CA error\n\n")
 
 ##--- IPM
 cat("||||---- Beginning IPM ------------------------------------------------\n")
@@ -229,7 +230,9 @@ if(sum(is.na(P_IPM$Surv.S.f)>0)) cat("\n\n--------!! IPM error\n\n")
 
 if(overwrite) {
   cat("Saving output\n")
-  saveRDS(P_CA, here(paste0("out/", sp, "_P_CA_", sampling.issue, "_",
+  saveRDS(P_CAd, here(paste0("out/", sp, "_P_CAd_", sampling.issue, "_",
+                             modeling.issue, ".rds")))
+  saveRDS(P_CAl, here(paste0("out/", sp, "_P_CAl_", sampling.issue, "_",
                              modeling.issue, ".rds")))
   saveRDS(P_IPM, here(paste0("out/", sp, "_P_IPM_", sampling.issue, "_",
                              modeling.issue, ".rds")))
