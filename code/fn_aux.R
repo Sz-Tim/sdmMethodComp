@@ -193,8 +193,8 @@ summarize_IPM_samples <- function(U.f, S.f) {
 
 
 ##-- extract SDM sampling & modeling issues from file names
-extract_SDM_issues <- function(f, SDM) {
+extract_SDM_details <- function(f) {
   library(stringr)
-  issues <- str_remove(str_split(f, paste0(SDM, "_"), Inf, T)[,2], ".rds")
-  return(str_split(issues, "_"))
+  i <- str_remove(str_split(f, "P_", Inf, T)[,2], ".rds")
+  str_split(i, "_")
 }
