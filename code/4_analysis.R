@@ -24,8 +24,8 @@ out_CA <- map2(f_CA, i_CA, ~readRDS(.x) %>%
   do.call("rbind", .) %>%
   full_join(select(lam.df, -c(10:15,17)), ., by="id.inbd")
 out_CA$outcome <- with(out_CA, case_when(
-  Surv.S>0 & Surv.S.f>0.5 ~ "S:1 P:1",
-  Surv.S==0 & Surv.S.f>0.5 ~ "S:0 P:1",
+  Surv.S>0 & Surv.S.f>=0.5 ~ "S:1 P:1",
+  Surv.S==0 & Surv.S.f>=0.5 ~ "S:0 P:1",
   Surv.S>0 & Surv.S.f<0.5 ~ "S:1 P:0",
   Surv.S==0 & Surv.S.f<0.5 ~ "S:0 P:0"
 ))
@@ -38,8 +38,8 @@ out_IPM <- map2(f_IPM, i_IPM, ~readRDS(.x) %>%
   do.call("rbind", .) %>%
   full_join(select(lam.df, -c(10:15,17)), ., by="id.inbd")
 out_IPM$outcome <- with(out_IPM, case_when(
-  Surv.S>0 & Surv.S.f>0.5 ~ "S:1 P:1",
-  Surv.S==0 & Surv.S.f>0.5 ~ "S:0 P:1",
+  Surv.S>0 & Surv.S.f>=0.5 ~ "S:1 P:1",
+  Surv.S==0 & Surv.S.f>=0.5 ~ "S:0 P:1",
   Surv.S>0 & Surv.S.f<0.5 ~ "S:1 P:0",
   Surv.S==0 & Surv.S.f<0.5 ~ "S:0 P:0"
 ))
