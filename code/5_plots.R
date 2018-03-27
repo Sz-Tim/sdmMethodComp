@@ -14,7 +14,7 @@ sp <- "sp1"
 pkgs <- c("tidyverse", "magrittr", "stringr", "here")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
 walk(paste0("code/fn_", c("IPM", "aux", "sim"), ".R"), ~source(here(.)))
-out <- read.csv(here(paste0("out/", sp, "out.csv")))
+out <- read.csv(here(paste0("out/", sp, "_out.csv")))
 
 theme_set(theme_bw())
 # barplots showing % correct for presence/absence; fill=SDM; facet=issues
@@ -58,11 +58,11 @@ ggplot(out_IPM, aes(x=lon, y=lat, fill=N.U.f-N.U)) +
 ggplot(out_IPM, aes(x=lon, y=lat, fill=lam.U.f-lam.U)) +
   geom_tile() + facet_wrap(~s_Iss) + scale_fill_gradient2()
 
-ggplot(out_IPM, aes(x=lon, y=lat, fill=D.f-D)) +
-  geom_tile() + facet_wrap(~s_Iss) + scale_fill_gradient2()
+ggplot(out, aes(x=lon, y=lat, fill=D.f-D)) +
+  geom_tile() + facet_grid(SDM~s_Iss) + scale_fill_gradient2()
 
-ggplot(out_IPM, aes(x=lon, y=lat, fill=Btmax.f-Btmax)) +
-  geom_tile() + facet_wrap(~s_Iss) + scale_fill_gradient2()
+ggplot(out, aes(x=lon, y=lat, fill=Btmax.f-Btmax)) +
+  geom_tile() + facet_grid(SDM~s_Iss) + scale_fill_gradient2()
 
 ggplot(out, aes(x=lon, y=lat, fill=nSeed.f-nSeed)) +
   geom_tile() + facet_grid(SDM~s_Iss) + scale_fill_gradient2()
@@ -84,14 +84,14 @@ ggplot(out, aes(x=Surv.S, y=Surv.S.f, colour=SDM, group=SDM)) +
 ggplot(out, aes(x=Rcr.S, y=Rcr.S.f, colour=SDM, group=SDM)) + 
   geom_point(alpha=0.5) + facet_wrap(~s_Iss) +
   stat_smooth(se=F, method="loess") + geom_abline(slope=1, size=1)
-ggplot(out, aes(x=Rcr.S.f-Rcr.S, colour=s_Iss)) + geom_density()
+ggplot(out, aes(x=Rcr.S.f-Rcr.S, colour=SDM)) + geom_density() + facet_wrap(~s_Iss)
 
 ggplot(out_IPM, aes(x=lambda, y=lambda.f)) + geom_point(alpha=0.5) + 
   facet_wrap(~s_Iss) +
   stat_smooth(se=F, method="loess") + geom_abline(slope=1, size=1)
 
-ggplot(out_IPM, aes(x=lam.S, y=lam.S.f)) + geom_point(alpha=0.5) + 
-  facet_wrap(~s_Iss) +
+ggplot(out, aes(x=lam.S, y=lam.S.f)) + geom_point(alpha=0.5) + 
+  facet_grid(SDM~s_Iss) +
   stat_smooth(se=F, method="loess") + geom_abline(slope=1, size=1)
 
 ggplot(out_IPM, aes(x=lam.U, y=lam.U.f)) + geom_point(alpha=0.5) + 

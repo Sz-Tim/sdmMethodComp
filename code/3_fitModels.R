@@ -144,6 +144,8 @@ P_CA <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>%
          CA_lam.lam=out$CA_lam.lam)
 P_CA$lam.S.f[is.nan(P_CA$lam.S.f)] <- NA
 
+if(sum(is.na(P_CA$Surv.S.f)>0)) cat("\n\n--------!! CA error\n\n")
+
 ##--- IPM
 cat("||||---- Beginning IPM ------------------------------------------------\n")
 set.seed(1)
@@ -189,6 +191,7 @@ for(i in 1:length(O_IPM)) {
     summarise(mn=mean(sizeNext), sd=sd(sizeNext)) %>% unlist
   
   # use estimated slopes to fill IPM matrix
+  cat("||-- Calculating IPM matrices\n")
   U.f[[i]] <- fill_IPM_matrices(n.cell, buffer=0.75, discrete=1, p.IPM, 
                                 n$IPM$z, n$IPM$x, X.IPM, sdd.pr, env.in$id)
   
@@ -222,13 +225,15 @@ P_IPM <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>%
          N.U.f=apply(out$Uf$Nt.mn[,,p.IPM$tmax],2,sum), 
          lam.U.f=out$Uf$lam.mn[,p.IPM$tmax-1])
 
+if(sum(is.na(P_IPM$Surv.S.f)>0)) cat("\n\n--------!! IPM error\n\n")
+
 if(overwrite) {
+  cat("Saving output\n")
   saveRDS(P_CA, here(paste0("out/", sp, "_P_CA_", sampling.issue, "_",
                              modeling.issue, ".rds")))
   saveRDS(P_IPM, here(paste0("out/", sp, "_P_IPM_", sampling.issue, "_",
                              modeling.issue, ".rds")))
 }
-
 
 
 

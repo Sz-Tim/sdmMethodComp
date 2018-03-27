@@ -49,8 +49,8 @@ out <- bind_rows(out_IPM, out_CA)
 
 
 if(overwrite) {
-  write.csv(out, here(paste0("out/", sp, "out.csv")))
-  write.csv(out_CA, here(paste0("out/", sp, "out_CA.csv")))
-  write.csv(out_IPM, here(paste0("out/", sp, "out_IPM.csv")))
+  write.csv(out, here(paste0("out/", sp, "_out.csv")))
+  write.csv(out_CA, here(paste0("out/", sp, "_out_CA.csv")))
+  write.csv(out_IPM, here(paste0("out/", sp, "_out_IPM.csv")))
 }
 
