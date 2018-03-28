@@ -63,7 +63,7 @@ n_x <- list(s=length(p$s_x), # n env covariates for each vital rate
             fl=length(p$fl_x), 
             seed=length(p$seed_x))
 X <- map(n_x, ~as.matrix(L$env.in[,1:.]))  # env covariates for each vital rate
-sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=L$env.rct, lc.col=8:12,
+sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=L$env.rct.unscaled, lc.col=8:12,
                         g.p=list(sdd.max=p$sdd_max, 
                                  sdd.rate=p$sdd_rate, 
                                  bird.hab=p$bird_hab))
@@ -113,7 +113,9 @@ lam.df <- L$env.in %>%
 ## Store true species distribution
 ########
 if(overwrite) {
+  saveRDS(L$scale.i, here(paste0("out/", sp, "_cov_scale.rds")))
   saveRDS(L$env.rct, here(paste0("out/", sp, "_env_rct.rds")))
+  saveRDS(L$env.rct.unscaled, here(paste0("out/", sp, "_env_rct_unscaled.rds")))
   saveRDS(L$env.in, here(paste0("out/", sp, "_env_in.rds")))
   saveRDS(p, here(paste0("out/", sp, "_p.rds")))
   saveRDS(sdd.pr, here(paste0("out/", sp, "_sdd.rds")))

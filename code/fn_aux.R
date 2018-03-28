@@ -26,21 +26,27 @@ build_landscape <- function(f, x_max=Inf, y_max=Inf) {
     mutate(x=as.integer(factor(.$left)),
            y=as.integer(factor(.$top, levels=rev(levels(factor(.$top))))),
            x_y=paste(x, y, sep="_"))
+  # store scaling mean and sd
+  X.col <- c(16, 18, 4:8)
+  lc.scale <- select(lc.df, X.col) %>% scale
+  scale.i <- cbind(sc_mn=attributes(lc.scale)$`scaled:center`,
+                   sc_sd=attributes(lc.scale)$`scaled:scale`)
+  rownames(scale.i) <- c("temp", "prec", "pOpn", "pOth", "pDec", "pEvg", "pMxd")
   # establish grid with x=1:ncol, y=1:nrow
   env.rct <- as.tibble(expand.grid(x=1:max(lc.df$x), y=1:max(lc.df$y))) %>%
     mutate(x_y=paste(x, y, sep="_")) 
   match_id <- match(env.rct$x_y, lc.df$x_y)
   # pair environmental variables
   env.rct <- env.rct %>%
-    mutate(temp=c(scale(lc.df$bio1_mean))[match_id],
+    mutate(temp=lc.scale[match_id,1],
            temp2=temp^2,
-           prec=c(scale(lc.df$bio12_mean))[match_id],
+           prec=lc.scale[match_id,2],
            prec2=prec^2,
-           pOpn=lc.df$nlcd1_mean[match_id],
-           pOth=lc.df$nlcd2_mean[match_id],
-           pDec=lc.df$nlcd3_mean[match_id],
-           pEvg=lc.df$nlcd4_mean[match_id],
-           pMxd=lc.df$nlcd5_mean[match_id],
+           pOpn=lc.scale[match_id,3],
+           pOth=lc.scale[match_id,4],
+           pDec=lc.scale[match_id,5],
+           pEvg=lc.scale[match_id,6],
+           pMxd=lc.scale[match_id,7],
            inbd=!is.na(match(.$x_y, lc.df$x_y)),
            lat=lc.df$top[match_id],
            lon=lc.df$left[match_id],
@@ -49,11 +55,16 @@ build_landscape <- function(f, x_max=Inf, y_max=Inf) {
     mutate(id=row_number(), 
            id.inbd=min_rank(na_if(inbd*id, 0)))
   env.rct[is.na(env.rct)] <- 0
+  env.rct.unscaled <- env.rct %>%
+    mutate(pOpn=lc.df$nlcd1_mean[match_id],
+           pOth=lc.df$nlcd2_mean[match_id],
+           pDec=lc.df$nlcd3_mean[match_id],
+           pEvg=lc.df$nlcd4_mean[match_id],
+           pMxd=lc.df$nlcd5_mean[match_id])
   # subset inbound cells
-  env.in <- filter(env.rct, inbd) %>% select(4:12, 1:3, 13:18) %>%
-    mutate(pOpn=c(scale(pOpn)), pOth=c(scale(pOth)), pDec=c(scale(pDec)),
-           pEvg=c(scale(pEvg)), pMxd=c(scale(pMxd)))
-  return(list(env.rct=env.rct, env.in=env.in))
+  env.in <- filter(env.rct, inbd) %>% select(4:12, 1:3, 13:18) 
+  return(list(env.rct=env.rct, env.rct.unscaled=env.rct.unscaled,
+              env.in=env.in, scale.i=scale.i))
 }
 
 
