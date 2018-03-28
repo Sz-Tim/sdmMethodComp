@@ -35,7 +35,7 @@ O_IPM <- readRDS(here(paste0("out/", sp, "_O_IPM_", sampling.issue, ".rds")))
 ########
 ## Set model details
 ########
-n_sim <- 2  # number of simulations per sample (mechanistic only)
+n_sim <-3  # number of simulations per sample (mechanistic only)
 v <- m <- n <- list(CA=NULL, IPM=NULL)
 
 ##--- CA
