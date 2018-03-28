@@ -123,13 +123,11 @@ if(sampling.issue=="noise") {
   # CA: add error to N and seed counts
   for(s in 1:n_samp) {
     n_obs <- nrow(O_CA[[s]]$d)
-    O_CA[[s]]$d$N <- pmax(round(O_CA[[s]]$d$N +
-                                  rnorm(n_obs, 0, O_CA[[s]]$d$N*noise$CA$N)),
-                          0)
-    O_CA[[s]]$d$lambda <- O_CA[[s]]$d$N/lag(O_CA[[s]]$d$N,1)
-    O_CA[[s]]$d$fec <- pmax(round(O_CA[[s]]$d$fec +
-                                rnorm(n_obs, 0, O_CA[[s]]$d$fec*noise$CA$fec)),
-                            0)
+    O_CA[[s]]$d <- O_CA[[s]]$d %>% 
+      mutate(N=pmax(round(N + rnorm(n_obs, 0, N*noise$CA$N))),
+             fec=pmax(round(fec + rnorm(n_obs, 0, fec*noise$CA$fec)))) %>%
+      group_by(id) %>%
+      mutate(lambda=N/lag(N,1))
   }
   # IPM: add error to growth measurements and seed counts
   for(s in 1:n_samp) {
