@@ -142,8 +142,8 @@ P_CAd <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>%
          nSdLeave.f=nSeed.f*p.CA$p_emig)
 P_CAd$lam.S.f[is.nan(P_CAd$lam.S.f)] <- NA
 P_CAl <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
-  mutate(lam.S.f=out$CA_lam.N[,p.CA$tmax+1],
-         Surv.S.f=out$CA_lam.lam)
+  mutate(Surv.S.f=out$CA_lam.N[,p.CA$tmax+1],
+         lam.S.f=out$CA_lam.lam)
 
 if(sum(is.na(P_CAd$Surv.S.f)>0)) cat("\n\n--------!! CA error\n\n")
 
