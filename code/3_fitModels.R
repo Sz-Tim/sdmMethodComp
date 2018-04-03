@@ -16,7 +16,7 @@ sampling.issue <- c("none", "noise", "geog", "bias")[1]
 modeling.issue <- c("none")[1]
 
 # load workspace
-pkgs <- c("gbPopMod", "tidyverse", "magrittr", "MuMIn", "here")
+pkgs <- c("dismo", "gbPopMod", "tidyverse", "magrittr", "MuMIn", "here")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
 walk(paste0("code/fn_", c("IPM", "aux", "sim"), ".R"), ~source(here(.)))
 p <- readRDS(here(paste0("out/", sp, "_p.rds")))
@@ -60,6 +60,16 @@ X.IPM <- map(n$IPM$x, ~as.matrix(env.in[,1:.]))
 ## fit models
 ########
 ##--- MaxEnt
+cat("||||---- Beginning MaxEnt ---------------------------------------------\n")
+Mx.f <- Mx.p <- vector("list", length(O_Mx))
+for(i in 1:length(O_Mx)) {
+  Mx.f[[i]] <- maxent(x=env.in[,c(1,3,5:9)], p=O_Mx[[i]])
+  Mx.p[[i]] <- predict(Mx.f[[i]], env.in[,c(1,3,5:9)])
+}
+P_Mx <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
+  mutate(Surv.S.f=apply(simplify2array(Mx.p), 1, mean)) %>% 
+  mutate(Surv.S.f=Surv.S.f/sum(Surv.S.f)*sum(lam.df$Surv.S))
+
 ##--- CA
 cat("||||---- Beginning CA -------------------------------------------------\n")
 CA.f <- vector("list", length(O_CA))
@@ -96,7 +106,7 @@ for(i in 1:length(O_CA)) {
   }
   
   # update parameters
-  p.CA <- set_g_p(tmax=20, 
+  p.CA <- set_g_p(tmax=50, 
                   lc.r=diff(range(env.in$y)), lc.c=diff(range(env.in$x)),
                   n.lc=5, N.p.t0=n.cell, 
                   K=vars.ls$K, 
@@ -125,7 +135,7 @@ for(i in 1:length(O_CA)) {
   CA.f[[i]] <- summarize_CA_simulations(sim.ls, p.CA$tmax, 
                                         max(p.CA$age.f), sim.lam)
   rm(sim.ls)
-  cat("\n  Finished dataset", i, "\n")
+  cat("  Finished dataset", i, "\n\n")
 }
 out <- summarize_CA_samples(CA.f, lam.df$id)
 P_CAd <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
@@ -206,7 +216,7 @@ for(i in 1:length(O_IPM)) {
   }
   S.f[[i]] <- summarize_IPM_simulations(sim.ls, p.IPM$tmax)
   rm(sim.ls)
-  cat("\n  Finished dataset", i, "\n")
+  cat("  Finished dataset", i, "\n\n")
 }
 out <- summarize_IPM_samples(U.f, S.f)
 
@@ -230,6 +240,8 @@ if(sum(is.na(P_IPM$Surv.S.f)>0)) cat("\n\n--------!! IPM error\n\n")
 
 if(overwrite) {
   cat("Saving output\n")
+  saveRDS(P_Mx, here(paste0("out/", sp, "_P_Mx_", sampling.issue, "_",
+                             modeling.issue, ".rds")))
   saveRDS(P_CAd, here(paste0("out/", sp, "_P_CAd_", sampling.issue, "_",
                              modeling.issue, ".rds")))
   saveRDS(P_CAl, here(paste0("out/", sp, "_P_CAl_", sampling.issue, "_",
