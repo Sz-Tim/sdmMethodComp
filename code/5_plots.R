@@ -15,11 +15,23 @@ pkgs <- c("tidyverse", "magrittr", "stringr", "here")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
 walk(paste0("code/fn_", c("IPM", "aux", "sim"), ".R"), ~source(here(.)))
 out <- read.csv(here(paste0("out/", sp, "_out.csv")))
+out$s_Iss <- factor(out$s_Iss, labels=c("Sampling bias", "Geographic bias",
+                                        "Measurement error", "None"))
+
+par(mfrow=c(3,3))
+plot(lam.df$temp, log(lam.df$lambda), col=rgb(0,0,0,0.75))
+plot(lam.df$prec, log(lam.df$lambda), col=rgb(0,0,0,0.75))
+plot(lam.df$pOpn, log(lam.df$lambda), col=rgb(0,0,0,0.75))
+plot(lam.df$pOth, log(lam.df$lambda), col=rgb(0,0,0,0.75))
+plot(lam.df$pDec, log(lam.df$lambda), col=rgb(0,0,0,0.75))
+plot(lam.df$pEvg, log(lam.df$lambda), col=rgb(0,0,0,0.75))
+plot(lam.df$pMxd, log(lam.df$lambda), col=rgb(0,0,0,0.75))
+hist(log(lam.df$lambda))
 
 theme_set(theme_bw())
-# barplots showing % correct for presence/absence; fill=SDM; facet=issues
 ggplot(out, aes(fill=outcome, x=SDM)) + geom_bar(position="fill") + 
-  facet_wrap(~s_Iss) + scale_fill_brewer(type="div")
+  facet_wrap(~s_Iss) + scale_fill_brewer(name="", type="div") + 
+  ylab("Proportion of cells")
 ggplot(out_IPM, aes(fill=sign(log(lambda.f))==sign(log(lambda)), x=s_Iss)) + 
   geom_bar(position="fill")
 ggplot(out_IPM, aes(fill=sign(log(lam.U.f))==sign(log(lam.U)), x=s_Iss)) + 
@@ -33,17 +45,21 @@ ggplot(out, aes(x=lon, y=lat, fill=(Surv.S.f-Surv.S)/Surv.S)) +
   geom_tile() + facet_grid(SDM~s_Iss) + scale_fill_gradient()
 
 ggplot(out, aes(x=lon, y=lat, fill=outcome)) +
-  geom_tile() + facet_grid(SDM~s_Iss) + scale_fill_brewer(type="div")
+  geom_tile() + facet_grid(SDM~s_Iss) + scale_fill_brewer(name="", type="div") +
+  theme(axis.text=element_blank())
 ggplot(out, aes(x=lon, y=lat, fill=Surv.S.f)) +
   geom_tile() + facet_grid(SDM~s_Iss)
-ggplot(out, aes(x=lon, y=lat, fill=Surv.S.f > 1)) +
-  geom_tile() + facet_grid(SDM~s_Iss)
+ggplot(out, aes(x=lon, y=lat)) + facet_grid(SDM~s_Iss) +
+  geom_tile(aes(fill=Surv.S.f>1)) + 
+  scale_fill_manual(values=c(NA, "dodgerblue")) +
+  geom_point(aes(colour=Surv.S>0), alpha=0.3, size=0.6) + 
+  scale_colour_manual(values=c(NA, "black"))
 ggplot(out, aes(x=lon, y=lat, fill=log(lam.S.f))) +
   geom_tile() + facet_grid(SDM~s_Iss) + scale_fill_gradient2()
 ggplot(out, aes(x=lon, y=lat, fill=log(lam.S.f)>=0)) +
   geom_tile() + facet_grid(SDM~s_Iss)
 
-ggplot(out, aes(x=lon, y=lat, fill=Surv.S.f)) + geom_tile() + 
+ggplot(out, aes(x=lon, y=lat, fill=log(Surv.S.f))) + geom_tile() + 
   facet_grid(SDM~s_Iss) + scale_fill_gradient(low="white", high="red")
 
 ggplot(out, aes(x=lon, y=lat, fill=sign(log(lam.S.f+.001))==sign(log(lam.S)))) +
