@@ -30,18 +30,18 @@ lam.df <- readRDS(here(paste0("out/", sp, "_lam_df.rds"))) # env + true pop vals
 ########
 ## Set sampling details
 ########
-n_samp <- 5  # number of unique samples to average across
-O_n <- list(Corr=100, Mech=20)  # number of cells in sample
+n_samp <- 3  # number of unique samples to average across
+O_n <- list(Corr=75, Mech=25)  # number of cells in sample
 O_yr <- list(Mx=p$tmax, CA=(-1:0)+p$tmax, IPM=p$tmax)  # years to sample
-P.i <- which(lam.df$Surv.S > 0)  # presences: survival past recruit stage
+P.i <- which(lam.df$Surv.S > 1)  # presences: survival past recruit stage
 P.pr <- rep(1, length(P.i))  # pr(sample cell | presence)
 prop.sampled <- 1  # proportion of individuals sampled per sampled cell 
-geog.excl <- which(env.in$x > 20 & env.in$y < 50)
+geog.excl <- which(env.in$x < 30)
 noise <- list(Mx=0.2, # proportion of observed presences that are false
             CA=list(N=0.05,  # N.obs = rnorm(N.true, N.true*N)
                     fec=0.05),  # fec.obs = rnorm(fec.true, fec.true*fec)
             IPM=list(s=0,  # proportion of incorrectly assessed surv
-                     g=0.05,  # sizeNext.obs = rnorm(SizeNext.true, g) 
+                     g=0.1,  # sizeNext.obs = rnorm(SizeNext.true, g) 
                      fl=0,  # proportion of incorrectly assessed fl
                      seed=0.05)  # seed.obs = rnorm(seed.true, seed.true*seed)
             )
@@ -56,7 +56,7 @@ if(sampling.issue=="geog") {
 } else if(sampling.issue=="bias") {
   P.pr <- P.pr * env.in$rdLen[P.i]
 }
-set.seed(1)
+set.seed(11)
 Corr.sample <- map(1:n_samp, ~sample(P.i, O_n$Corr, replace=F, prob=P.pr))
 Mech.sample <- map(1:n_samp, ~sample(P.i, O_n$Mech, replace=F, prob=P.pr))
 
@@ -72,7 +72,7 @@ for(s in 1:n_samp) {
     CA.d[[j]] <- data.frame(S$d[[i]]) %>% filter(yr %in% O_yr$CA)
     CA.d[[j]] <- sample_frac(CA.d[[j]], prop.sampled)
     CA.d[[j]] <- CA.d[[j]] %>% group_by(yr) %>% 
-      summarise(N=sum(!is.na(size) & age>2), 
+      summarise(N=sum(!is.na(size)), 
                 s.ad.0=sum(surv[age>2]==0, na.rm=TRUE),
                 s.ad.1=sum(surv[age>2]==1, na.rm=TRUE),
                 s.jv.0=sum(surv[age<3]==0, na.rm=TRUE),
