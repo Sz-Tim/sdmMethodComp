@@ -51,10 +51,11 @@ build_landscape <- function(f, x_max=Inf, y_max=Inf) {
            lat=lc.df$top[match_id],
            lon=lc.df$left[match_id],
            rdLen=lc.df$rdLen[match_id]) %>%
-    filter(x <= x_max & y >= (max(.$y)-y_max)) %>%
+    filter(x <= x_max & y <= y_max) %>%
     mutate(id=row_number(), 
            id.inbd=min_rank(na_if(inbd*id, 0)))
   env.rct[is.na(env.rct)] <- 0
+  match_id <- match(env.rct$x_y, lc.df$x_y)
   env.rct.unscaled <- env.rct %>%
     mutate(pOpn=lc.df$nlcd1_mean[match_id],
            pOth=lc.df$nlcd2_mean[match_id],
