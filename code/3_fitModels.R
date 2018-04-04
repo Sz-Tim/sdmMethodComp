@@ -12,11 +12,11 @@
 # file specifications
 sp <- "sp1"
 overwrite <- TRUE
-sampling.issue <- c("none", "noise", "geog", "bias")[1]
-modeling.issue <- c("none")[1]
+n_cores <- 2
+issue <- c("none", "noise", "geogBias", "sampBias", "noSB")[3]
 
 # load workspace
-pkgs <- c("dismo", "gbPopMod", "tidyverse", "magrittr", "MuMIn", "here")
+pkgs <- c("dismo", "gbPopMod", "tidyverse", "magrittr", "MuMIn", "here", "doSNOW")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
 walk(paste0("code/fn_", c("IPM", "aux", "sim"), ".R"), ~source(here(.)))
 p <- readRDS(here(paste0("out/", sp, "_p.rds")))
@@ -27,6 +27,9 @@ lam.df <- readRDS(here(paste0("out/", sp, "_lam_df.rds")))
 env.in <- readRDS(here(paste0("out/", sp, "_env_in.rds")))
 env.rct <- readRDS(here(paste0("out/", sp, "_env_rct.rds")))
 n.cell <- nrow(env.in); n.grid <- nrow(env.rct)
+issue_i <- read.csv(here("data/issues.csv"), stringsAsFactors=F)
+sampling.issue <- filter(issue_i, Issue==issue)$Sampling
+modeling.issue <- filter(issue_i, Issue==issue)$Modeling
 O_Mx <- readRDS(here(paste0("out/", sp, "_O_Mx_", sampling.issue, ".rds")))
 O_CA <- readRDS(here(paste0("out/", sp, "_O_CA_", sampling.issue, ".rds")))
 O_IPM <- readRDS(here(paste0("out/", sp, "_O_IPM_", sampling.issue, ".rds")))
@@ -35,7 +38,7 @@ O_IPM <- readRDS(here(paste0("out/", sp, "_O_IPM_", sampling.issue, ".rds")))
 ########
 ## Set model details
 ########
-n_sim <-3  # number of simulations per sample (mechanistic only)
+n_sim <- 4  # number of simulations per sample (mechanistic only)
 v <- m <- n <- list(CA=NULL, IPM=NULL)
 
 ##--- CA
@@ -119,6 +122,7 @@ for(i in 1:length(O_CA)) {
                   sdd.max=p$sdd_max, sdd.rate=p$sdd_rate, n.ldd=1,
                   p.eat=as.matrix(1), bird.hab=p$bird_hab, s.bird=1, method="lm")
   p.CA$p_emig <- p$p_emig
+  if(modeling.issue=="noSB") p.CA$s.sb <- 0
   
   # run simulations
   CA.lc <- env.rct %>% rename(id.in=id.inbd)
@@ -126,11 +130,22 @@ for(i in 1:length(O_CA)) {
   N.init[CA.lc$id[CA.lc$inbd], p.CA$age.f] <- p$n0
   N.init[CA.lc$id[CA.lc$inbd], -p.CA$age.f] <- round(p$n0/5)
   cat("||-- Starting simulations\n")
-  for(s in 1:n_sim) {
-    sim.ls[[s]] <- run_sim(n.grid, n.cell, p.CA, CA.lc, sdd.pr, N.init, NULL, F)
-    sim.lam[[s]] <- run_sim_lambda(n.grid, n.cell, p.CA, vars.ls$lam, CA.lc, 
-                                   sdd.pr, N.init, "lm", F)
-    cat("||-- Finished simulation", s, "\n")
+  if(n_cores > 1) {
+    p.c <- makeCluster(n_cores); registerDoSNOW(p.c)
+    sim.ls <- foreach(s=1:n_sim) %dopar% {
+      gbPopMod::run_sim(n.grid, n.cell, p.CA, CA.lc, sdd.pr, N.init, NULL, F)
+    }
+    sim.lam <- foreach(s=1:n_sim) %dopar% {
+      gbPopMod::run_sim_lambda(n.grid, n.cell, p.CA, vars.ls$lam, CA.lc, 
+                     sdd.pr, N.init, "lm", F)
+    }
+    stopCluster(p.c)
+  } else {
+    for(s in 1:n_sim) {
+      sim.ls[[s]] <- run_sim(n.grid, n.cell, p.CA, CA.lc, sdd.pr, N.init, NULL, F)
+      sim.lam[[s]] <- run_sim_lambda(n.grid, n.cell, p.CA, vars.ls$lam, CA.lc, 
+                                     sdd.pr, N.init, "lm", F)
+    }
   }
   CA.f[[i]] <- summarize_CA_simulations(sim.ls, p.CA$tmax, 
                                         max(p.CA$age.f), sim.lam)
@@ -200,6 +215,7 @@ for(i in 1:length(O_IPM)) {
   p.IPM$seed_x <- vars.ls$seed[(n$IPM$z$seed+1):length(v$IPM)]
   p.IPM$rcr_z <- filter(O_IPM[[i]], is.na(size)) %>% 
     summarise(mn=mean(sizeNext), sd=sd(sizeNext)) %>% unlist
+  if(modeling.issue=="noSB") p.IPM$s_SB <- 0
   
   # use estimated slopes to fill IPM matrix
   cat("||-- Calculating IPM matrices\n")
@@ -209,10 +225,18 @@ for(i in 1:length(O_IPM)) {
   # use estimated slopes to generate simulated data
   sim.ls <- vector("list", n_sim)
   cat("||-- Starting simulations\n")
-  for(s in 1:n_sim) {
-    sim.ls[[s]] <- simulate_data(n.cell, U$lo, U$hi, p.IPM, X.IPM, n$IPM$z, 
-                             sdd.pr, U$sdd.j)
-    cat("||-- Finished simulation", s, "\n")
+  if(n_cores > 1) {
+    p.c <- makeCluster(n_cores); registerDoSNOW(p.c)
+    sim.ls <- foreach(s=1:n_sim) %dopar% {
+      simulate_data(n.cell, U$lo, U$hi, p.IPM, X.IPM, n$IPM$z, sdd.pr, U$sdd.j)
+    }
+    stopCluster(p.c)
+  } else {
+    for(s in 1:n_sim) {
+      sim.ls[[s]] <- simulate_data(n.cell, U$lo, U$hi, p.IPM, X.IPM, n$IPM$z, 
+                                   sdd.pr, U$sdd.j)
+      cat("||-- Finished simulation", s, "\n")
+    }
   }
   S.f[[i]] <- summarize_IPM_simulations(sim.ls, p.IPM$tmax)
   rm(sim.ls)
@@ -240,14 +264,10 @@ if(sum(is.na(P_IPM$Surv.S.f)>0)) cat("\n\n--------!! IPM error\n\n")
 
 if(overwrite) {
   cat("Saving output\n")
-  saveRDS(P_Mx, here(paste0("out/", sp, "_P_Mx_", sampling.issue, "_",
-                             modeling.issue, ".rds")))
-  saveRDS(P_CAd, here(paste0("out/", sp, "_P_CAd_", sampling.issue, "_",
-                             modeling.issue, ".rds")))
-  saveRDS(P_CAl, here(paste0("out/", sp, "_P_CAl_", sampling.issue, "_",
-                             modeling.issue, ".rds")))
-  saveRDS(P_IPM, here(paste0("out/", sp, "_P_IPM_", sampling.issue, "_",
-                             modeling.issue, ".rds")))
+  # saveRDS(P_Mx, here(paste0("out/", sp, "_P_Mx_", issue, ".rds")))
+  saveRDS(P_CAd, here(paste0("out/", sp, "_P_CAd_", issue, ".rds")))
+  saveRDS(P_CAl, here(paste0("out/", sp, "_P_CAl_", issue, ".rds")))
+  saveRDS(P_IPM, here(paste0("out/", sp, "_P_IPM_", issue, ".rds")))
 }
 
 

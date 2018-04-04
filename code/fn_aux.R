@@ -51,10 +51,11 @@ build_landscape <- function(f, x_max=Inf, y_max=Inf) {
            lat=lc.df$top[match_id],
            lon=lc.df$left[match_id],
            rdLen=lc.df$rdLen[match_id]) %>%
-    filter(x <= x_max & y >= (max(.$y)-y_max)) %>%
+    filter(x <= x_max & y <= y_max) %>%
     mutate(id=row_number(), 
            id.inbd=min_rank(na_if(inbd*id, 0)))
   env.rct[is.na(env.rct)] <- 0
+  match_id <- match(env.rct$x_y, lc.df$x_y)
   env.rct.unscaled <- env.rct %>%
     mutate(pOpn=lc.df$nlcd1_mean[match_id],
            pOth=lc.df$nlcd2_mean[match_id],
@@ -98,8 +99,7 @@ summarize_CA_simulations <- function(sim.ls, tmax, y.ad, sim.lam=NULL) {
     CA_lam.N <- simplify2array(map(sim.lam, ~.$N)) %>% apply(., 1:2, mean)
     CA_lam.lam <- simplify2array(map(sim.lam, ~.$lam.E)) %>% apply(., 1, mean)
   } else {
-    CA_lam.N <- NA
-    CA_lam.lam <- NA
+    CA_lam.N <- CA_lam.lam <- NA
   }
   return(list(B.mn=apply(s.a$B, 1:2, mean), 
               nSd.mn=apply(s.a$nSd, 1:2, mean), 
@@ -206,6 +206,5 @@ summarize_IPM_samples <- function(U.f, S.f) {
 ##-- extract SDM sampling & modeling issues from file names
 extract_SDM_details <- function(f) {
   library(stringr)
-  i <- str_remove(str_split(f, "P_", Inf, T)[,2], ".rds")
-  str_split(i, "_")
+  str_split(str_remove(str_split(f, "P_", Inf, T)[,2], ".rds"), "_")
 }

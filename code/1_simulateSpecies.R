@@ -30,8 +30,8 @@ n.cell <- sum(L$env.rct$inbd)
 ## Set species traits
 ########
 p=list(n=50,  # ncells in IPM matrix
-       tmax=10,  # time steps for NDD & simulations
-       n0=200,  # initial pop sizes
+       tmax=20,  # time steps for NDD & simulations
+       n0=100,  # initial pop sizes
        z.rng=c(1,12),  # initial size range
        s_z=c(-8, 2.1, -.09),  # b1 + b2*z + b3*z^2
        s_x=c(3, -.1, -2, -.1, 2, -2, -.4),  # b1*x1 + ...
@@ -47,7 +47,7 @@ p=list(n=50,  # ncells in IPM matrix
        NDD=T,  # negative density dependent p_est
        rcr_SB=0.5,  # p(recruit from seedbank)
        rcr_dir=0.5,  # p(recruit directly)
-       s_SB=0.3,  # p(survive in seedbank additional year)
+       s_SB=0.5,  # p(survive in seedbank additional year)
        sdd_max=5,  # max SDD distance in cells
        sdd_rate=1,  # SDD dispersal rate
        bird_hab=rep(1,5)  # bird habitat preferences among LC types

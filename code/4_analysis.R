@@ -19,8 +19,7 @@ lam.df <- readRDS(here(paste0("out/", sp, "_lam_df.rds")))
 
 f_P <- list.files(here("out"), pattern=paste0(sp, "_P_"), full.names=T)
 i_P <- extract_SDM_details(f_P)
-out <- map2(f_P, i_P, 
-            ~readRDS(.x) %>% mutate(SDM=.y[1], s_Iss=.y[2], m_iss=.y[3])) %>%
+out <- map2(f_P, i_P, ~readRDS(.x) %>% mutate(SDM=.y[1], issue=.y[2])) %>%
   do.call(bind_rows, .) %>%
   full_join(select(lam.df, -c(10:15,17)), ., by="id.inbd") %>%
   mutate(outcome=case_when(Surv.S>0 & Surv.S.f>=0.5 ~ "S:1 P:1",
