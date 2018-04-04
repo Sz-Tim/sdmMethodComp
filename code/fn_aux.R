@@ -99,8 +99,7 @@ summarize_CA_simulations <- function(sim.ls, tmax, y.ad, sim.lam=NULL) {
     CA_lam.N <- simplify2array(map(sim.lam, ~.$N)) %>% apply(., 1:2, mean)
     CA_lam.lam <- simplify2array(map(sim.lam, ~.$lam.E)) %>% apply(., 1, mean)
   } else {
-    CA_lam.N <- NA
-    CA_lam.lam <- NA
+    CA_lam.N <- CA_lam.lam <- NA
   }
   return(list(B.mn=apply(s.a$B, 1:2, mean), 
               nSd.mn=apply(s.a$nSd, 1:2, mean), 
