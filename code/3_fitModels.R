@@ -98,7 +98,7 @@ for(i in 1:length(O_CA)) {
                          data=O_CA.lam))
   
   # store coefficients from optimal models
-  opt.m <- map(full.m, ~get.models(dredge(.), subset=1)[[1]])
+  opt.m <- map(full.m, ~get.models(dredge(., m.lim=c(1,NA)), subset=1)[[1]])
   vars.opt <- map(opt.m, coef)
   vars.ls <- rep(list(v$CA), 6); names(vars.ls) <- names(opt.m)
   for(j in seq_along(vars.ls)) {
@@ -180,7 +180,7 @@ for(i in 1:length(O_IPM)) {
                           data=O_IPM.i.seed, family="poisson"))
   
   # store coefficients from optimal models
-  opt.m <- map(full.m, ~get.models(dredge(.), subset=1)[[1]])
+  opt.m <- map(full.m, ~get.models(dredge(., m.lim=c(1,NA)), subset=1)[[1]])
   vars.opt <- map(opt.m, coef)
   vars.ls <- rep(list(v$IPM), 4); names(vars.ls) <- names(opt.m)
   for(j in seq_along(vars.ls)) {
