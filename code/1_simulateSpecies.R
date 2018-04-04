@@ -45,14 +45,14 @@ p=list(n=50,  # ncells in IPM matrix
        rcr_z=c(1.5, 0.4),  # N(mean=rcrt1, sd=rcrt2)
        p_est=0.03,  # p(establishment)
        NDD=T,  # negative density dependent p_est
-       rcr_SB=0.5,  # p(recruit from seedbank)
-       rcr_dir=0.5,  # p(recruit directly)
-       s_SB=0.5,  # p(survive in seedbank additional year)
+       rcr_SB=0.8,  # p(recruit from seedbank)
+       rcr_dir=0.1,  # p(recruit directly)
+       s_SB=0.8,  # p(survive in seedbank additional year)
        sdd_max=5,  # max SDD distance in cells
        sdd_rate=1,  # SDD dispersal rate
        bird_hab=rep(1,5)  # bird habitat preferences among LC types
 )
-p$NDD_n <- p$n0/2  # mean number of recruits if NDD
+p$NDD_n <- p$n0/3  # mean number of recruits if NDD
 p$p_emig <- pexp(0.5, p$sdd_rate, lower.tail=F) # p(seed emigrants)
 n_z <- list(s=length(p$s_z),  # n size covariates for each vital rate
             g=length(p$g_z),
