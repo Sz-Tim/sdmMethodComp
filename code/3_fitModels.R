@@ -13,7 +13,7 @@
 sp <- "sp1"
 overwrite <- TRUE
 n_cores <- 2
-issue <- c("none", "noise", "geogBias", "sampBias", "noSB")[3]
+issue <- c("none", "noise", "geogBias", "sampBias", "noSB")[5]
 
 # load workspace
 pkgs <- c("dismo", "gbPopMod", "tidyverse", "magrittr", "MuMIn", "here", "doSNOW")
@@ -38,7 +38,7 @@ O_IPM <- readRDS(here(paste0("out/", sp, "_O_IPM_", sampling.issue, ".rds")))
 ########
 ## Set model details
 ########
-n_sim <- 4  # number of simulations per sample (mechanistic only)
+n_sim <- 2  # number of simulations per sample (mechanistic only)
 v <- m <- n <- list(CA=NULL, IPM=NULL)
 
 ##--- CA
@@ -69,9 +69,10 @@ for(i in 1:length(O_Mx)) {
   Mx.f[[i]] <- maxent(x=env.in[,c(1,3,5:9)], p=O_Mx[[i]])
   Mx.p[[i]] <- predict(Mx.f[[i]], env.in[,c(1,3,5:9)])
 }
-P_Mx <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
-  mutate(Surv.S.f=apply(simplify2array(Mx.p), 1, mean)) %>% 
-  mutate(Surv.S.f=Surv.S.f/sum(Surv.S.f)*sum(lam.df$Surv.S))
+P_Mx <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>%
+  mutate(ROR=apply(simplify2array(Mx.p), 1, mean)) %>%
+  mutate(pr.P=ROR/sum(ROR),
+         Surv.S.f=pr.P*sum(lam.df$Surv.S))
 
 ##--- CA
 cat("||||---- Beginning CA -------------------------------------------------\n")
@@ -149,12 +150,13 @@ for(i in 1:length(O_CA)) {
   }
   CA.f[[i]] <- summarize_CA_simulations(sim.ls, p.CA$tmax, 
                                         max(p.CA$age.f), sim.lam)
-  rm(sim.ls)
+  rm(sim.ls); rm(sim.lam)
   cat("  Finished dataset", i, "\n\n")
 }
 out <- summarize_CA_samples(CA.f, lam.df$id)
 P_CAd <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
-  mutate(lam.S.f=rowMeans(out$N_ad.mn[,(-3:0)+p.CA$tmax]/
+  mutate(pr.P=out$prP.mn[,p.CA$tmax+1],
+         lam.S.f=rowMeans(out$N_ad.mn[,(-3:0)+p.CA$tmax]/
                             (out$N_ad.mn[,(-4:-1)+p.CA$tmax])),
          nSeed.f=out$nSd.mn[,p.CA$tmax], 
          D.f=out$D.mn[,p.CA$tmax],
@@ -167,7 +169,8 @@ P_CAd <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>%
          nSdLeave.f=nSeed.f*p.CA$p_emig)
 P_CAd$lam.S.f[is.nan(P_CAd$lam.S.f)] <- NA
 P_CAl <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
-  mutate(Surv.S.f=out$CA_lam.N[,p.CA$tmax+1],
+  mutate(pr.P=out$CA_lam.prP[,p.CA$tmax+1],
+         Surv.S.f=out$CA_lam.N[,p.CA$tmax+1],
          lam.S.f=out$CA_lam.lam)
 
 if(sum(is.na(P_CAd$Surv.S.f)>0)) cat("\n\n--------!! CA error\n\n")
@@ -245,7 +248,9 @@ for(i in 1:length(O_IPM)) {
 out <- summarize_IPM_samples(U.f, S.f)
 
 P_IPM <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
-  mutate(lambda.f=apply(out$Uf$IPM.mn, 3, function(x) Re(eigen(x)$values[1])),
+  mutate(pr.P=out$Sf$prP.mn,
+         pr.P.U=out$Uf$prP[,p.IPM$tmax+1],
+         lambda.f=apply(out$Uf$IPM.mn, 3, function(x) Re(eigen(x)$values[1])),
          lam.S.f=rowMeans(out$Sf$N_sim.mn[,(-3:0)+p.IPM$tmax]/
                             (out$Sf$N_sim.mn[,(-4:-1)+p.IPM$tmax]+0.0001)),
          nSeed.f=out$Sf$nSd.mn[,p.IPM$tmax], 
@@ -264,7 +269,7 @@ if(sum(is.na(P_IPM$Surv.S.f)>0)) cat("\n\n--------!! IPM error\n\n")
 
 if(overwrite) {
   cat("Saving output\n")
-  # saveRDS(P_Mx, here(paste0("out/", sp, "_P_Mx_", issue, ".rds")))
+  saveRDS(P_Mx, here(paste0("out/", sp, "_P_Mx_", issue, ".rds")))
   saveRDS(P_CAd, here(paste0("out/", sp, "_P_CAd_", issue, ".rds")))
   saveRDS(P_CAl, here(paste0("out/", sp, "_P_CAl_", issue, ".rds")))
   saveRDS(P_IPM, here(paste0("out/", sp, "_P_IPM_", issue, ".rds")))

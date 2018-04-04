@@ -96,12 +96,15 @@ summarize_CA_simulations <- function(sim.ls, tmax, y.ad, sim.lam=NULL) {
               N_rcr=map(sim.ls, ~.$N[,,1])) %>%
     map(simplify2array)
   if(!is.null(sim.lam)) {
-    CA_lam.N <- simplify2array(map(sim.lam, ~.$N)) %>% apply(., 1:2, mean)
+    lam.N.ls <- simplify2array(map(sim.lam, ~.$N))
+    CA_lam.N <- apply(lam.N.ls, 1:2, mean)
+    CA_lam.prP <- apply(lam.N.ls>0, 1:2, mean)
     CA_lam.lam <- simplify2array(map(sim.lam, ~.$lam.E)) %>% apply(., 1, mean)
   } else {
-    CA_lam.N <- CA_lam.lam <- NA
+    CA_lam.N <- CA_lam.prP <- CA_lam.lam <- NA
   }
-  return(list(B.mn=apply(s.a$B, 1:2, mean), 
+  return(list(prP.mn=apply(s.a$N_ad>0, 1:2, mean),
+              B.mn=apply(s.a$B, 1:2, mean), 
               nSd.mn=apply(s.a$nSd, 1:2, mean), 
               nSdStay.mn=apply(s.a$nSdStay, 1:2, mean), 
               D.mn=apply(s.a$D, 1:2, mean), 
@@ -109,6 +112,7 @@ summarize_CA_simulations <- function(sim.ls, tmax, y.ad, sim.lam=NULL) {
               N_ad.mn=apply(s.a$N_ad, 1:2, mean),
               N_rcr.mn=apply(s.a$N_rcr, 1:2, mean),
               CA_lam.N=CA_lam.N,
+              CA_lam.prP=CA_lam.prP,
               CA_lam.lam=CA_lam.lam))
 }
 
@@ -129,7 +133,8 @@ summarize_IPM_simulations <- function(sim.ls, tmax) {
               N_rcr=map(sim.ls, 
                         ~map_dbl(.$d, ~sum(is.na(.$size[.$yr==tmax]))))) %>% 
     map(simplify2array)
-  return(list(B.mn=apply(s.a$B, 1:2, mean), 
+  return(list(prP.mn=apply(s.a$N_surv>0, 1, mean),
+              B.mn=apply(s.a$B, 1:2, mean), 
               nSd.mn=apply(s.a$nSd, 1:2, mean), 
               D.mn=apply(s.a$D, 1:2, mean), 
               p_est.mn=apply(s.a$p_est, 1:2, mean), 
@@ -143,17 +148,20 @@ summarize_IPM_simulations <- function(sim.ls, tmax) {
 
 ##-- calculate means from simulation means of multiple CA samples
 summarize_CA_samples <- function(CA.f, in.id) {
-  Sa <- list(B.mn=map(CA.f, ~.$B.mn),
+  Sa <- list(prP.mn=map(CA.f, ~.$prP.mn),
+             B.mn=map(CA.f, ~.$B.mn),
              nSd.mn=map(CA.f, ~.$nSd.mn),
              nSdStay.mn=map(CA.f, ~.$nSdStay.mn),
              D.mn=map(CA.f, ~.$D.mn),
              N_tot.mn=map(CA.f, ~.$N_tot.mn),
              N_ad.mn=map(CA.f, ~.$N_ad.mn),
              N_rcr.mn=map(CA.f, ~.$N_rcr.mn),
+             CA_lam.prP=map(CA.f, ~.$CA_lam.prP),
              CA_lam.N=map(CA.f, ~.$CA_lam.N),
              CA_lam.lam=map(CA.f, ~.$CA_lam.lam)) %>%
     map(simplify2array)
-  return(list(B.mn=apply(Sa$B.mn[in.id,,], 1:2, mean),
+  return(list(prP.mn=apply(Sa$prP.mn[in.id,,], 1:2, mean),
+              B.mn=apply(Sa$B.mn[in.id,,], 1:2, mean),
              nSd.mn=apply(Sa$nSd.mn[in.id,,], 1:2, mean),
              nSdStay.mn=apply(Sa$nSdStay.mn[in.id,,], 1:2, mean),
              D.mn=apply(Sa$D.mn[in.id,,], 1:2, mean),
@@ -161,6 +169,7 @@ summarize_CA_samples <- function(CA.f, in.id) {
              N_ad.mn=apply(Sa$N_ad.mn[in.id,,], 1:2, mean),
              N_rcr.mn=apply(Sa$N_rcr.mn[in.id,,], 1:2, mean),
              CA_lam.N=apply(Sa$CA_lam.N[in.id,,], 1:2, mean),
+             CA_lam.prP=apply(Sa$CA_lam.prP[in.id,,], 1:2, mean),
              CA_lam.lam=apply(Sa$CA_lam.lam[in.id,], 1, mean)))
 }
 
@@ -175,13 +184,15 @@ summarize_IPM_samples <- function(U.f, S.f) {
              lam.mn=map(U.f, ~.$lam.t),
              p_est.mn=map(U.f, ~.$p_est.t)) %>% 
     map(simplify2array)
-  Uf <- list(IPM.mn=apply(Ua$IPM.mn, 1:3, mean),
+  Uf <- list(prP=apply(apply(Ua$Nt.mn>0, 2:4, sum)>0, 1:2, mean),
+             IPM.mn=apply(Ua$IPM.mn, 1:3, mean),
              P.mn=apply(Ua$P.mn, 1:3, mean),
              F.mn=apply(Ua$F.mn, 1:3, mean),
              Nt.mn=apply(Ua$Nt.mn, 1:3, mean),
              lam.mn=apply(Ua$lam.mn, 1:2, mean),
              p_est.mn=apply(Ua$p_est.mn, 1:2, mean))
-  Sa <- list(B.mn=map(S.f, ~.$B.mn),
+  Sa <- list(prP.mn=map(S.f, ~.$prP.mn),
+             B.mn=map(S.f, ~.$B.mn),
              nSd.mn=map(S.f, ~.$nSd.mn),
              D.mn=map(S.f, ~.$D.mn),
              p_est.mn=map(S.f, ~.$p_est.mn),
@@ -190,7 +201,8 @@ summarize_IPM_samples <- function(U.f, S.f) {
              N_surv.mn=map(S.f, ~.$N_surv.mn),
              N_rcr.mn=map(S.f, ~.$N_rcr.mn)) %>%
     map(simplify2array)
-  Sf <- list(B.mn=apply(Sa$B.mn, 1:2, mean),
+  Sf <- list(prP.mn=apply(Sa$prP.mn, 1, mean),
+             B.mn=apply(Sa$B.mn, 1:2, mean),
              nSd.mn=apply(Sa$nSd.mn, 1:2, mean),
              D.mn=apply(Sa$D.mn, 1:2, mean),
              p_est.mn=apply(Sa$p_est.mn, 1:2, mean),
