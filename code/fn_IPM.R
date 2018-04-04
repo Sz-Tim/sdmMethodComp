@@ -163,7 +163,7 @@ fill_F <- function(h, y, z.i, p, n_z, n_x, X_fl, X_seed) {
 
 ##-- Fill all IPM objects
 fill_IPM_matrices <- function(n.cell, buffer, discrete, p, n_z, n_x, 
-                              X, sdd, sdd.i, verbose=FALSE) {
+                              X, sdd, sdd.i, lam.final=T, verbose=FALSE) {
   library(tidyverse)
   i <- 1:n.cell
   
@@ -207,7 +207,9 @@ fill_IPM_matrices <- function(n.cell, buffer, discrete, p, n_z, n_x,
       Ft[z.i,,] <- vapply(i, function(x) Ft[z.i,,x] * p_est.t[x,k], Ft[z.i,,1])
       IPM.k <- Ps + Ft
       Nt[,,k+1] <- round(sapply(i, function(x) IPM.k[,,x] %*% Nt[,x,k]))
-      lam.t[,k] <- vapply(i, function(x) Re(eigen(IPM.k[,,x])$values[1]), 1)
+      if(lam.final && k==p$tmax) {
+        lam.t[,k] <- vapply(i, function(x) Re(eigen(IPM.k[,,x])$values[1]), 1)
+      }
       if(verbose) cat("Finished NDD for year", k, "\n")
     }
   }
