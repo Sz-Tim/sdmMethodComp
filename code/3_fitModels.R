@@ -13,7 +13,7 @@
 sp <- "sp1"
 overwrite <- TRUE
 n_cores <- 2
-issue <- c("none", "noise", "geogBias", "sampBias", "noSB")[5]
+issue <- c("none", "noise", "geogBias", "sampBias", "noSB", "noDisp")[6]
 
 # load workspace
 pkgs <- c("dismo", "gbPopMod", "tidyverse", "magrittr", "MuMIn", "here", "doSNOW")
