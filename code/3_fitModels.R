@@ -124,6 +124,11 @@ for(i in 1:length(O_CA)) {
                   p.eat=as.matrix(1), bird.hab=p$bird_hab, s.bird=1, method="lm")
   p.CA$p_emig <- p$p_emig
   if(modeling.issue=="noSB") p.CA$s.sb <- 0
+  if(modeling.issue=="noDisp") {
+    p.CA$p_emig <- 0
+    p.CA$sdd.rate <- 100
+    p.CA$n.ldd <- 0
+  }
   
   # run simulations
   CA.lc <- env.rct %>% rename(id.in=id.inbd)
@@ -219,6 +224,11 @@ for(i in 1:length(O_IPM)) {
   p.IPM$rcr_z <- filter(O_IPM[[i]], is.na(size)) %>% 
     summarise(mn=mean(sizeNext), sd=sd(sizeNext)) %>% unlist
   if(modeling.issue=="noSB") p.IPM$s_SB <- 0
+  if(modeling.issue=="noDisp") {
+    p.IPM$p_emig <- 0
+    p.IPM$sdd.rate <- 100
+    p.IPM$n.ldd <- 0
+  }
   
   # use estimated slopes to fill IPM matrix
   cat("||-- Calculating IPM matrices\n")
