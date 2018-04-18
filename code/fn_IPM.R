@@ -190,13 +190,15 @@ fill_IPM_matrices <- function(n.cell, buffer, discrete, p, n_z, n_x,
   ## dispersal & density dependence
   sdd.j <- lapply(i, function(x) which(sdd[,,2,]==sdd.i[x], arr.ind=T)) 
   p.ij <- lapply(i, function(x) sdd[,,1,][sdd.j[[x]]]) 
-  Fs[1,z.i,] <- vapply(i, function(x) Fs[1,z.i,x] + 
-                         Fb[1,z.i,sdd.j[[x]][,3]] %*% (p$p_emig*p.ij[[x]]),
-                       Fs[1,z.i,1])
-  Fs[z.i,z.i,] <- vapply(i, function (x) Fs[z.i,z.i,x] + 
-                           Reduce(`+`, map2(sdd.j[[x]][,3], p$p_emig*p.ij[[x]], 
-                                            ~(Fb[z.i,z.i,.x] * .y))),
-                         Fs[z.i,z.i,1])
+  if(p$p_emig > 0) {
+    Fs[1,z.i,] <- vapply(i, function(x) Fs[1,z.i,x] + 
+                           Fb[1,z.i,sdd.j[[x]][,3]] %*% (p$p_emig*p.ij[[x]]),
+                         Fs[1,z.i,1])
+    Fs[z.i,z.i,] <- vapply(i, function (x) Fs[z.i,z.i,x] + 
+                             Reduce(`+`, map2(sdd.j[[x]][,3], p$p_emig*p.ij[[x]], 
+                                              ~(Fb[z.i,z.i,.x] * .y))),
+                           Fs[z.i,z.i,1])
+  }
   if(verbose) cat("Finished dispersal \n")
   if(p$NDD) {
     Nt[,,1] <- rpois((p$n+1)*n.cell, p$n0/(p$n+1))
