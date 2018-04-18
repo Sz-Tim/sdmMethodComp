@@ -38,7 +38,7 @@ P.pr <- rep(1, length(P.i))  # pr(sample cell | presence)
 prop.sampled <- 1  # proportion of individuals sampled per sampled cell 
 geog.excl <- which(env.in$x < 30)
 noise <- list(Mx=0.2, # proportion of observed presences that are false
-            CA=list(N=0.05,  # N.obs = rnorm(N.true, N.true*N)
+            CA=list(N=0.5,  # N.obs = rnorm(N.true, N.true*N)
                     fec=0.05),  # fec.obs = rnorm(fec.true, fec.true*fec)
             IPM=list(s=0,  # proportion of incorrectly assessed surv
                      g=0.1,  # sizeNext.obs = rnorm(SizeNext.true, g) 
@@ -124,8 +124,8 @@ if(sampling.issue=="noise") {
   for(s in 1:n_samp) {
     n_obs <- nrow(O_CA[[s]]$d)
     O_CA[[s]]$d <- O_CA[[s]]$d %>% 
-      mutate(N=pmax(round(N + rnorm(n_obs, 0, N*noise$CA$N))),
-             fec=pmax(round(fec + rnorm(n_obs, 0, fec*noise$CA$fec)))) %>%
+      mutate(N=pmax(round(N + rnorm(n_obs, 0, sqrt(N*noise$CA$N))), 0),
+             fec=pmax(round(fec + rnorm(n_obs, 0, fec*noise$CA$fec))), 0) %>%
       group_by(id) %>%
       mutate(lambda=N/lag(N,1))
   }
