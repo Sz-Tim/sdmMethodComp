@@ -12,8 +12,9 @@
 # file specifications
 sp <- "sp1"
 overwrite <- TRUE
-n_cores <- 2
-issue <- c("none", "noise", "geogBias", "sampBias", "noSB", "noDisp")[6]
+n_cores <- 4
+issue <- c("none", "noise", "geogBias", "sampBias", 
+           "noSB", "noDisp", "overDisp")[7]
 
 # load workspace
 pkgs <- c("dismo", "gbPopMod", "tidyverse", "magrittr", "MuMIn", "here", "doSNOW")
@@ -26,6 +27,7 @@ sdd.pr <- readRDS(here(paste0("out/", sp, "_sdd.rds")))
 lam.df <- readRDS(here(paste0("out/", sp, "_lam_df.rds")))
 env.in <- readRDS(here(paste0("out/", sp, "_env_in.rds")))
 env.rct <- readRDS(here(paste0("out/", sp, "_env_rct.rds")))
+env.rct.unsc <- readRDS(here(paste0("out/", sp, "_env_rct_unscaled.rds")))
 n.cell <- nrow(env.in); n.grid <- nrow(env.rct)
 issue_i <- read.csv(here("data/issues.csv"), stringsAsFactors=F)
 sampling.issue <- filter(issue_i, Issue==issue)$Sampling
@@ -38,7 +40,7 @@ O_IPM <- readRDS(here(paste0("out/", sp, "_O_IPM_", sampling.issue, ".rds")))
 ########
 ## Set model details
 ########
-n_sim <- 2  # number of simulations per sample (mechanistic only)
+n_sim <- 8  # number of simulations per sample (mechanistic only)
 v <- m <- n <- list(CA=NULL, IPM=NULL)
 
 ##--- CA
@@ -59,6 +61,7 @@ n$IPM$x <- rep(list(length(v$IPM) - n$IPM$z[[1]]), 4)
 names(n$IPM$z) <- names(n$IPM$x) <- c("s", "g", "fl", "seed")
 X.IPM <- map(n$IPM$x, ~as.matrix(env.in[,1:.]))
 
+
 ########
 ## fit models
 ########
@@ -70,9 +73,8 @@ for(i in 1:length(O_Mx)) {
   Mx.p[[i]] <- predict(Mx.f[[i]], env.in[,c(1,3,5:9)])
 }
 P_Mx <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>%
-  mutate(ROR=apply(simplify2array(Mx.p), 1, mean)) %>%
-  mutate(pr.P=ROR/sum(ROR),
-         Surv.S.f=pr.P*sum(lam.df$Surv.S))
+  mutate(pr.P=apply(simplify2array(Mx.p), 1, mean)) %>%
+  mutate(Surv.S.f=pr.P/sum(pr.P)*sum(lam.df$Surv.S))
 
 ##--- CA
 cat("||||---- Beginning CA -------------------------------------------------\n")
@@ -128,6 +130,16 @@ for(i in 1:length(O_CA)) {
     p.CA$p_emig <- 0
     p.CA$sdd.rate <- 100
     p.CA$n.ldd <- 0
+  }
+  if(modeling.issue=="overDisp") {
+    p.CA$p_emig <- min(5*p$p_emig, 0.99) 
+    p.CA$sdd.rate <- p$sdd_rate/10
+    p.CA$sdd.max <- p$sdd_max + 3
+    p.CA$n.ldd <- 5
+    sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=env.rct.unsc, lc.col=8:12,
+                            g.p=list(sdd.max=p.CA$sdd.max, 
+                                     sdd.rate=p.CA$sdd.rate, 
+                                     bird.hab=p.CA$bird.hab))
   }
   
   # run simulations
@@ -228,6 +240,15 @@ for(i in 1:length(O_IPM)) {
     p.IPM$p_emig <- 0
     p.IPM$sdd.rate <- 100
     p.IPM$n.ldd <- 0
+  }
+  if(modeling.issue=="overDisp") {
+    p.IPM$p_emig <- min(5*p$p_emig, 0.99) 
+    p.IPM$sdd.rate <- p$sdd_rate/10
+    p.IPM$sdd.max <- p$sdd_max + 3
+    sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=env.rct.unsc, lc.col=8:12,
+                            g.p=list(sdd.max=p.IPM$sdd.max, 
+                                     sdd.rate=p.IPM$sdd.rate, 
+                                     bird.hab=p$bird_hab))
   }
   
   # use estimated slopes to fill IPM matrix
