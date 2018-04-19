@@ -6,3 +6,5 @@ sampBias,sampBias,none
 noSB,none,noSB
 noDisp,none,noDisp
 overDisp,none,overDisp
+clim,none,clim
+lc,none,lc

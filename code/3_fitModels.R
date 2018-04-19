@@ -14,7 +14,7 @@ sp <- "sp1"
 overwrite <- TRUE
 n_cores <- 4
 issue <- c("none", "noise", "geogBias", "sampBias", 
-           "noSB", "noDisp", "overDisp")[7]
+           "noSB", "noDisp", "overDisp", "clim", "lc")[8]
 
 # load workspace
 pkgs <- c("dismo", "gbPopMod", "tidyverse", "magrittr", "MuMIn", "here", "doSNOW")
@@ -44,17 +44,31 @@ n_sim <- 8  # number of simulations per sample (mechanistic only)
 v <- m <- n <- list(CA=NULL, IPM=NULL)
 
 ##--- CA
-v$CA <- c("(Intercept)"=0, "temp"=0, "temp2"=0, "prec"=0, "prec2"=0, 
-          "pOpn"=0, "pOth"=0, "pDec"=0)#, "pEvg"=0, "pMxd"=0)
+if(modeling.issue=="clim") {
+  v$CA <- c("(Intercept)"=0, "temp"=0, "temp2"=0, "prec"=0, "prec2"=0)
+} else if(modeling.issue=="lc") {
+  v$CA <- c("(Intercept)"=0, "pOpn"=0, "pOth"=0, "pDec"=0, "pEvg"=0, "pMxd"=0)
+} else {
+  v$CA <- c("(Intercept)"=0, "temp"=0, "temp2"=0, "prec"=0, "prec2"=0, 
+            "pOpn"=0, "pOth"=0, "pDec"=0)#, "pEvg"=0, "pMxd"=0)
+}
 m$CA <- paste(names(v$CA)[-1], collapse=" + ")
 n$CA <- rep(list(length(v$CA)), 6)
 names(n$CA) <- c("K", "s.jv", "s.ad", "p.f", "fec", "lam")
 X.CA <- map(n$CA, ~cbind(1, as.matrix(env.in[,1:(.-1)])))
 
 ##--- IPM
-v$IPM <- c("(Intercept)"=0, "size"=0, "size2"=0,# "size3"=0, 
-       "temp"=0, "temp2"=0, "prec"=0, "prec2"=0, 
-       "pOpn"=0, "pOth"=0, "pDec"=0)#, "pEvg"=0, "pMxd"=0)
+if(modeling.issue=="clim") {
+  v$IPM <- c("(Intercept)"=0, "size"=0, "size2"=0,
+             "temp"=0, "temp2"=0, "prec"=0, "prec2"=0)
+} else if(modeling.issue=="lc") {
+  v$IPM <- c("(Intercept)"=0, "size"=0, "size2"=0, 
+             "pOpn"=0, "pOth"=0, "pDec"=0, "pEvg"=0, "pMxd"=0)
+} else {
+  v$IPM <- c("(Intercept)"=0, "size"=0, "size2"=0,# "size3"=0, 
+             "temp"=0, "temp2"=0, "prec"=0, "prec2"=0, 
+             "pOpn"=0, "pOth"=0, "pDec"=0)#, "pEvg"=0, "pMxd"=0)
+}
 m$IPM <- paste(names(v$IPM)[-1], collapse=" + ")
 n$IPM$z <- rep(list(sum(grepl("size", names(v$IPM))) + 1), 4)  # adds intercept
 n$IPM$x <- rep(list(length(v$IPM) - n$IPM$z[[1]]), 4)
@@ -69,8 +83,15 @@ X.IPM <- map(n$IPM$x, ~as.matrix(env.in[,1:.]))
 cat("||||---- Beginning MaxEnt ---------------------------------------------\n")
 Mx.f <- Mx.p <- vector("list", length(O_Mx))
 for(i in 1:length(O_Mx)) {
-  Mx.f[[i]] <- maxent(x=env.in[,c(1,3,5:9)], p=O_Mx[[i]])
-  Mx.p[[i]] <- predict(Mx.f[[i]], env.in[,c(1,3,5:9)])
+  if(modeling.issue=="clim") {
+    Mx.cov <- env.in[,c(1,3)]
+  } else if(modeling.issue=="lc") {
+    Mx.cov <- env.in[,5:9]
+  } else {
+    Mx.cov <- env.in[,c(1,3,5:9)]
+  }
+  Mx.f[[i]] <- maxent(x=Mx.cov, p=O_Mx[[i]])
+  Mx.p[[i]] <- predict(Mx.f[[i]], Mx.cov)
 }
 P_Mx <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>%
   mutate(pr.P=apply(simplify2array(Mx.p), 1, mean)) %>%
