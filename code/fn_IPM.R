@@ -39,7 +39,7 @@
 ##   P(s) ~ antilogit(size + environment)
 calc_surv <- function(z.v, p, n_sz, X.s) {
   z <- z_pow(z.v, n_sz)
-  u <- exp(z %*% p$s_z + c(t(X.s) %*% p$s_x))
+  u <- pmax(pmin(exp(z %*% p$s_z + c(t(X.s) %*% p$s_x)), 1), 0) # in case Inf
   return(u / (1+u))
 }
 
@@ -59,7 +59,7 @@ calc_grow <- function(z1, z.v, p, n_gz, X.g) {
 ##   P(fl) ~ antilogit(size + environment)
 calc_flwr <- function(z.v, p, n_flz, X.fl) {
   z <- z_pow(z.v, n_flz)
-  u <- exp(z %*% p$fl_z + c(t(X.fl) %*% p$fl_x))
+  u <- pmax(pmin(exp(z %*% p$fl_z + c(t(X.fl) %*% p$fl_x)), 1), 0)
   return(u / (1+u))
 }
 
