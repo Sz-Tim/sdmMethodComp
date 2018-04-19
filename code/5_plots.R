@@ -15,10 +15,12 @@ pkgs <- c("tidyverse", "magrittr", "stringr", "here")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
 walk(paste0("code/fn_", c("IPM", "aux", "sim"), ".R"), ~source(here(.)))
 out <- read.csv(here(paste0("out/", sp, "_out.csv")))
-out$issue <- factor(out$issue, levels=c("none", "noise", "geogBias", "sampBias",
-                                        "noSB", "noDisp"),
+out$issue <- factor(out$issue, 
+                    levels=c("none", "noise", "geogBias", "sampBias",
+                             "noSB", "noDisp", "overDisp", "clim", "lc"),
                     labels=c("None", "Measurement error", "Geographic bias", 
-                             "Sampling bias", "No Seedbank", "No dispersal"))
+                             "Sampling bias", "No Seedbank", "No dispersal",
+                             "Over dispersal", "Climate Only", "LC only"))
 
 par(mfrow=c(3,3))
 plot(lam.df$temp, log(lam.df$lambda), col=rgb(0,0,0,0.75))
