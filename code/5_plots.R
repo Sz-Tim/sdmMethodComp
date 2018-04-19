@@ -36,6 +36,25 @@ theme_set(theme_bw())
 ggplot(out, aes(fill=outcome, x=SDM)) + geom_bar(position="fill") + 
   facet_wrap(~issue) + scale_fill_brewer(name="", type="div") + 
   ylab("Proportion of cells")
+ggplot(out, aes(x=lon, y=lat, fill=pr.P)) +
+  geom_tile() + facet_grid(SDM~issue) + 
+  scale_fill_gradient(low="white", high="red") +
+  theme(axis.text=element_blank())
+ggplot(out, aes(x=lon, y=lat, fill=pr.P>0.5)) +
+  geom_tile() + facet_grid(SDM~issue) + 
+  theme(axis.text=element_blank())
+ggplot(out, aes(x=lon, y=lat, fill=outcome)) +
+  geom_tile() + facet_grid(SDM~issue) + scale_fill_brewer(name="", type="div") +
+  theme(axis.text=element_blank())
+ggplot(out, aes(x=lon, y=lat, fill=log(Btmax.f))) +
+  geom_tile() + facet_grid(SDM~issue) + 
+  scale_fill_gradient(low="white", high="red") +
+  theme(axis.text=element_blank())
+ggplot(out, aes(x=lon, y=lat, fill=log(D.f))) +
+  geom_tile() + facet_grid(SDM~issue) + 
+  scale_fill_gradient(low="white", high="red") +
+  theme(axis.text=element_blank())
+
 ggplot(out_IPM, aes(fill=sign(log(lambda.f))==sign(log(lambda)), x=issue)) + 
   geom_bar(position="fill")
 ggplot(out_IPM, aes(fill=sign(log(lam.U.f))==sign(log(lam.U)), x=issue)) + 
