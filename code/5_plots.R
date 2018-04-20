@@ -36,11 +36,18 @@ theme_set(theme_bw())
 ggplot(out, aes(fill=outcome, x=SDM)) + geom_bar(position="fill") + 
   facet_wrap(~issue) + scale_fill_brewer(name="", type="div") + 
   ylab("Proportion of cells")
-ggplot(out, aes(x=lon, y=lat, fill=pr.P)) +
+ggplot(out, aes(fill=outcome, x=issue)) + geom_bar(position="fill") + 
+  facet_wrap(~SDM) + scale_fill_brewer(name="", type="div") + 
+  ylab("Proportion of cells")
+ggplot(out, aes(x=lon, y=lat, fill=prP)) +
   geom_tile() + facet_grid(SDM~issue) + 
   scale_fill_gradient(low="white", high="red") +
   theme(axis.text=element_blank())
-ggplot(out, aes(x=lon, y=lat, fill=pr.P>0.5)) +
+ggplot(out, aes(x=lon, y=lat, fill=prP.sd)) +
+  geom_tile() + facet_grid(SDM~issue) + 
+  scale_fill_gradient(low="blue", high="white") +
+  theme(axis.text=element_blank())
+ggplot(out, aes(x=lon, y=lat, fill=prP>0.5)) +
   geom_tile() + facet_grid(SDM~issue) + 
   theme(axis.text=element_blank())
 ggplot(out, aes(x=lon, y=lat, fill=outcome)) +
