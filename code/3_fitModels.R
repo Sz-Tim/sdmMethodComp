@@ -94,8 +94,9 @@ for(i in 1:length(O_Mx)) {
   Mx.p[[i]] <- predict(Mx.f[[i]], Mx.cov)
 }
 P_Mx <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>%
-  mutate(pr.P=apply(simplify2array(Mx.p), 1, mean)) %>%
-  mutate(Surv.S.f=pr.P/sum(pr.P)*sum(lam.df$Surv.S))
+  mutate(prP=apply(simplify2array(Mx.p), 1, mean)) %>%
+  mutate(prP.sd=apply(simplify2array(Mx.p), 1, sd),
+         Surv.S.f=prP/sum(prP)*sum(lam.df$Surv.S))
 
 ##--- CA
 cat("||||---- Beginning CA -------------------------------------------------\n")
@@ -186,14 +187,15 @@ for(i in 1:length(O_CA)) {
                                      sdd.pr, N.init, "lm", F)
     }
   }
-  CA.f[[i]] <- summarize_CA_simulations(sim.ls, p.CA$tmax, 
+  CA.f[[i]] <- aggregate_CA_simulations(sim.ls, p.CA$tmax, 
                                         max(p.CA$age.f), sim.lam)
   rm(sim.ls); rm(sim.lam)
   cat("  Finished dataset", i, "\n\n")
 }
 out <- summarize_CA_samples(CA.f, lam.df$id)
 P_CAd <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
-  mutate(pr.P=out$prP.mn[,p.CA$tmax+1],
+  mutate(prP=out$prP[,p.CA$tmax+1],
+         prP.sd=out$prP.sd[,p.CA$tmax+1],
          lam.S.f=rowMeans(out$N_ad.mn[,(-3:0)+p.CA$tmax]/
                             (out$N_ad.mn[,(-4:-1)+p.CA$tmax])),
          nSeed.f=out$nSd.mn[,p.CA$tmax], 
@@ -207,7 +209,8 @@ P_CAd <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>%
          nSdLeave.f=nSeed.f*p.CA$p_emig)
 P_CAd$lam.S.f[is.nan(P_CAd$lam.S.f)] <- NA
 P_CAl <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
-  mutate(pr.P=out$CA_lam.prP[,p.CA$tmax+1],
+  mutate(prP=out$CA_lam.prP[,p.CA$tmax+1],
+         prP.sd=out$CA_lam.prP.sd[,p.CA$tmax+1],
          Surv.S.f=out$CA_lam.N[,p.CA$tmax+1],
          lam.S.f=out$CA_lam.lam)
 
@@ -293,15 +296,16 @@ for(i in 1:length(O_IPM)) {
       cat("||-- Finished simulation", s, "\n")
     }
   }
-  S.f[[i]] <- summarize_IPM_simulations(sim.ls, p.IPM$tmax)
+  S.f[[i]] <- aggregate_IPM_simulations(sim.ls, p.IPM$tmax)
   rm(sim.ls)
   cat("  Finished dataset", i, "\n\n")
 }
 out <- summarize_IPM_samples(U.f, S.f)
 
 P_IPM <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
-  mutate(pr.P=out$Sf$prP.mn,
-         pr.P.U=out$Uf$prP[,p.IPM$tmax+1],
+  mutate(prP=out$Sf$prP,
+         prP.sd=out$Sf$prP.sd,
+         prP.U=out$Uf$prP[,p.IPM$tmax+1],
          lambda.f=apply(out$Uf$IPM.mn, 3, function(x) Re(eigen(x)$values[1])),
          lam.S.f=rowMeans(out$Sf$N_sim.mn[,(-3:0)+p.IPM$tmax]/
                             (out$Sf$N_sim.mn[,(-4:-1)+p.IPM$tmax]+0.0001)),
