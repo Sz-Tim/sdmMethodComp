@@ -182,15 +182,15 @@ fill_IPM_matrices <- function(n.cell, buffer, discrete, p, n_z, n_x,
                                             X$s[x,], X$g[x,]), Ps[,,1])
   Fb <- vapply(i, function(x) fill_F(L$h, L$y, z.i, p, n_z, n_x, 
                                             X$fl[x,], X$seed[x,]), Fb[,,1])
-  Fs[z.i,z.i,] <- (1-p$p_emig) * Fb[z.i,z.i,]
-  Fs[1,z.i,] <- (1-p$p_emig) * Fb[1,z.i,]
-  Fs[z.i,1,] <- Fb[z.i,1,]
+  Fs[z.i,1,] <- Fb[z.i,1,]  # recruits from seedbank unaffected by immigration
+  Fs[1,z.i,] <- (1-p$p_emig) * Fb[1,z.i,]  # local contribution to seedbank
+  Fs[z.i,z.i,] <- (1-p$p_emig) * Fb[z.i,z.i,]  # local direct recruits
   if(verbose) cat("Finished local growth \n")
   
   ## dispersal & density dependence
-  sdd.j <- lapply(i, function(x) which(sdd[,,2,]==sdd.i[x], arr.ind=T)) 
-  p.ij <- lapply(i, function(x) sdd[,,1,][sdd.j[[x]]]) 
   if(p$p_emig > 0) {
+    sdd.j <- lapply(i, function(x) which(sdd[,,2,]==sdd.i[x], arr.ind=T)) 
+    p.ij <- lapply(i, function(x) sdd[,,1,][sdd.j[[x]]]) 
     Fs[1,z.i,] <- vapply(i, function(x) Fs[1,z.i,x] + 
                            Fb[1,z.i,sdd.j[[x]][,3]] %*% (p$p_emig*p.ij[[x]]),
                          Fs[1,z.i,1])
