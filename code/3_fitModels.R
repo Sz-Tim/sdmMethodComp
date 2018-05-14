@@ -19,7 +19,7 @@ issue <- c("none", "noise", "geogBias", "sampBias",
 # load workspace
 pkgs <- c("dismo", "gbPopMod", "tidyverse", "magrittr", "MuMIn", "here", "doSNOW")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
-walk(paste0("code/fn_", c("IPM", "aux", "sim"), ".R"), ~source(here(.)))
+walk(paste0("code/fn_", c("aux", "sim", "IPM", "issues"), ".R"), ~source(here(.)))
 p <- readRDS(here(paste0("out/", sp, "_p.rds")))
 S <- readRDS(here(paste0("out/", sp, "_S.rds")))
 U <- readRDS(here(paste0("out/", sp, "_U.rds")))
@@ -40,40 +40,38 @@ O_IPM <- readRDS(here(paste0("out/", sp, "_O_IPM_", sampling.issue, ".rds")))
 ########
 ## Set model details
 ########
-n_sim <- 8  # number of simulations per sample (mechanistic only)
+n_sim <- 2  # number of simulations per sample (mechanistic only)
 v <- m <- n <- list(CA=NULL, IPM=NULL)
+vars <- c("(Intercept)"=0, 
+          "temp"=0, "temp2"=0, "prec"=0, "prec2"=0, 
+          "pOpn"=0, "pOth"=0, "pDec"=0, #"pEvg"=0, "pMxd"=0,
+          "size"=0, "size2"=0)#, "size3"=0)
+v.size <- grep("size", names(vars))
 
-##--- CA
 if(modeling.issue=="clim") {
-  v$CA <- c("(Intercept)"=0, "temp"=0, "temp2"=0, "prec"=0, "prec2"=0)
+  v.i <- grep("temp|prec", names(vars))
 } else if(modeling.issue=="lc") {
-  v$CA <- c("(Intercept)"=0, "pOpn"=0, "pOth"=0, "pDec"=0)#, "pEvg"=0, "pMxd"=0)
+  v.i <- grep("^p(?!.*rec)", names(vars), perl=TRUE)
 } else {
-  v$CA <- c("(Intercept)"=0, "temp"=0, "temp2"=0, "prec"=0, "prec2"=0, 
-            "pOpn"=0, "pOth"=0, "pDec"=0)#, "pEvg"=0, "pMxd"=0)
+  v.i <- seq_along(vars)[-c(1,v.size)]
 }
+
+v$CA <- vars[c(1, v.i)]
 m$CA <- paste(names(v$CA)[-1], collapse=" + ")
-n$CA <- rep(list(length(v$CA)), 6)
-names(n$CA) <- c("K", "s.jv", "s.ad", "p.f", "fec", "lam")
-X.CA <- map(n$CA, ~cbind(1, as.matrix(env.in[,1:(.-1)])))
+# n$CA <- rep(list(1+length(v.i)), 6)  # adds intercept
+# names(n$CA) <- c("K", "s.jv", "s.ad", "p.f", "fec", "lam")
 
-##--- IPM
-if(modeling.issue=="clim") {
-  v$IPM <- c("(Intercept)"=0, "size"=0, "size2"=0,
-             "temp"=0, "temp2"=0, "prec"=0, "prec2"=0)
-} else if(modeling.issue=="lc") {
-  v$IPM <- c("(Intercept)"=0, "size"=0, "size2"=0, 
-             "pOpn"=0, "pOth"=0, "pDec"=0)#, "pEvg"=0, "pMxd"=0)
-} else {
-  v$IPM <- c("(Intercept)"=0, "size"=0, "size2"=0,# "size3"=0, 
-             "temp"=0, "temp2"=0, "prec"=0, "prec2"=0, 
-             "pOpn"=0, "pOth"=0, "pDec"=0)#, "pEvg"=0, "pMxd"=0)
-}
+v$IPM <- vars[c(1, v.size, v.i)]
 m$IPM <- paste(names(v$IPM)[-1], collapse=" + ")
-n$IPM$z <- rep(list(sum(grepl("size", names(v$IPM))) + 1), 4)  # adds intercept
-n$IPM$x <- rep(list(length(v$IPM) - n$IPM$z[[1]]), 4)
+n$IPM$z <- rep(list(1+length(v.size)), 4)  # adds intercept
+n$IPM$x <- rep(list(length(v.i)), 4)
 names(n$IPM$z) <- names(n$IPM$x) <- c("s", "g", "fl", "seed")
-X.IPM <- map(n$IPM$x, ~as.matrix(env.in[,1:.]))
+
+X.Mx <- env.in[,names(env.in) %in% names(vars)[v.i]]
+X.CA <- env.rct %>% rename(id.in=id.inbd) %>%
+  select(one_of("x", "y", "x_y", "inbd", "id", "id.in", names(vars)[v.i]))
+X.IPM <- map(n$IPM$x, ~as.matrix(env.in[,names(env.in) %in% names(vars)[v.i]]))
+
 
 
 ########
@@ -83,15 +81,8 @@ X.IPM <- map(n$IPM$x, ~as.matrix(env.in[,1:.]))
 cat("||||---- Beginning MaxEnt ---------------------------------------------\n")
 Mx.f <- Mx.p <- vector("list", length(O_Mx))
 for(i in 1:length(O_Mx)) {
-  if(modeling.issue=="clim") {
-    Mx.cov <- env.in[,c(1,3)]
-  } else if(modeling.issue=="lc") {
-    Mx.cov <- env.in[,5:9]
-  } else {
-    Mx.cov <- env.in[,c(1,3,5:9)]
-  }
-  Mx.f[[i]] <- maxent(x=Mx.cov, p=O_Mx[[i]])
-  Mx.p[[i]] <- predict(Mx.f[[i]], Mx.cov)
+  Mx.f[[i]] <- maxent(x=X.Mx, p=O_Mx[[i]])
+  Mx.p[[i]] <- predict(Mx.f[[i]], X.Mx)
 }
 P_Mx <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>%
   mutate(prP=apply(simplify2array(Mx.p), 1, mean)) %>%
@@ -147,6 +138,8 @@ for(i in 1:length(O_CA)) {
                   sdd.max=p$sdd_max, sdd.rate=p$sdd_rate, n.ldd=1,
                   p.eat=as.matrix(1), bird.hab=p$bird_hab, s.bird=1, method="lm")
   p.CA$p_emig <- p$p_emig
+  
+  # impose issues
   if(modeling.issue=="noSB") p.CA$s.sb <- 0
   if(modeling.issue=="noDisp") {
     p.CA$p_emig <- 0
@@ -165,26 +158,25 @@ for(i in 1:length(O_CA)) {
   }
   
   # run simulations
-  CA.lc <- env.rct %>% rename(id.in=id.inbd)
   N.init <- matrix(0, n.grid, p.CA$age.f)  # column for each age class
-  N.init[CA.lc$id[CA.lc$inbd], p.CA$age.f] <- p$n0
-  N.init[CA.lc$id[CA.lc$inbd], -p.CA$age.f] <- round(p$n0/5)
+  N.init[X.CA$id[X.CA$inbd], p.CA$age.f] <- p$n0
+  N.init[X.CA$id[X.CA$inbd], -p.CA$age.f] <- round(p$n0/5)
   cat("||-- Starting simulations\n")
   if(n_cores > 1) {
     p.c <- makeCluster(n_cores); registerDoSNOW(p.c)
     sim.ls <- foreach(s=1:n_sim) %dopar% {
-      gbPopMod::run_sim(n.grid, n.cell, p.CA, CA.lc, sdd.pr, N.init, NULL, F)
+      gbPopMod::run_sim(n.grid, n.cell, p.CA, X.CA, sdd.pr, N.init, NULL, F)
     }
     sim.lam <- foreach(s=1:n_sim) %dopar% {
-      gbPopMod::run_sim_lambda(n.grid, n.cell, p.CA, vars.ls$lam, CA.lc, 
+      gbPopMod::run_sim_lambda(n.grid, n.cell, p.CA, vars.ls$lam, X.CA, 
                      sdd.pr, N.init, "lm", F)
     }
     stopCluster(p.c)
   } else {
     for(s in 1:n_sim) {
-      sim.ls[[s]] <- run_sim(n.grid, n.cell, p.CA, CA.lc, sdd.pr, N.init, NULL, F)
-      sim.lam[[s]] <- run_sim_lambda(n.grid, n.cell, p.CA, vars.ls$lam, CA.lc, 
-                                     sdd.pr, N.init, "lm", F)
+      sim.ls[[s]] <- run_sim(n.grid, n.cell, p.CA, X.CA, sdd.pr, N.init, NULL, T)
+      sim.lam[[s]] <- run_sim_lambda(n.grid, n.cell, p.CA, vars.ls$lam, X.CA, 
+                                     sdd.pr, N.init, "lm", T)
     }
   }
   CA.f[[i]] <- aggregate_CA_simulations(sim.ls, p.CA$tmax, 
@@ -259,6 +251,8 @@ for(i in 1:length(O_IPM)) {
   p.IPM$seed_x <- vars.ls$seed[(n$IPM$z$seed+1):length(v$IPM)]
   p.IPM$rcr_z <- filter(O_IPM[[i]], is.na(size)) %>% 
     summarise(mn=mean(sizeNext), sd=sd(sizeNext)) %>% unlist
+  
+  # impose issues
   if(modeling.issue=="noSB") p.IPM$s_SB <- 0
   if(modeling.issue=="noDisp") {
     p.IPM$p_emig <- 0
