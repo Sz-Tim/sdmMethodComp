@@ -32,3 +32,8 @@ vignettes/*.pdf
 *.utf8.md
 *.knit.md
 .Rproj.user
+
+# Merow 2014 appendix
+Merow2014_Appendix.Rmd
+data/ActaeaRegDat.RData
+data/Appendix_A_Simple_data.csv
