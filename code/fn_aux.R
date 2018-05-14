@@ -151,7 +151,7 @@ summarize_CA_samples <- function(CA.f, in.id) {
               N_rcr.mn=apply(Sa$N_rcr[in.id,,,], 1:2, mean),
               CA_lam.N=apply(Sa$CA_lam.N[in.id,,,], 1:2, mean),
               CA_lam.prP=apply(Sa$CA_lam.P[in.id,,,], 1:2, mean),
-              CA_lam.P.sd=apply(apply(Sa$CA_lam.P[in.id,,,], c(1,2,4), mean), 
+              CA_lam.prP.sd=apply(apply(Sa$CA_lam.P[in.id,,,], c(1,2,4), mean), 
                                 1:2, sd),
               CA_lam.lam=apply(Sa$CA_lam.lam[in.id,,,], 1, mean)))
 }
