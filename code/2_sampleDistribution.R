@@ -13,7 +13,7 @@
 # file specifications
 sp <- "sp1"
 overwrite <- TRUE
-sampling.issue <- c("none", "noise", "geogBias", "sampBias")[4]
+sampling.issue <- c("none", "noise", "geogBias", "sampBias")[2]
 
 # load workspace
 pkgs <- c("tidyverse", "magrittr", "here")
@@ -30,15 +30,15 @@ lam.df <- readRDS(here(paste0("out/", sp, "_lam_df.rds"))) # env + true pop vals
 ########
 ## Set sampling details
 ########
-n_samp <- 2  # number of unique samples to average across
-O_n <- list(Corr=75, Mech=25)  # number of cells in sample
+n_samp <- 10  # number of unique samples to average across
+O_n <- list(Corr=100, Mech=25)  # number of cells in sample
 O_yr <- list(Mx=p$tmax, CA=(-1:0)+p$tmax, IPM=p$tmax)  # years to sample
-P.i <- which(lam.df$Surv.S > 10)  # presences: survival past recruit stage
+P.i <- which(lam.df$Surv.S > 5)  # presences: survival past recruit stage
 P.pr <- rep(1, length(P.i))  # pr(sample cell | presence)
 prop.sampled <- 1  # proportion of individuals sampled per sampled cell 
-geog.excl <- which(env.in$x < 30)
+geog.excl <- which(env.in$y < 30)
 noise <- list(Mx=0.2, # proportion of observed presences that are false
-            CA=list(N=0.5,  # N.obs = rnorm(N.true, N.true*N)
+            CA=list(N=0.02,  # N.obs = rnorm(N.true, N.true*N)
                     fec=0.05),  # fec.obs = rnorm(fec.true, fec.true*fec)
             IPM=list(s=0,  # proportion of incorrectly assessed surv
                      g=0.1,  # sizeNext.obs = rnorm(SizeNext.true, g) 
@@ -124,7 +124,7 @@ if(sampling.issue=="noise") {
   for(s in 1:n_samp) {
     n_obs <- nrow(O_CA[[s]]$d)
     O_CA[[s]]$d <- O_CA[[s]]$d %>% 
-      mutate(N=pmax(round(N + rnorm(n_obs, 0, sqrt(N*noise$CA$N))), 0),
+      mutate(N=pmax(round(N + rnorm(n_obs, 0, N*noise$CA$N)), 0),
              fec=pmax(round(fec + rnorm(n_obs, 0, fec*noise$CA$fec))), 0) %>%
       group_by(id) %>%
       mutate(lambda=N/lag(N,1))

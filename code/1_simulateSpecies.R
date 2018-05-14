@@ -21,15 +21,15 @@ suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
 walk(paste0("code/fn_", c("IPM", "aux", "sim"), ".R"), ~source(here(.)))
 
 L <- build_landscape(f=here(env.f), 
-                     x_max=50, # ncol in landscape; Inf for full dataset
-                     y_max=50) # nrow in landscape; Inf for full dataset
+                     x_max=55, # ncol in landscape; Inf for full dataset
+                     y_max=55) # nrow in landscape; Inf for full dataset
 n.cell <- sum(L$env.rct$inbd)
 
 
 ########
 ## Set species traits
 ########
-p=list(n=50,  # ncells in IPM matrix
+p=list(n=30,  # ncells in IPM matrix
        tmax=20,  # time steps for NDD & simulations
        n0=100,  # initial pop sizes
        z.rng=c(1,12),  # initial size range
@@ -49,7 +49,7 @@ p=list(n=50,  # ncells in IPM matrix
        rcr_dir=0.1,  # p(recruit directly)
        s_SB=0.8,  # p(survive in seedbank additional year)
        sdd_max=5,  # max SDD distance in cells
-       sdd_rate=1,  # SDD dispersal rate
+       sdd_rate=.1,  # SDD dispersal rate
        bird_hab=rep(1,5)  # bird habitat preferences among LC types
 )
 p$NDD_n <- p$n0/3  # mean number of recruits if NDD

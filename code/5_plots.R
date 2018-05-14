@@ -62,6 +62,30 @@ ggplot(out, aes(x=lon, y=lat, fill=log(D.f))) +
   scale_fill_gradient(low="white", high="red") +
   theme(axis.text=element_blank())
 
+out.sum <- out %>% group_by(SDM, issue, outcome) %>%
+  summarise(ct=n()) %>%
+  mutate(rate=case_when(outcome=="S:0 P:0" ~ ct/sum(lam.df$Surv.S==0),
+                        outcome=="S:0 P:1" ~ ct/sum(lam.df$Surv.S==0),
+                        outcome=="S:1 P:0" ~ ct/sum(lam.df$Surv.S > 0),
+                        outcome=="S:1 P:1" ~ ct/sum(lam.df$Surv.S > 0)))
+tss.df <- out.sum %>% ungroup %>% group_by(SDM, issue) %>%
+  summarise(TSS=sum(rate[outcome %in% c("S:0 P:0", "S:1 P:1")])-1)
+ggplot(tss.df, aes(x=issue, colour=SDM, y=TSS)) + geom_point()
+
+out %>% filter(outcome == "S:0 P:1") %>% group_by(SDM, issue) %>% 
+  summarise(prop=round(n()/1084, 3)) %>% 
+  ggplot(aes(x=issue, y=prop, colour=SDM)) + geom_point() +
+  ggtitle("Commission Rate") + ylim(0,1) + ylab("Prop P=1 | S=0")
+out %>% filter(outcome == "S:1 P:0") %>%  group_by(SDM, issue) %>% 
+  summarise(prop=round(n()/1354, 3)) %>%
+  ggplot(aes(x=issue, y=prop, colour=SDM)) + geom_point() + 
+  ggtitle("Ommission Rate") + ylim(0, 1) + ylab("Prop P=0 | S=1")
+out %>% filter(outcome %in% c("S:1 P:1", "S:0 P:0")) %>% 
+  group_by(SDM, issue) %>% 
+  summarise(prop=round(n()/2438, 3)) %>% 
+  ggplot(aes(x=issue, y=prop, colour=SDM)) + geom_point() + 
+  ggtitle("TSS") + ylim(0, 1) + ylab("Prop P=S")
+
 ggplot(out_IPM, aes(fill=sign(log(lambda.f))==sign(log(lambda)), x=issue)) + 
   geom_bar(position="fill")
 ggplot(out_IPM, aes(fill=sign(log(lam.U.f))==sign(log(lam.U)), x=issue)) + 
@@ -74,9 +98,7 @@ ggplot(out, aes(x=lon, y=lat, fill=Surv.S.f-Surv.S)) +
 ggplot(out, aes(x=lon, y=lat, fill=(Surv.S.f-Surv.S)/Surv.S)) +
   geom_tile() + facet_grid(SDM~issue) + scale_fill_gradient()
 
-ggplot(out, aes(x=lon, y=lat, fill=outcome)) +
-  geom_tile() + facet_grid(SDM~issue) + scale_fill_brewer(name="", type="div") +
-  theme(axis.text=element_blank())
+
 ggplot(out, aes(x=lon, y=lat, fill=Surv.S.f)) +
   geom_tile() + facet_grid(SDM~issue)
 ggplot(out, aes(x=lon, y=lat)) + facet_grid(SDM~issue) +

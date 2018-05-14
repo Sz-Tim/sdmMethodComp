@@ -14,7 +14,7 @@ sp <- "sp1"
 overwrite <- TRUE
 n_cores <- 4
 issue <- c("none", "noise", "geogBias", "sampBias", 
-           "noSB", "noDisp", "overDisp", "clim", "lc")[8]
+           "noSB", "noDisp", "overDisp", "clim", "lc")[9]
 
 # load workspace
 pkgs <- c("dismo", "gbPopMod", "tidyverse", "magrittr", "MuMIn", "here", "doSNOW")
@@ -47,7 +47,7 @@ v <- m <- n <- list(CA=NULL, IPM=NULL)
 if(modeling.issue=="clim") {
   v$CA <- c("(Intercept)"=0, "temp"=0, "temp2"=0, "prec"=0, "prec2"=0)
 } else if(modeling.issue=="lc") {
-  v$CA <- c("(Intercept)"=0, "pOpn"=0, "pOth"=0, "pDec"=0, "pEvg"=0, "pMxd"=0)
+  v$CA <- c("(Intercept)"=0, "pOpn"=0, "pOth"=0, "pDec"=0)#, "pEvg"=0, "pMxd"=0)
 } else {
   v$CA <- c("(Intercept)"=0, "temp"=0, "temp2"=0, "prec"=0, "prec2"=0, 
             "pOpn"=0, "pOth"=0, "pDec"=0)#, "pEvg"=0, "pMxd"=0)
@@ -63,7 +63,7 @@ if(modeling.issue=="clim") {
              "temp"=0, "temp2"=0, "prec"=0, "prec2"=0)
 } else if(modeling.issue=="lc") {
   v$IPM <- c("(Intercept)"=0, "size"=0, "size2"=0, 
-             "pOpn"=0, "pOth"=0, "pDec"=0, "pEvg"=0, "pMxd"=0)
+             "pOpn"=0, "pOth"=0, "pDec"=0)#, "pEvg"=0, "pMxd"=0)
 } else {
   v$IPM <- c("(Intercept)"=0, "size"=0, "size2"=0,# "size3"=0, 
              "temp"=0, "temp2"=0, "prec"=0, "prec2"=0, 
