@@ -16,8 +16,8 @@ source("code/fn_IPM.R"); source("code/fn_aux.R"); source("code/fn_sim.R")
 ## Landscape
 The landscape characteristics are aggregated here. It is a gridded landscape with climate and LULC data.
 ```{r landscape}
-x_max <- 100
-y_max <- 100
+x_max <- 20
+y_max <- 20
 
 lc.df <- read_csv("data/landcover_5km.csv") %>% 
   filter(!is.na(bio1_mean)) %>%
@@ -38,15 +38,16 @@ env.rct <- as.tibble(expand.grid(x=1:max(lc.df$x),
          pEvg=lc.df$nlcd4_mean[match(.$x_y, lc.df$x_y)],
          pMxd=lc.df$nlcd5_mean[match(.$x_y, lc.df$x_y)],
          inbd=!is.na(match(.$x_y, lc.df$x_y)),
-         id=row_number(), 
-         id.inbd=min_rank(na_if(inbd*id, 0)),
          lat=lc.df$top[match(.$x_y, lc.df$x_y)],
-         lon=lc.df$left[match(.$x_y, lc.df$x_y)])
+         lon=lc.df$left[match(.$x_y, lc.df$x_y)]) %>%
+  filter(y >= (max(.$y) - y_max) & x <= x_max) %>%
+  mutate(id=row_number(), 
+         id.inbd=min_rank(na_if(inbd*id, 0)))
 env.rct[is.na(env.rct)] <- 0
 env.df <- filter(env.rct, inbd) %>% select(4:12, 1:3, 13:17) %>%
   mutate(pOpn=c(scale(pOpn)), pOth=c(scale(pOth)), pDec=c(scale(pDec)),
          pEvg=c(scale(pEvg)), pMxd=c(scale(pMxd)))
-rm(env.rct)
+n.cell <- sum(env.rct$inbd)
 ```
 
 # Exploration of options for the simulation component
@@ -61,8 +62,6 @@ nPlots <- 5
 z.rng <- c(1, 12)
 n <- 20  # ncells in IPM matrix
 tmax <- 10
-cells <- n_distinct(lc.df$CellID)
-n.cell <- length(cells)
 sp_i <- list(p=list(s_z=c(-8, 2.1, -.09), # b1 + b2*z + b3*z^2
                     s_x=c(2, -.1, -2, -.1, 2, -2, -.4), # b1*x1 + ...
                     g_z=c(.2, 2, -0.1), # b1 + b2*z + b3*z^2
@@ -255,30 +254,37 @@ image.plot(x, x, sens(t(apply(U$IPMs, 1:2, mean))), main="Sensitivity: mean",
 image.plot(x, x, elas(t(apply(U$IPMs, 1:2, mean))), main="Elasticity: mean",
            xlab="Size (t)", ylab="Size (t+1)")
 points(sizeNext~size, data=S_d, col=pt.col, pch=20)
-
 ```
 
 ----
 
+# Exploration of options for the sampling component
+
+```{r loadSpecies}
+env.in <- readRDS("out/sp1_env_in.rds")
+n.cell <- nrow(env.in)
+p <- readRDS("out/sp1_p.rds")
+sdd.pr <- readRDS("out/sp1_sdd.rds")
+U <- readRDS("out/sp1_U.rds")
+S <- readRDS("out/sp1_S.rds")
+lam.df <- readRDS("out/sp1_lam_df.rds")
+```
+
+
 ## Observed datasets
 The simulated species *S* is sampled appropriately in order to fit each SDM model. The observed datasets,*O*, may be random or intentionally biased to mimic common issues with empirical data. The realized simulated data generated above (`d` and its abundance summary `N_sim`) are the underlying true distribution. The samples will be drawn from occupied cells in the final time steps where the species is approximately at equilibrium.
 ```{r O_setup}
-O_n <- list(Mx=500, CA=20, IPM=20) # number of cells in sample
-O_yr <- list(Mx=tmax, CA=(tmax-10):tmax, IPM=tmax) # years to sample from
+O_n <- list(Corr=100, Mech=20) # number of cells in sample
+O_yr <- list(Mx=p$tmax, CA=(p$tmax-10):p$tmax, IPM=p$tmax) # years to sample from
 P.i <- which(lam.df$Surv.S > 0) # presences: surviving individuals > seedlings
+Mech.sample <- sample(P.i, O_n$Mech, replace=FALSE)
+Corr.sample <- sample(P.i, O_n$Corr, replace=FALSE)
 n_sim <- 15
 ```
 
 ### Correlative: MaxEnt
 ```{r O_Mx}
-library(dismo)
-Mx.P <- sample(P.i, O_n$Mx, replace=F)
-pres <- 1:nrow(lam.df) %in% Mx.P
-Mx.out <- maxent(x=lam.df[,c(1,3,5:9)], p=pres)
-lam.df$MxPred <- 1:nrow(lam.df) %in% row.names(Mx.out@presence)
-lam.df$MxCorrect <- with(lam.df, (MxPred==1 & lambda > 1) |
-                           (MxPred==0 & lambda < 1))
-ggplot(lam.df, aes(x=lon, y=lat, fill=MxCorrect)) + geom_tile()
+pres <- 1:nrow(lam.df) %in% Corr.sample
 ```
 ### Mechanistic: CA
 ```{r O_CA}
@@ -286,13 +292,12 @@ ggplot(lam.df, aes(x=lon, y=lat, fill=MxCorrect)) + geom_tile()
 ```
 ### Mechanistic: IPM
 ```{r O_IPM}
-IPM.P <- sample(P.i, O_n$IPM, replace=FALSE)
-IPM.d <- vector("list", O_n$IPM)
+IPM.d <- vector("list", O_n$Mech)
 # sample individuals from each cell rather than full census -- proportion?
-for(i in IPM.P) {
+for(i in Mech.sample) {
   IPM.d[[i]] <- data.frame(S$d[[i]]) %>% filter(yr %in% O_yr$IPM) %>%
     add_column(id.inbd=i) %>%
-    full_join(env.df[i,], by="id.inbd")
+    full_join(env.in[i,], by="id.inbd")
 }
 IPM.d <- do.call(rbind, IPM.d)
 p.ipm <- p
@@ -300,11 +305,17 @@ p.ipm <- p
 
 ---
 
+# Exploration of options for the fitting component
+
 ## Fitting the models
 Each observed dataset *O* is used to predict the distribution of species *S*. The predicted distribution *P* is compared to the known truth *S* to assess the predictive accuracy of each modeling approach, given any limitations, uncertainty, or bias imposed in *O*. 
 ### Correlative: MaxEnt
 ```{r P_Mx}
-
+Mx.out <- maxent(x=lam.df[,c(1,3,5:9)], p=pres)
+lam.df$MxPred <- 1:nrow(lam.df) %in% row.names(Mx.out@presence)
+lam.df$MxCorrect <- with(lam.df, (MxPred==1 & lambda > 1) |
+                           (MxPred==0 & lambda < 1))
+ggplot(lam.df, aes(x=lon, y=lat, fill=MxCorrect)) + geom_tile()
 ```
 ### Mechanistic: CA
 ```{r P_CA}
@@ -526,6 +537,9 @@ image.plot(x, x, elas(t(apply(U.f$IPMs, 1:2, mean))), main="Elasticity: mean",
            xlab="Size (t)", ylab="Size (t+1)")
 points(sizeNext~size, data=S_d, col=pt.col, pch=20)
 
+########
+## comparison with truth
+########
 IPM.fit.sum <- lam.df %>% 
   summarise(mnLamDiff=mean(lambda.f-lambda),
             mdLamDiff=median(lambda.f-lambda),
