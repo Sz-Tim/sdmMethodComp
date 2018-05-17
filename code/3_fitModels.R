@@ -12,14 +12,18 @@
 # file specifications
 sp <- "sp1"
 overwrite <- TRUE
-n_cores <- 4
-issue <- c("none", "noise", "geogBias", "sampBias", 
-           "noSB", "noDisp", "overDisp", "clim", "lc")[9]
+n_core_iss <- 2  # number of issues to run in parallel
+n_core_sim <- 2  # number of simulations to run in parallel for each issue
+n_sim <- 2 # number of simulations per sample (mechanistic only)
+vars <- c("(Intercept)"=0, 
+          "temp"=0, "temp2"=0, "prec"=0, "prec2"=0, 
+          "pOpn"=0, "pOth"=0, "pDec"=0, #"pEvg"=0, "pMxd"=0,
+          "size"=0, "size2"=0)#, "size3"=0)
 
 # load workspace
 pkgs <- c("dismo", "gbPopMod", "tidyverse", "magrittr", "MuMIn", "here", "doSNOW")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
-walk(paste0("code/fn_", c("aux", "sim", "IPM", "issues"), ".R"), ~source(here(.)))
+walk(paste0("code/fn_", c("aux", "sim", "IPM", "fit"), ".R"), ~source(here(.)))
 p <- readRDS(here(paste0("out/", sp, "_p.rds")))
 N_init <- readRDS(here(paste0("out/", sp, "_N_init.rds")))
 S <- readRDS(here(paste0("out/", sp, "_S.rds")))
