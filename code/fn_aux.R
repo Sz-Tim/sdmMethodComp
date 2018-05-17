@@ -140,20 +140,20 @@ summarize_CA_samples <- function(CA.f, in.id) {
              CA_lam.N=map(CA.f, ~.$CA_lam.N),
              CA_lam.lam=map(CA.f, ~.$CA_lam.lam)) %>%
     map(simplify2array)
-  return(list(prP=apply(Sa$P[in.id,,,], 1:2, mean),
-              prP.sd=apply(apply(Sa$P[in.id,,,], c(1,2,4), mean), 1:2, sd),
-              B.mn=apply(Sa$B[in.id,,,], 1:2, mean),
-              nSd.mn=apply(Sa$nSd[in.id,,,], 1:2, mean),
-              nSdStay.mn=apply(Sa$nSdStay[in.id,,,], 1:2, mean),
-              D.mn=apply(Sa$D[in.id,,,], 1:2, mean),
-              N_tot.mn=apply(Sa$N_tot[in.id,,,], 1:2, mean),
-              N_ad.mn=apply(Sa$N_ad[in.id,,,], 1:2, mean),
-              N_rcr.mn=apply(Sa$N_rcr[in.id,,,], 1:2, mean),
-              CA_lam.N=apply(Sa$CA_lam.N[in.id,,,], 1:2, mean),
-              CA_lam.prP=apply(Sa$CA_lam.P[in.id,,,], 1:2, mean),
-              CA_lam.prP.sd=apply(apply(Sa$CA_lam.P[in.id,,,], c(1,2,4), mean), 
+  return(list(prP=apply(Sa$P[in.id,,,], 1:2, mean, na.rm=T),
+              prP.sd=apply(apply(Sa$P[in.id,,,], c(1,2,4), mean, na.rm=T), 1:2, sd),
+              B.mn=apply(Sa$B[in.id,,,], 1:2, mean, na.rm=T),
+              nSd.mn=apply(Sa$nSd[in.id,,,], 1:2, mean, na.rm=T),
+              nSdStay.mn=apply(Sa$nSdStay[in.id,,,], 1:2, mean, na.rm=T),
+              D.mn=apply(Sa$D[in.id,,,], 1:2, mean, na.rm=T),
+              N_tot.mn=apply(Sa$N_tot[in.id,,,], 1:2, mean, na.rm=T),
+              N_ad.mn=apply(Sa$N_ad[in.id,,,], 1:2, mean, na.rm=T),
+              N_rcr.mn=apply(Sa$N_rcr[in.id,,,], 1:2, mean, na.rm=T),
+              CA_lam.N=apply(Sa$CA_lam.N[in.id,,,], 1:2, mean, na.rm=T),
+              CA_lam.prP=apply(Sa$CA_lam.P[in.id,,,], 1:2, mean, na.rm=T),
+              CA_lam.prP.sd=apply(apply(Sa$CA_lam.P[in.id,,,], c(1,2,4), mean, na.rm=T), 
                                 1:2, sd),
-              CA_lam.lam=apply(Sa$CA_lam.lam[in.id,,,], 1, mean)))
+              CA_lam.lam=apply(Sa$CA_lam.lam[in.id,,,], 1, mean, na.rm=T)))
 }
 
 
