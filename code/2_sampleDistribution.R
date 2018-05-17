@@ -18,7 +18,7 @@ sampling.issue <- c("none", "noise", "geogBias", "sampBias")[4]
 # load workspace
 pkgs <- c("tidyverse", "magrittr", "here")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
-walk(paste0("code/fn_", c("aux", "sim", "IPM", "issues"), ".R"), ~source(here(.)))
+walk(paste0("code/fn_", c("aux", "sim", "IPM", "fit"), ".R"), ~source(here(.)))
 env.in <- readRDS(here(paste0("out/", sp, "_env_in.rds")))
 p <- readRDS(here(paste0("out/", sp, "_p.rds")))
 S <- readRDS(here(paste0("out/", sp, "_S.rds")))
@@ -30,13 +30,13 @@ n.cell <- nrow(env.in)
 ########
 ## Set sampling details
 ########
-n_samp <- 3  # number of unique samples to average across
-O_n <- list(Corr=100, Mech=25)  # number of cells in sample
+n_samp <- 2  # number of unique samples to average across
+O_n <- list(Corr=200, Mech=35)  # number of cells in sample
 O_yr <- list(Mx=p$tmax, CA=(-1:0)+p$tmax, IPM=p$tmax)  # years to sample
-P.i <- which(lam.df$Surv.S > 5)  # presences: survival past recruit stage
+P.i <- which(lam.df$Surv.S > 10)  # presences: survival past recruit stage
 P.pr <- rep(1, length(P.i))  # pr(sample cell | presence)
 prop.sampled <- 1  # proportion of individuals sampled per sampled cell 
-geog.excl <- which(env.in$y < 30)
+geog.excl <- which(env.in$x > 30)
 noise <- list(Mx=0.2, # proportion of observed presences that are false
               CA=list(N=0.02,  # N.obs = rnorm(N.true, N.true*N)
                       fec=0.05),  # fec.obs = rnorm(fec.true, fec.true*fec)
@@ -58,7 +58,6 @@ if(sampling.issue=="geogBias") {
 ########
 ## Draw samples
 ########
-set.seed(11)
 Corr.sample <- map(1:n_samp, ~sample(P.i, O_n$Corr, replace=F, prob=P.pr))
 Mech.sample <- map(1:n_samp, ~sample(P.i, O_n$Mech, replace=F, prob=P.pr))
 
