@@ -17,9 +17,9 @@ walk(paste0("code/fn_", c("IPM", "aux", "sim"), ".R"), ~source(here(.)))
 out <- read.csv(here(paste0("out/", sp, "_out.csv")))
 out$issue <- factor(out$issue, 
                     levels=c("none", "noise", "geogBias", "sampBias",
-                             "noSB", "noDisp", "overDisp", "clim", "lc"),
+                             "noSB", "underDisp", "overDisp", "clim", "lc"),
                     labels=c("None", "Measurement error", "Geographic bias", 
-                             "Sampling bias", "No Seedbank", "No dispersal",
+                             "Sampling bias", "No Seedbank", "Under dispersal",
                              "Over dispersal", "Climate Only", "LC only"))
 
 par(mfrow=c(3,3))
@@ -70,26 +70,22 @@ out.sum <- out %>% group_by(SDM, issue, outcome) %>%
                         outcome=="S:1 P:1" ~ ct/sum(lam.df$Surv.S > 0)))
 tss.df <- out.sum %>% ungroup %>% group_by(SDM, issue) %>%
   summarise(TSS=sum(rate[outcome %in% c("S:0 P:0", "S:1 P:1")])-1)
-ggplot(tss.df, aes(x=issue, colour=SDM, y=TSS)) + geom_point()
+ggplot(tss.df, aes(x=issue, colour=SDM, y=TSS)) + geom_point(size=3)
 
 out %>% filter(outcome == "S:0 P:1") %>% group_by(SDM, issue) %>% 
   summarise(prop=round(n()/1084, 3)) %>% 
-  ggplot(aes(x=issue, y=prop, colour=SDM)) + geom_point() +
+  ggplot(aes(x=issue, y=prop, colour=SDM)) + geom_point(size=3) +
   ggtitle("Commission Rate") + ylim(0,1) + ylab("Prop P=1 | S=0")
 out %>% filter(outcome == "S:1 P:0") %>%  group_by(SDM, issue) %>% 
   summarise(prop=round(n()/1354, 3)) %>%
-  ggplot(aes(x=issue, y=prop, colour=SDM)) + geom_point() + 
+  ggplot(aes(x=issue, y=prop, colour=SDM)) + geom_point(size=3) + 
   ggtitle("Ommission Rate") + ylim(0, 1) + ylab("Prop P=0 | S=1")
 out %>% filter(outcome %in% c("S:1 P:1", "S:0 P:0")) %>% 
   group_by(SDM, issue) %>% 
   summarise(prop=round(n()/2438, 3)) %>% 
-  ggplot(aes(x=issue, y=prop, colour=SDM)) + geom_point() + 
+  ggplot(aes(x=issue, y=prop, colour=SDM)) + geom_point(size=3) + 
   ggtitle("TSS") + ylim(0, 1) + ylab("Prop P=S")
 
-ggplot(out_IPM, aes(fill=sign(log(lambda.f))==sign(log(lambda)), x=issue)) + 
-  geom_bar(position="fill")
-ggplot(out_IPM, aes(fill=sign(log(lam.U.f))==sign(log(lam.U)), x=issue)) + 
-  geom_bar(position="fill")
 ggplot(out, aes(fill=sign(log(lam.S.f))==sign(log(lam.S)), x=SDM)) + 
   geom_bar(position="fill") + facet_wrap(~issue)
 
@@ -123,8 +119,15 @@ ggplot(out_IPM, aes(x=lon, y=lat, fill=sign(log(lambda.f))==sign(log(lambda)))) 
 ggplot(out_IPM, aes(x=lon, y=lat, fill=N.U.f-N.U)) +
   geom_tile() + facet_wrap(~issue) + scale_fill_gradient2()
 
-ggplot(out_IPM, aes(x=lon, y=lat, fill=lam.U.f-lam.U)) +
-  geom_tile() + facet_wrap(~issue) + scale_fill_gradient2()
+ggplot(filter(out, SDM=="IPM"), aes(x=lon, y=lat, fill=lambda.f-lambda)) +
+  geom_tile() + facet_wrap(~issue) + 
+  scale_fill_gradient2(low="blue", high="red")
+ggplot(filter(out, SDM=="IPM"), aes(x=lon, y=lat, fill=lambda.f)) +
+  geom_tile() + facet_wrap(~issue) + 
+  scale_fill_gradient2(low="blue", high="red", midpoint=1, limits=c(0,2))
+ggplot(filter(out, SDM=="IPM"), aes(x=lon, y=lat, fill=lambda)) +
+  geom_tile() + facet_wrap(~issue) + 
+  scale_fill_gradient2(low="blue", high="red", midpoint=1, limits=c(0,2))
 
 ggplot(out, aes(x=lon, y=lat, fill=D.f-D)) +
   geom_tile() + facet_grid(SDM~issue) + scale_fill_gradient2()
