@@ -12,9 +12,9 @@
 # file specifications
 sp <- "sp1"
 overwrite <- TRUE
-n_core_iss <- 2  # number of issues to run in parallel
-n_core_sim <- 2  # number of simulations to run in parallel for each issue
-n_sim <- 2 # number of simulations per sample (mechanistic only)
+n_core_iss <- 3  # number of issues to run in parallel
+n_core_sim <- 8  # number of simulations to run in parallel for each issue
+n_sim <- 16 # number of simulations per sample (mechanistic only)
 vars <- c("(Intercept)"=0, 
           "temp"=0, "temp2"=0, "prec"=0, "prec2"=0, 
           "pOpn"=0, "pOth"=0, "pDec"=0, #"pEvg"=0, "pMxd"=0,
@@ -62,19 +62,23 @@ foreach(i=seq_along(issue_i$Issue)) %dopar% {
   n$IPM$x <- rep(list(length(v.i)), 4)
   names(n$IPM$z) <- names(n$IPM$x) <- c("s", "g", "fl", "seed")
   
-  # fit models
+  # fit MaxEnt
   P_Mx <- fit_Mx(sp, samp_iss, lam.df, vars, v.i)
+  if(overwrite) {
+    saveRDS(P_Mx, here(paste0("out/", sp, "_P_Mx_", issue, ".rds")))
+  }
+  # fit CA-demographic, CA-lambda
   P_CA <- fit_CA(sp, samp_iss, mod_iss, p, env.rct, env.rct.unsc, lam.df, vars, 
                  v.i, v$CA, m$CA, N_init, sdd.pr, n.cell, n.grid, n_sim, n_core_sim)
+  if(overwrite) {
+    saveRDS(P_CA$P_CAd, here(paste0("out/", sp, "_P_CAd_", issue, ".rds")))
+    saveRDS(P_CA$P_CAl, here(paste0("out/", sp, "_P_CAl_", issue, ".rds")))
+  }
+  # fit IPM
   P_IPM <- fit_IPM(sp, samp_iss, mod_iss, p, env.rct.unsc, lam.df, vars, v.i, 
                    v$IPM, m$IPM, n$IPM$x, n$IPM$z, N_init, sdd.pr, n.cell, 
                    n_sim, n_core_sim)
-  
-  # store output
   if(overwrite) {
-    saveRDS(P_Mx, here(paste0("out/", sp, "_P_Mx_", issue, ".rds")))
-    saveRDS(P_CA$P_CAd, here(paste0("out/", sp, "_P_CAd_", issue, ".rds")))
-    saveRDS(P_CA$P_CAl, here(paste0("out/", sp, "_P_CAl_", issue, ".rds")))
     saveRDS(P_IPM, here(paste0("out/", sp, "_P_IPM_", issue, ".rds")))
   }
 }
