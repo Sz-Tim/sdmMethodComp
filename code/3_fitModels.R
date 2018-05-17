@@ -21,6 +21,7 @@ pkgs <- c("dismo", "gbPopMod", "tidyverse", "magrittr", "MuMIn", "here", "doSNOW
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
 walk(paste0("code/fn_", c("aux", "sim", "IPM", "issues"), ".R"), ~source(here(.)))
 p <- readRDS(here(paste0("out/", sp, "_p.rds")))
+N_init <- readRDS(here(paste0("out/", sp, "_N_init.rds")))
 S <- readRDS(here(paste0("out/", sp, "_S.rds")))
 U <- readRDS(here(paste0("out/", sp, "_U.rds")))
 sdd.pr <- readRDS(here(paste0("out/", sp, "_sdd.rds")))

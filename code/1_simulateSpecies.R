@@ -21,8 +21,8 @@ suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
 walk(paste0("code/fn_", c("IPM", "aux", "sim"), ".R"), ~source(here(.)))
 
 L <- build_landscape(f=here(env.f), 
-                     x_max=55, # ncol in landscape; Inf for full dataset
-                     y_max=55) # nrow in landscape; Inf for full dataset
+                     x_max=Inf, # ncol in landscape; Inf for full dataset
+                     y_max=Inf) # nrow in landscape; Inf for full dataset
 n.cell <- sum(L$env.rct$inbd)
 
 
@@ -30,8 +30,9 @@ n.cell <- sum(L$env.rct$inbd)
 ## Set species traits
 ########
 p=list(n=30,  # ncells in IPM matrix
-       tmax=20,  # time steps for NDD & simulations
+       tmax=30,  # time steps for NDD & simulations
        n0=100,  # initial pop sizes
+       prop_init=0.2,  # proportion of cells with initial populations
        z.rng=c(1,12),  # initial size range
        s_z=c(-8, 2.1, -.09),  # b1 + b2*z + b3*z^2
        s_x=c(3, -.1, -2, -.1, 2, -2, -.4),  # b1*x1 + ...
@@ -49,8 +50,8 @@ p=list(n=30,  # ncells in IPM matrix
        rcr_dir=0.1,  # p(recruit directly)
        s_SB=0.8,  # p(survive in seedbank additional year)
        sdd_max=5,  # max SDD distance in cells
-       sdd_rate=.1,  # SDD dispersal rate
-       bird_hab=rep(1,5)  # bird habitat preferences among LC types
+       sdd_rate=1,  # SDD dispersal rate
+       bird_hab=c(1,1,1,1,1)  # bird habitat preferences among LC types
 )
 p$NDD_n <- p$n0/3  # mean number of recruits if NDD
 p$p_emig <- pexp(0.5, p$sdd_rate, lower.tail=F) # p(seed emigrants)
@@ -76,12 +77,17 @@ sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=L$env.rct.unscaled, lc.col=8:12,
 ########
 ## Generate underlying IPM and simulated data
 ########
-# Truth: use assigned slopes to fill IPM matrix
-U <- fill_IPM_matrices(n.cell, buffer=0.75, discrete=1, p, n_z, n_x, 
-                       X, sdd.pr, L$env.in$id)
+# Initial populations
+N_init <- rep(0, n.cell)
+N_init[sample.int(n.cell, p$prop_init*n.cell, replace=F)] <- p$n0
+N_init[arrange(lam.df, desc(Surv.S))$id.inbd[1:(p$prop_init*n.cell)]] <- p$n0
 
-# Realization: generate simulated data
-S <- simulate_data(n.cell, U$lo, U$hi, p, X, n_z, sdd.pr, U$sdd.j)
+# Use assigned slopes to fill IPM matrix
+U <- fill_IPM_matrices(n.cell, buffer=0.75, discrete=1, p, n_z, n_x, 
+                       X, sdd.pr, L$env.in$id, N_init)
+
+# Ground Truth: generate simulated data
+S <- simulate_data(n.cell, U$lo, U$hi, p, X, n_z, sdd.pr, U$sdd.j, N_init)
 
 # Aggregate results
 lam.df <- L$env.in %>%
@@ -118,6 +124,7 @@ if(overwrite) {
   saveRDS(L$env.rct.unscaled, here(paste0("out/", sp, "_env_rct_unscaled.rds")))
   saveRDS(L$env.in, here(paste0("out/", sp, "_env_in.rds")))
   saveRDS(p, here(paste0("out/", sp, "_p.rds")))
+  saveRDS(N_init, here(paste0("out/", sp, "_N_init.rds")))
   saveRDS(sdd.pr, here(paste0("out/", sp, "_sdd.rds")))
   saveRDS(U, here(paste0("out/", sp, "_U.rds")))
   saveRDS(S, here(paste0("out/", sp, "_S.rds")))

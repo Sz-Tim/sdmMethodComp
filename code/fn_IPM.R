@@ -163,7 +163,7 @@ fill_F <- function(h, y, z.i, p, n_z, n_x, X_fl, X_seed) {
 
 ##-- Fill all IPM objects
 fill_IPM_matrices <- function(n.cell, buffer, discrete, p, n_z, n_x, 
-                              X, sdd, sdd.i, lam.final=T, verbose=FALSE) {
+                              X, sdd, sdd.i, N_init, lam.final=T, verbose=F) {
   library(tidyverse)
   i <- 1:n.cell
   
@@ -201,7 +201,7 @@ fill_IPM_matrices <- function(n.cell, buffer, discrete, p, n_z, n_x,
   }
   if(verbose) cat("Finished dispersal \n")
   if(p$NDD) {
-    Nt[,,1] <- rpois((p$n+1)*n.cell, p$n0/(p$n+1))
+    Nt[,,1] <- sapply(i, function(x) rpois(p$n+1, N_init[x]/(p$n+1)))
     Ft <- Fs/p$p_est  # Fs was already multiplied by p$p_est
     for(k in 1:p$tmax) {
       p_est.t[,k] <- pmin(vapply(i, function(x) p$NDD_n/

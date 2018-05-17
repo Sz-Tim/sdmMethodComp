@@ -66,7 +66,7 @@ sim_seedbank <- function(nSd_ik, B_ik, D_ik, p) {
 
 
 ##--- simulate full dataset
-simulate_data <- function(n.cell, lo, hi, p, X, n_z, sdd, sdd.j, verbose=F) {
+simulate_data <- function(n.cell, lo, hi, p, X, n_z, sdd, sdd.j, N_init, verbose=F) {
   library(tidyverse)
   i <- 1:n.cell
   
@@ -75,7 +75,7 @@ simulate_data <- function(n.cell, lo, hi, p, X, n_z, sdd, sdd.j, verbose=F) {
   B <- cbind(rpois(n.cell, p$n0), matrix(0, nrow=n.cell, ncol=p$tmax))
   nSd <- D <- N_sim <- matrix(0, nrow=n.cell, ncol=p$tmax)
   p_est.i <- matrix(p$p_est, nrow=n.cell, ncol=p$tmax)
-  z.k <- map(i, ~runif(p$n0, p$z.rng[1], p$z.rng[2]))
+  z.k <- map(i, ~runif(N_init[.], p$z.rng[1], p$z.rng[2]))
   X_map <- lapply(i, function(x) map(X, ~.[x,]))
   
   for(k in 1:p$tmax) {
