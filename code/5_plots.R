@@ -39,6 +39,9 @@ ggplot(out, aes(fill=outcome, x=SDM)) + geom_bar(position="fill") +
 ggplot(out, aes(fill=outcome, x=issue)) + geom_bar(position="fill") + 
   facet_wrap(~SDM) + scale_fill_brewer(name="", type="div") + 
   ylab("Proportion of cells")
+ggplot(out, aes(x=lon, y=lat, fill=outcome)) +
+  geom_tile() + facet_grid(SDM~issue) + scale_fill_brewer(name="", type="div") +
+  theme(axis.text=element_blank())
 ggplot(out, aes(x=lon, y=lat, fill=prP)) +
   geom_tile() + facet_grid(SDM~issue) + 
   scale_fill_gradient(low="white", high="red") +
@@ -49,9 +52,6 @@ ggplot(out, aes(x=lon, y=lat, fill=prP.sd)) +
   theme(axis.text=element_blank())
 ggplot(out, aes(x=lon, y=lat, fill=prP>0.5)) +
   geom_tile() + facet_grid(SDM~issue) + 
-  theme(axis.text=element_blank())
-ggplot(out, aes(x=lon, y=lat, fill=outcome)) +
-  geom_tile() + facet_grid(SDM~issue) + scale_fill_brewer(name="", type="div") +
   theme(axis.text=element_blank())
 ggplot(out, aes(x=lon, y=lat, fill=log(Btmax.f))) +
   geom_tile() + facet_grid(SDM~issue) + 
@@ -70,7 +70,7 @@ out.sum <- out %>% group_by(SDM, issue, outcome) %>%
                         outcome=="S:1 P:1" ~ ct/sum(lam.df$Surv.S > 0)))
 tss.df <- out.sum %>% ungroup %>% group_by(SDM, issue) %>%
   summarise(TSS=sum(rate[outcome %in% c("S:0 P:0", "S:1 P:1")])-1)
-ggplot(tss.df, aes(x=issue, colour=SDM, y=TSS)) + geom_point(size=3)
+ggplot(tss.df, aes(x=issue, colour=SDM, y=TSS, group=SDM)) + geom_point(size=3) + geom_line()
 
 out %>% filter(outcome == "S:0 P:1") %>% group_by(SDM, issue) %>% 
   summarise(prop=round(n()/1084, 3)) %>% 
@@ -113,7 +113,7 @@ ggplot(out, aes(x=lon, y=lat, fill=log(Surv.S.f))) + geom_tile() +
 ggplot(out, aes(x=lon, y=lat, fill=sign(log(lam.S.f+.001))==sign(log(lam.S)))) +
   geom_tile() + facet_grid(SDM~issue)
 
-ggplot(out_IPM, aes(x=lon, y=lat, fill=sign(log(lambda.f))==sign(log(lambda)))) +
+ggplot(filter(out, SDM=="IPM"), aes(x=lon, y=lat, fill=sign(log(lambda.f))==sign(log(lambda)))) +
   geom_tile() + facet_wrap(~issue)
 
 ggplot(out_IPM, aes(x=lon, y=lat, fill=N.U.f-N.U)) +
