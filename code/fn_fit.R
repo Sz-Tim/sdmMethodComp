@@ -339,14 +339,14 @@ fit_IPM <- function(sp, sampling.issue, modeling.issue, p, env.rct.unsc,
     # impose issues
     if(modeling.issue=="noSB") p.IPM$s_SB <- 0
     if(modeling.issue=="underDisp") {
-      p.IPM <- add_misDisperse(p.IPM, p, sdd_max_adj=-3, sdd_rate_adj=10, ldd=1)
+      p.IPM <- add_misDisperse(p.IPM, p, sdd_max_adj=-2, sdd_rate_adj=10, ldd=1)
       sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=env.rct.unsc, lc.col=8:12,
                               g.p=list(sdd.max=p.IPM$sdd.max, 
                                        sdd.rate=p.IPM$sdd.rate, 
                                        bird.hab=p$bird_hab))
     }
     if(modeling.issue=="overDisp") {
-      p.IPM <- add_misDisperse(p.IPM, p, sdd_max_adj=3, sdd_rate_adj=.1, ldd=5)
+      p.IPM <- add_misDisperse(p.IPM, p, sdd_max_adj=2, sdd_rate_adj=.1, ldd=5)
       sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=env.rct.unsc, lc.col=8:12,
                               g.p=list(sdd.max=p.IPM$sdd.max, 
                                        sdd.rate=p.IPM$sdd.rate, 
