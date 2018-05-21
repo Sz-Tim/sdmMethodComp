@@ -22,7 +22,7 @@ walk(paste0("code/fn_", c("IPM", "aux", "sim"), ".R"), ~source(here(.)))
 
 L <- build_landscape(f=here(env.f), 
                      x_max=Inf, # ncol in landscape; Inf for full dataset
-                     y_max=Inf) # nrow in landscape; Inf for full dataset
+                     y_max=50) # nrow in landscape; Inf for full dataset
 n.cell <- sum(L$env.rct$inbd)
 
 
@@ -32,16 +32,16 @@ n.cell <- sum(L$env.rct$inbd)
 p=list(n=30,  # ncells in IPM matrix
        tmax=30,  # time steps for NDD & simulations
        n0=100,  # initial pop sizes
-       prop_init=0.05,  # proportion of cells with initial populations
+       prop_init=0.01,  # proportion of cells with initial populations
        z.rng=c(1,12),  # initial size range
-       s_z=c(-8, 2.1, -.09),  # b1 + b2*z + b3*z^2
-       s_x=c(3, -.1, -2, -.1, 2, -2, -.4),  # b1*x1 + ...
+       s_z=c(-6, 2.1, -.09),  # b1 + b2*z + b3*z^2
+       s_x=c(3, -.1, -1.5, -.1, 2, -2, -.4),  # b1*x1 + ...
        g_z=c(.2, 2, -0.1),  # b1 + b2*z + b3*z^2
-       g_x=c(2, -.1, 2, -.1, 2, -2),  # b1*x1 + ...
+       g_x=c(3, -.1, 2, -.1, 2, -2),  # b1*x1 + ...
        g_sig=1,  # growth ~ N(E, g_sig)
        fl_z=c(-1.5, .1, .1),  # b1 + b2*z + b3*z^2
        fl_x=c(-2, -.1, -2, -.1, 1, 1),  # b1*x1 + ...
-       seed_z=c(2, 0.5, -.03),  # b1 + b2*z + b2*z^2
+       seed_z=c(3, 0.5, -.03),  # b1 + b2*z + b2*z^2
        seed_x=c(1, -.1, -1, -.1, .2),  # b1*x1 + ...
        rcr_z=c(1.5, 0.4),  # N(mean=rcrt1, sd=rcrt2)
        p_est=0.03,  # p(establishment)
@@ -79,8 +79,9 @@ sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=L$env.rct.unscaled, lc.col=8:12,
 ########
 # Initial populations
 N_init <- rep(0, n.cell)
-N_init[sample.int(n.cell, p$prop_init*n.cell, replace=F)] <- p$n0
-N_init[sample(which(lam.df$Surv.S > 5), p$prop_init*n.cell, replace=F)] <- p$n0
+# N_init[sample.int(n.cell, p$prop_init*n.cell, replace=F)] <- p$n0
+N_init[sample(filter(L$env.in, x>30 & y>30)$id.inbd, 
+              p$prop_init*n.cell, replace=F)] <- p$n0
 
 # Use assigned slopes to fill IPM matrix
 U <- fill_IPM_matrices(n.cell, buffer=0.75, discrete=1, p, n_z, n_x, 
