@@ -21,7 +21,7 @@ f_P <- list.files(here("out"), pattern=paste0(sp, "_P_"), full.names=T)
 i_P <- extract_SDM_details(f_P)
 out <- map2(f_P, i_P, ~readRDS(.x) %>% mutate(SDM=.y[1], issue=.y[2])) %>%
   do.call(bind_rows, .) %>%
-  full_join(select(lam.df, -c(10:15,17)), ., by="id.inbd") %>%
+  full_join(dplyr::select(lam.df, -c(10:15,17)), ., by="id.inbd") %>%
   mutate(outcome=case_when(Surv.S>0 & prP>=0.5 ~ "S:1 P:1",
                            Surv.S==0 & prP>=0.5 ~ "S:0 P:1",
                            Surv.S>0 & prP<0.5 ~ "S:1 P:0",
