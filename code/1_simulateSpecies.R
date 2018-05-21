@@ -32,7 +32,7 @@ n.cell <- sum(L$env.rct$inbd)
 p=list(n=30,  # ncells in IPM matrix
        tmax=30,  # time steps for NDD & simulations
        n0=100,  # initial pop sizes
-       prop_init=0.2,  # proportion of cells with initial populations
+       prop_init=0.05,  # proportion of cells with initial populations
        z.rng=c(1,12),  # initial size range
        s_z=c(-8, 2.1, -.09),  # b1 + b2*z + b3*z^2
        s_x=c(3, -.1, -2, -.1, 2, -2, -.4),  # b1*x1 + ...
@@ -46,9 +46,9 @@ p=list(n=30,  # ncells in IPM matrix
        rcr_z=c(1.5, 0.4),  # N(mean=rcrt1, sd=rcrt2)
        p_est=0.03,  # p(establishment)
        NDD=T,  # negative density dependent p_est
-       rcr_SB=0.8,  # p(recruit from seedbank)
-       rcr_dir=0.1,  # p(recruit directly)
-       s_SB=0.8,  # p(survive in seedbank additional year)
+       rcr_SB=0.5,  # p(recruit from seedbank)
+       rcr_dir=0.5,  # p(recruit directly)
+       s_SB=0.3,  # p(survive in seedbank additional year)
        sdd_max=5,  # max SDD distance in cells
        sdd_rate=1,  # SDD dispersal rate
        bird_hab=c(1,1,1,1,1)  # bird habitat preferences among LC types
@@ -80,7 +80,7 @@ sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=L$env.rct.unscaled, lc.col=8:12,
 # Initial populations
 N_init <- rep(0, n.cell)
 N_init[sample.int(n.cell, p$prop_init*n.cell, replace=F)] <- p$n0
-N_init[arrange(lam.df, desc(Surv.S))$id.inbd[1:(p$prop_init*n.cell)]] <- p$n0
+N_init[sample(which(lam.df$Surv.S > 5), p$prop_init*n.cell, replace=F)] <- p$n0
 
 # Use assigned slopes to fill IPM matrix
 U <- fill_IPM_matrices(n.cell, buffer=0.75, discrete=1, p, n_z, n_x, 
