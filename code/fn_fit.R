@@ -214,14 +214,14 @@ fit_CA <- function(sp, sampling.issue, modeling.issue, p, env.rct, env.rct.unsc,
     # impose issues
     if(modeling.issue=="noSB") p.CA$s.sb <- 0
     if(modeling.issue=="underDisp") {
-      p.CA <- add_misDisperse(p.CA, p, sdd_max_adj=-3, sdd_rate_adj=10, ldd=1)
+      p.CA <- add_misDisperse(p.CA, p, sdd_max_adj=-2, sdd_rate_adj=10, ldd=1)
       sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=env.rct.unsc, lc.col=8:12,
                               g.p=list(sdd.max=p.CA$sdd.max, 
                                        sdd.rate=p.CA$sdd.rate, 
                                        bird.hab=p.CA$bird.hab))
     }
     if(modeling.issue=="overDisp") {
-      p.CA <- add_misDisperse(p.CA, p, sdd_max_adj=3, sdd_rate_adj=.1, ldd=5)
+      p.CA <- add_misDisperse(p.CA, p, sdd_max_adj=2, sdd_rate_adj=.1, ldd=3)
       sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=env.rct.unsc, lc.col=8:12,
                               g.p=list(sdd.max=p.CA$sdd.max, 
                                        sdd.rate=p.CA$sdd.rate, 
