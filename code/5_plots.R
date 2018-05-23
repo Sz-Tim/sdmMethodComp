@@ -70,7 +70,16 @@ out.sum <- out %>% group_by(SDM, issue, outcome) %>%
                         outcome=="S:1 P:1" ~ ct/sum(lam.df$Surv.S > 0)))
 tss.df <- out.sum %>% ungroup %>% group_by(SDM, issue) %>%
   summarise(TSS=sum(rate[outcome %in% c("S:0 P:0", "S:1 P:1")])-1)
-ggplot(tss.df, aes(x=issue, colour=SDM, y=TSS, group=SDM)) + geom_point(size=3) + geom_line()
+ggplot(tss.df, aes(x=issue, colour=SDM, y=TSS, group=SDM)) + 
+  geom_point(size=3) + geom_line() + ylim(0,1)
+
+par(mfrow=c(5,6))
+map(list.files("out", "Diag_Mx", full.names=T), readRDS) %>%
+  walk(~walk(., ~plot(., 'ROC')))
+ggplot(out, aes(x=prP, y=1*(Surv.S>0))) + geom_point(alpha=0.05) + 
+  facet_grid(SDM~issue)
+  
+
 
 out %>% filter(outcome == "S:0 P:1") %>% group_by(SDM, issue) %>% 
   summarise(prop=round(n()/1084, 3)) %>% 
@@ -95,8 +104,7 @@ ggplot(out, aes(x=lon, y=lat, fill=(Surv.S.f-Surv.S)/Surv.S)) +
   geom_tile() + facet_grid(SDM~issue) + scale_fill_gradient()
 
 
-ggplot(out, aes(x=lon, y=lat, fill=Surv.S.f)) +
-  geom_tile() + facet_grid(SDM~issue)
+
 ggplot(out, aes(x=lon, y=lat)) + facet_grid(SDM~issue) +
   geom_tile(aes(fill=Surv.S.f>1)) + 
   scale_fill_manual(values=c(NA, "dodgerblue")) +
@@ -110,24 +118,21 @@ ggplot(out, aes(x=lon, y=lat, fill=log(lam.S.f)>=0)) +
 ggplot(out, aes(x=lon, y=lat, fill=log(Surv.S.f))) + geom_tile() + 
   facet_grid(SDM~issue) + scale_fill_gradient(low="white", high="red")
 
-ggplot(out, aes(x=lon, y=lat, fill=sign(log(lam.S.f+.001))==sign(log(lam.S)))) +
+ggplot(out, aes(x=lon, y=lat, fill=sign(log(lam.S.f))==sign(log(lam.S)))) +
   geom_tile() + facet_grid(SDM~issue)
 
 ggplot(filter(out, SDM=="IPM"), aes(x=lon, y=lat, fill=sign(log(lambda.f))==sign(log(lambda)))) +
   geom_tile() + facet_wrap(~issue)
-
-ggplot(out_IPM, aes(x=lon, y=lat, fill=N.U.f-N.U)) +
-  geom_tile() + facet_wrap(~issue) + scale_fill_gradient2()
 
 ggplot(filter(out, SDM=="IPM"), aes(x=lon, y=lat, fill=lambda.f-lambda)) +
   geom_tile() + facet_wrap(~issue) + 
   scale_fill_gradient2(low="blue", high="red")
 ggplot(filter(out, SDM=="IPM"), aes(x=lon, y=lat, fill=lambda.f)) +
   geom_tile() + facet_wrap(~issue) + 
-  scale_fill_gradient2(low="blue", high="red", midpoint=1, limits=c(0,2))
+  scale_fill_gradient2(low="blue", high="red", midpoint=1, limits=c(0,NA))
 ggplot(filter(out, SDM=="IPM"), aes(x=lon, y=lat, fill=lambda)) +
   geom_tile() + facet_wrap(~issue) + 
-  scale_fill_gradient2(low="blue", high="red", midpoint=1, limits=c(0,2))
+  scale_fill_gradient2(low="blue", high="red", midpoint=1, limits=c(0,4))
 
 ggplot(out, aes(x=lon, y=lat, fill=D.f-D)) +
   geom_tile() + facet_grid(SDM~issue) + scale_fill_gradient2()
@@ -140,9 +145,6 @@ ggplot(out, aes(x=lon, y=lat, fill=nSeed.f-nSeed)) +
 
 ggplot(out, aes(x=lon, y=lat, fill=Rcr.S.f-Rcr.S)) +
   geom_tile() + facet_grid(SDM~issue) + scale_fill_gradient2()
-
-ggplot(out_IPM, aes(x=lon, y=lat, fill=N.S.f-N.S)) +
-  geom_tile() + facet_wrap(~issue) + scale_fill_gradient2()
 
 ggplot(out, aes(x=N.S, y=N.S.f, colour=SDM, group=SDM)) + 
   geom_point(alpha=0.5) + facet_wrap(~issue) +
@@ -157,22 +159,22 @@ ggplot(out, aes(x=Rcr.S, y=Rcr.S.f, colour=SDM, group=SDM)) +
   stat_smooth(se=F, method="loess") + geom_abline(slope=1, size=1)
 ggplot(out, aes(x=Rcr.S.f-Rcr.S, colour=SDM)) + geom_density() + facet_wrap(~issue)
 
-ggplot(out_IPM, aes(x=lambda, y=lambda.f)) + geom_point(alpha=0.5) + 
-  facet_wrap(~issue) +
+ggplot(filter(out, SDM=="IPM"), aes(x=lambda, y=lambda.f)) + 
+  geom_point(alpha=0.5) + facet_wrap(~issue) +
   stat_smooth(se=F, method="loess") + geom_abline(slope=1, size=1)
 
 ggplot(out, aes(x=lam.S, y=lam.S.f)) + geom_point(alpha=0.5) + 
   facet_grid(SDM~issue) +
   stat_smooth(se=F, method="loess") + geom_abline(slope=1, size=1)
 
-ggplot(out_IPM, aes(x=lam.U, y=lam.U.f)) + geom_point(alpha=0.5) + 
+ggplot(filter(out, SDM=="IPM"), aes(x=lam.U, y=lam.U.f)) + 
+  geom_point(alpha=0.5) + facet_wrap(~issue) +
+  stat_smooth(se=F, method="loess") + geom_abline(slope=1, size=1)
+
+ggplot(filter(out, SDM=="IPM"), aes(x=D, y=D.f)) + geom_point(alpha=0.5) + 
   facet_wrap(~issue) +
   stat_smooth(se=F, method="loess") + geom_abline(slope=1, size=1)
 
-ggplot(out_IPM, aes(x=D, y=D.f)) + geom_point(alpha=0.5) + 
-  facet_wrap(~issue) +
-  stat_smooth(se=F, method="loess") + geom_abline(slope=1, size=1)
-
-ggplot(out_IPM, aes(x=nSdStay, y=nSdStay.f)) + geom_point(alpha=0.5) + 
+ggplot(filter(out, SDM=="IPM"), aes(x=nSdStay, y=nSdStay.f)) + geom_point(alpha=0.5) + 
   facet_wrap(~issue) +
   stat_smooth(se=F, method="loess") + geom_abline(slope=1, size=1)
