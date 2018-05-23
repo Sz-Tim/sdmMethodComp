@@ -11,7 +11,7 @@
 ## Setup
 ########
 # file specifications
-sp <- "sp1"
+sp <- "sp2"
 overwrite <- TRUE
 env.f <- "data/landcover_5km.csv"  # file with environmental data
 
@@ -22,7 +22,7 @@ walk(paste0("code/fn_", c("IPM", "aux", "sim"), ".R"), ~source(here(.)))
 
 L <- build_landscape(f=here(env.f), 
                      x_max=Inf, # ncol in landscape; Inf for full dataset
-                     y_max=50) # nrow in landscape; Inf for full dataset
+                     y_max=Inf) # nrow in landscape; Inf for full dataset
 n.cell <- sum(L$env.rct$inbd)
 
 
@@ -31,26 +31,26 @@ n.cell <- sum(L$env.rct$inbd)
 ########
 p=list(n=30,  # ncells in IPM matrix
        tmax=30,  # time steps for NDD & simulations
-       n0=100,  # initial pop sizes
+       n0=200,  # initial pop sizes
        prop_init=0.01,  # proportion of cells with initial populations
        z.rng=c(1,12),  # initial size range
        s_z=c(-6, 2.1, -.09),  # b1 + b2*z + b3*z^2
-       s_x=c(3, -.1, -1.5, -.1, 2, -2, -.4),  # b1*x1 + ...
+       s_x=c(3, -.1, -2, -.1, 2, -2, -.4, -2, -1),  # b1*x1 + ...
        g_z=c(.2, 2, -0.1),  # b1 + b2*z + b3*z^2
-       g_x=c(3, -.1, 2, -.1, 2, -2),  # b1*x1 + ...
+       g_x=c(3, -.1, -1, -.1, 2, -2, -3, -2, -1),  # b1*x1 + ...
        g_sig=1,  # growth ~ N(E, g_sig)
        fl_z=c(-1.5, .1, .1),  # b1 + b2*z + b3*z^2
        fl_x=c(-2, -.1, -2, -.1, 1, 1),  # b1*x1 + ...
        seed_z=c(3, 0.5, -.03),  # b1 + b2*z + b2*z^2
-       seed_x=c(1, -.1, -1, -.1, .2),  # b1*x1 + ...
+       seed_x=c(1, -.1, -1, -.1, .2, .2, -1, -1),  # b1*x1 + ...
        rcr_z=c(1.5, 0.4),  # N(mean=rcrt1, sd=rcrt2)
        p_est=0.03,  # p(establishment)
        NDD=T,  # negative density dependent p_est
        rcr_SB=0.5,  # p(recruit from seedbank)
        rcr_dir=0.5,  # p(recruit directly)
-       s_SB=0.3,  # p(survive in seedbank additional year)
+       s_SB=0.75,  # p(survive in seedbank additional year)
        sdd_max=5,  # max SDD distance in cells
-       sdd_rate=1,  # SDD dispersal rate
+       sdd_rate=.8,  # SDD dispersal rate
        bird_hab=c(1,1,1,1,1)  # bird habitat preferences among LC types
 )
 p$NDD_n <- p$n0/3  # mean number of recruits if NDD
