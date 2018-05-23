@@ -129,23 +129,30 @@ add_misDisperse <- function(p.mod, p, sdd_max_adj=3, sdd_rate_adj=.1, ldd=5) {
 
 ##-- Fit MaxEnt
 ##
-fit_Mx <- function(sp, sampling.issue, lam.df, vars, v.i) {
-  library(dismo); library(here); library(tidyverse)
+fit_Mx <- function(sp, sampling.issue, lam.df, vars, v.i, S_p, S_a) {
+  library(dismo); library(here); library(tidyverse); library(raster)
   # load observations
   O_Mx <- readRDS(here(paste0("out/", sp, "_O_Mx_", sampling.issue, ".rds")))
   X.Mx <- lam.df[,names(lam.df) %in% names(vars)[v.i]]
+  temp.rast <- vector("list", length(v.i))
+  for(vi in seq_along(v.i)) {
+    temp.rast[[vi]] <- rasterFromXYZ(cbind(lam.df[,15:14], X.Mx[,vi]))
+  }
+  rast.Mx <- stack(temp.rast)
   # fit MaxEnt models
   Mx.f <- Mx.p <- vector("list", length(O_Mx))
   for(i in seq_along(O_Mx)) {
-    Mx.f[[i]] <- maxent(x=X.Mx, p=O_Mx[[i]])
-    Mx.p[[i]] <- predict(Mx.f[[i]], X.Mx)
+    Mx.f[[i]] <- maxent(x=rast.Mx, p=as.matrix(lam.df[O_Mx[[i]], 15:14]))
+    Mx.p[[i]] <- predict(Mx.f[[i]], as.data.frame(X.Mx))
   }
   # munge output
-  P_Mx <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>%
+  pred <- lam.df %>% 
+    dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>%
     mutate(prP=apply(simplify2array(Mx.p), 1, mean)) %>%
     mutate(prP.sd=apply(simplify2array(Mx.p), 1, sd),
            Surv.S.f=prP/sum(prP)*sum(lam.df$Surv.S))
-  return(P_Mx)
+  diagnostics <- map(Mx.f, ~evaluate(p=S_p, a=S_a, model=., x=rast.Mx))
+  return(P_Mx=list(pred=pred, diag=diagnostics))
 }
 
 
@@ -163,7 +170,7 @@ fit_CA <- function(sp, sampling.issue, modeling.issue, p, env.rct, env.rct.unsc,
     select(one_of("x", "y", "x_y", "inbd", "id", "id.in", names(vars)[v.i]))
   
   # Fit CA models
-  CA.f <- vector("list", length(O_CA))
+  CA.f <- diagnostics <- vector("list", length(O_CA))
   for(i in 1:length(O_CA)) {
     O_CA.i <- O_CA[[i]]$d %>% filter(yr==p$tmax)
     O_CA.lam <- O_CA[[i]]$d %>% filter(!is.na(lambda))
@@ -252,6 +259,7 @@ fit_CA <- function(sp, sampling.issue, modeling.issue, p, env.rct, env.rct.unsc,
     }
     CA.f[[i]] <- aggregate_CA_simulations(sim.ls, p.CA$tmax, 
                                           max(p.CA$age.f), sim.lam)
+    diagnostics[[i]] <- list(p.CA, vars.ls)
     rm(sim.ls); rm(sim.lam)
     cat("  Finished dataset", i, "\n\n")
   }
@@ -275,9 +283,9 @@ fit_CA <- function(sp, sampling.issue, modeling.issue, p, env.rct, env.rct.unsc,
     mutate(prP=out$CA_lam.prP[,p.CA$tmax+1],
            prP.sd=out$CA_lam.prP.sd[,p.CA$tmax+1],
            Surv.S.f=out$CA_lam.N[,p.CA$tmax+1],
-           lam.S.f=out$CA_lam.lam)
+           lambda.f=out$CA_lam.lam)
   
-  return(list(P_CAd=P_CAd, P_CAl=P_CAl))
+  return(list(P_CAd=P_CAd, P_CAl=P_CAl, diag=diagnostics))
 }
 
 
@@ -295,7 +303,7 @@ fit_IPM <- function(sp, sampling.issue, modeling.issue, p, env.rct.unsc,
   X.IPM <- map(n_x, ~as.matrix(lam.df[,names(lam.df) %in% names(vars)[v.i]]))
   
   # Fit IPM models
-  S.f <- U.f <- vector("list", length(O_IPM))
+  S.f <- U.f <- diagnostics <- vector("list", length(O_IPM))
   for(i in 1:length(O_IPM)) {
     # separate data for MuMIn::dredge()
     O_IPM.i.s <- filter(O_IPM[[i]], !is.na(surv))
@@ -378,6 +386,7 @@ fit_IPM <- function(sp, sampling.issue, modeling.issue, p, env.rct.unsc,
       }
     }
     S.f[[i]] <- aggregate_IPM_simulations(sim.ls, p.IPM$tmax)
+    diagnostics[[i]] <- vars.ls
     rm(sim.ls)
     cat("  Finished dataset", i, "\n\n")
   }
@@ -402,7 +411,7 @@ fit_IPM <- function(sp, sampling.issue, modeling.issue, p, env.rct.unsc,
            N.U.f=apply(out$Uf$Nt.mn[,,p.IPM$tmax],2,sum), 
            lam.U.f=out$Uf$lam.mn[,p.IPM$tmax-1])
   
-  return(P_IPM)
+  return(list(P_IPM=P_IPM, diag=diagnostics))
 }
 
 

@@ -35,6 +35,8 @@ env.rct <- readRDS(here(paste0("out/", sp, "_env_rct.rds")))
 env.rct.unsc <- readRDS(here(paste0("out/", sp, "_env_rct_unscaled.rds")))
 n.cell <- nrow(env.in); n.grid <- nrow(env.rct)
 issue_i <- read.csv(here("data/issues.csv"), stringsAsFactors=F)
+S_p <- as.matrix(lam.df[lam.df$Surv.S>0, 15:14]) # true presences
+S_a <- as.matrix(lam.df[lam.df$Surv.S==0, 15:14]) # true absences
 
 
 p.c <- makeCluster(n_core_iss); registerDoSNOW(p.c)
@@ -63,23 +65,27 @@ foreach(i=seq_along(issue_i$Issue)) %dopar% {
   names(n$IPM$z) <- names(n$IPM$x) <- c("s", "g", "fl", "seed")
   
   # fit MaxEnt
-  P_Mx <- fit_Mx(sp, samp_iss, lam.df, vars, v.i)
+  P_Mx <- fit_Mx(sp, samp_iss, lam.df, vars, v.i, S_p, S_a)
   if(overwrite) {
-    saveRDS(P_Mx, here(paste0("out/", sp, "_P_Mx_", issue, ".rds")))
+    saveRDS(P_Mx$diag, here(paste0("out/", sp, "_Diag_Mx_", issue, ".rds")))
+    saveRDS(P_Mx$pred, here(paste0("out/", sp, "_P_Mx_", issue, ".rds")))
   }
   # fit CA-demographic, CA-lambda
-  P_CA <- fit_CA(sp, samp_iss, mod_iss, p, env.rct, env.rct.unsc, lam.df, vars, 
+  P_CA <- fit_CA(sp, samp_iss, mod_iss, p, env.rct, env.rct.unsc, lam.df, vars,
                  v.i, v$CA, m$CA, N_init, sdd.pr, n.cell, n.grid, n_sim, n_core_sim)
   if(overwrite) {
+    saveRDS(P_CA$diag_CAd, here(paste0("out/", sp, "_Diag_CAd_", issue, ".rds")))
+    saveRDS(P_CA$diag_CAl, here(paste0("out/", sp, "_Diag_CAl_", issue, ".rds")))
     saveRDS(P_CA$P_CAd, here(paste0("out/", sp, "_P_CAd_", issue, ".rds")))
     saveRDS(P_CA$P_CAl, here(paste0("out/", sp, "_P_CAl_", issue, ".rds")))
   }
   # fit IPM
-  P_IPM <- fit_IPM(sp, samp_iss, mod_iss, p, env.rct.unsc, lam.df, vars, v.i, 
-                   v$IPM, m$IPM, n$IPM$x, n$IPM$z, N_init, sdd.pr, n.cell, 
+  P_IPM <- fit_IPM(sp, samp_iss, mod_iss, p, env.rct.unsc, lam.df, vars, v.i,
+                   v$IPM, m$IPM, n$IPM$x, n$IPM$z, N_init, sdd.pr, n.cell,
                    n_sim, n_core_sim)
   if(overwrite) {
-    saveRDS(P_IPM, here(paste0("out/", sp, "_P_IPM_", issue, ".rds")))
+    saveRDS(P_IPM$diag, here(paste0("out/", sp, "_Diag_IPM_", issue, ".rds")))
+    saveRDS(P_IPM$P_IPM, here(paste0("out/", sp, "_P_IPM_", issue, ".rds")))
   }
 }
 stopCluster(p.c)
