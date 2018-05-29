@@ -111,9 +111,9 @@ add_noise_IPM <- function(O_IPM, z_l, z_h, err, n_samp) {
 
 
 
-##-- ISSUE::Over Dispersal
-##   Adjust dispersal parameters to overdisperse
-add_misDisperse <- function(p.mod, p, sdd_max_adj=3, sdd_rate_adj=.1, ldd=5) {
+##-- ISSUE::Misspecified Dispersal
+##   Adjust dispersal parameters to over- or under-disperse
+add_misDisperse <- function(p.mod, p, sdd_max_adj=2, sdd_rate_adj=.1, ldd=5) {
   p.mod$sdd.max <- p.mod$sdd_max <- max(p$sdd_max + sdd_max_adj, 1)
   p.mod$sdd.rate <- p.mod$sdd_rate <- p$sdd_rate * sdd_rate_adj
   p.mod$p_emig <- pexp(0.5, p$sdd_rate, lower.tail=F)
@@ -131,27 +131,68 @@ add_misDisperse <- function(p.mod, p, sdd_max_adj=3, sdd_rate_adj=.1, ldd=5) {
 ##
 fit_Mx <- function(sp, sampling.issue, lam.df, vars, v.i, S_p, S_a) {
   library(dismo); library(here); library(tidyverse); library(raster)
+  path_iss <- paste0("out/maxent/", sampling.issue, "/")
+  if(!dir.exists(path_iss)) dir.create(path_iss)
   # load observations
   O_Mx <- readRDS(here(paste0("out/", sp, "_O_Mx_", sampling.issue, ".rds")))
-  X.Mx <- lam.df[,names(lam.df) %in% names(vars)[v.i]]
-  temp.rast <- vector("list", length(v.i))
-  for(vi in seq_along(v.i)) {
+  X.Mx <- lam.df[,names(lam.df) %in% grep("2", names(vars)[v.i], invert=T, value=T)]
+  temp.rast <- vector("list", ncol(X.Mx))
+  for(vi in 1:ncol(X.Mx)) {
     temp.rast[[vi]] <- rasterFromXYZ(cbind(lam.df[,15:14], X.Mx[,vi]))
   }
   rast.Mx <- stack(temp.rast)
   # fit MaxEnt models
+  # if(sampling.issue=="sampBias") {
+  #   # generate bias surface
+  #   bias_type <- "samp"
+  # } else if(sampling.issue=="geogBias") {
+  #   # generate bias surface
+  #   bias_type <- "geog"
+  # } else { 
+    bias_type="none"
+  # }
   Mx.f <- Mx.p <- vector("list", length(O_Mx))
+  fit.args <- c("responsecurves", "jackknife", "replicates=10", "plots",
+                "removeduplicates", "nothreshold", "nohinge", "pictures",
+                "noautofeature", "noprefixes", "writeplotdata",
+                "outputformat=logistic")
   for(i in seq_along(O_Mx)) {
-    Mx.f[[i]] <- maxent(x=rast.Mx, p=as.matrix(lam.df[O_Mx[[i]], 15:14]))
-    Mx.p[[i]] <- predict(Mx.f[[i]], as.data.frame(X.Mx))
+    # if(sampling.issue %in% c("sampBias", "geogBias")) {
+    #   fit.args <- c(fit.args, "biasfile=out/maxent/sampBias.asc", "biastype=3")
+    # }
+    if(!dir.exists(paste0(path_iss, i))) dir.create(paste0(path_iss, i))
+    Mx.f[[i]] <- maxent(x=rast.Mx, p=as.matrix(lam.df[O_Mx[[i]], 15:14]),
+                        args=fit.args, path=paste0(path_iss, i))
+    Mx.p[[i]] <- mean(predict(Mx.f[[i]], rast.Mx, args="outputformat=logistic"))
+    d_j <- vector("list", 10)
+    for (j in 0:9){   #loop for each replicate
+      d <- read.csv(paste0(path_iss, i, "/species_", j, "_samplePredictions.csv"))
+      d$run <- j
+      dt <- d[d$Test.or.train=="train",]  # training data
+      dtest <- d[d$Test.or.train=="test",]  # testing data
+      tp <- round(0.95*nrow(dt))  # number of points for 95% threshold 
+      dt <- dt[order(dt$Logistic.prediction, decreasing=T),] 
+      
+      d_j[[j+1]] <- data.frame(Dataset=i, 
+                               Run=j, 
+                               thresh_95_logistic=dt$Logistic.prediction[tp], 
+                               Bias=bias_type, 
+                               test_n=nrow(dtest), 
+                               train_n=nrow(dt)) 
+    }
+    thresh <- mean(do.call("rbind", d_j)$thresh_95_logistic)
+    Mx.p[[i]]@data@values[Mx.p[[i]]@data@values >= thresh] <- 1
+    Mx.p[[i]]@data@values[Mx.p[[i]]@data@values < thresh] <- 0
   }
   # munge output
+  names(Mx.p) <- 1:length(Mx.p)
+  Mx.p.data <- map_dfr(Mx.p, ~.@data@values) %>% as.matrix
   pred <- lam.df %>% 
     dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>%
-    mutate(prP=apply(simplify2array(Mx.p), 1, mean)) %>%
-    mutate(prP.sd=apply(simplify2array(Mx.p), 1, sd),
-           Surv.S.f=prP/sum(prP)*sum(lam.df$Surv.S))
-  diagnostics <- map(Mx.f, ~evaluate(p=S_p, a=S_a, model=., x=rast.Mx))
+    mutate(prP=apply(Mx.p.data[lam.df$id,], 1, mean),
+           prP.sd=apply(Mx.p.data[lam.df$id,], 1, sd))
+  diagnostics <- NULL
+  # diagnostics <- map(Mx.f, ~evaluate(p=S_p, a=S_a, model=., x=rast.Mx))
   return(P_Mx=list(pred=pred, diag=diagnostics))
 }
 
