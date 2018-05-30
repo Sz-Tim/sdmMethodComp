@@ -162,19 +162,15 @@ summarize_CA_samples <- function(CA.f, in.id) {
 summarize_IPM_samples <- function(U.f, S.f) {
   Ua <- list(IPMs=map(U.f, ~.$IPMs),
              Ps=map(U.f, ~.$Ps),
-             Fs=map(U.f, ~.$Fs),
-             Nt=map(U.f, ~.$Nt),
-             lam=map(U.f, ~.$lam.t),
-             p_est=map(U.f, ~.$p_est.t)) %>% 
+             Fs=map(U.f, ~.$Fs)) %>% 
     map(simplify2array)
-  Uf <- list(prP=apply(apply(Ua$Nt>0, 2:4, sum)>0, 1:2, mean),
-             prP.sd=apply(apply(Ua$Nt>0, 2:4, sum)>0, 1:2, sd),
+  Ua_lam <- apply(Ua$IPMs, 3:4, function(x) Re(eigen(x)$values[1]))
+  Uf <- list(prP=apply(Ua_lam>=1, 1, mean),
+             prP.sd=apply(Ua_lam>=1, 1, sd),
+             lam.mn=apply(Ua_lam, 1, mean),
              IPM.mn=apply(Ua$IPMs, 1:3, mean),
              P.mn=apply(Ua$Ps, 1:3, mean),
-             F.mn=apply(Ua$Fs, 1:3, mean),
-             Nt.mn=apply(Ua$Nt, 1:3, mean),
-             lam.mn=apply(Ua$lam, 1:2, mean),
-             p_est.mn=apply(Ua$p_est, 1:2, mean))
+             F.mn=apply(Ua$Fs, 1:3, mean))
   Sa <- list(P=map(S.f, ~.$P),
              B=map(S.f, ~.$B),
              nSd=map(S.f, ~.$nSd),
