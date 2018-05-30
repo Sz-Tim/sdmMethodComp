@@ -433,11 +433,9 @@ fit_IPM <- function(sp, sampling.issue, modeling.issue, p, env.rct.unsc,
   }
   out <- summarize_IPM_samples(U.f, S.f)
   
-  P_IPM <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
+  P_CAi <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
     mutate(prP=out$Sf$prP,
            prP.sd=out$Sf$prP.sd,
-           prP.U=out$Uf$prP[,p.IPM$tmax+1],
-           lambda.f=apply(out$Uf$IPM.mn, 3, function(x) Re(eigen(x)$values[1])),
            lam.S.f=rowMeans(out$Sf$N_sim.mn[,(-3:0)+p.IPM$tmax]/
                               (out$Sf$N_sim.mn[,(-4:-1)+p.IPM$tmax]+0.0001)),
            nSeed.f=out$Sf$nSd.mn[,p.IPM$tmax], 
@@ -448,11 +446,13 @@ fit_IPM <- function(sp, sampling.issue, modeling.issue, p, env.rct.unsc,
            Surv.S.f=out$Sf$N_surv.mn, 
            Rcr.S.f=out$Sf$N_rcr.mn,
            nSdStay.f=nSeed.f*(1-p.IPM$p_emig), 
-           nSdLeave.f=nSeed.f*p.IPM$p_emig,
-           N.U.f=apply(out$Uf$Nt.mn[,,p.IPM$tmax],2,sum), 
-           lam.U.f=out$Uf$lam.mn[,p.IPM$tmax-1])
+           nSdLeave.f=nSeed.f*p.IPM$p_emig)
+  P_IPM <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
+    mutate(prP=out$Uf$prP,
+           prP.sd=out$Uf$prP.sd,
+           lambda.f=out$Uf$lam.mn)
   
-  return(list(P_IPM=P_IPM, diag=diagnostics))
+  return(list(P_IPM=P_IPM, P_CAi=P_CAi, diag=diagnostics))
 }
 
 

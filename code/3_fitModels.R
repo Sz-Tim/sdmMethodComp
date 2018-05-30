@@ -85,6 +85,7 @@ foreach(i=seq_along(issue_i$Issue)) %dopar% {
                    n_sim, n_core_sim)
   if(overwrite) {
     saveRDS(P_IPM$diag, here(paste0("out/", sp, "_Diag_IPM_", issue, ".rds")))
+    saveRDS(P_IPM$P_CAi, here(paste0("out/", sp, "_P_CAi_", issue, ".rds")))
     saveRDS(P_IPM$P_IPM, here(paste0("out/", sp, "_P_IPM_", issue, ".rds")))
   }
 }
