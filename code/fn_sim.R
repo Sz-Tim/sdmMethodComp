@@ -73,7 +73,7 @@ simulate_data <- function(n.cell, lo, hi, p, X, n_z, sdd, sdd.j, N_init, verbose
   # storage objects
   E <- d <- map(i, ~list())  # much faster than using dataframes
   B <- matrix(0, nrow=n.cell, ncol=(p$tmax+1))
-  nSd <- D <- B <- N_sim <- matrix(0, nrow=n.cell, ncol=p$tmax)
+  nSd <- D <- N_sim <- matrix(0, nrow=n.cell, ncol=p$tmax)
   p_est.i <- matrix(p$p_est, nrow=n.cell, ncol=p$tmax)
   z.k <- map(i, ~runif(N_init[.], p$z.rng[1], p$z.rng[2]))
   X_map <- lapply(i, function(x) map(X, ~.[x,]))
