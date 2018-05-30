@@ -40,10 +40,15 @@ sim_realized <- function(k, z.i, d_i, d.k, e.k, E, p, lo, hi) {
 
 
 ##--- simulate number of recruits
-sim_recruits <- function(k, d_i, p_est_ik, nSd_ik, B_ik, D_ik, p) {
-  n <- round(p_est_ik * (nSd_ik * (1-p$p_emig) * p$rcr_dir + 
-                           B_ik * p$rcr_SB + 
-                           D_ik * p$rcr_dir)) 
+sim_recruits <- function(k, d_i, p_est_ik, nSd_ik, B_ik, D_ik, p, ldd=F) {
+  if(ldd) {
+    n <- 1
+  } else {
+    n <- round(p_est_ik * (nSd_ik * (1-p$p_emig) * p$rcr_dir + 
+                             B_ik * p$rcr_SB + 
+                             D_ik * p$rcr_dir)) 
+  }
+  
   if(n > 0) {
     rcr_i <- (1:n)+length(d_i$yr)
     d_i$sizeNext[rcr_i] <- rnorm(n, p$rcr_z[1], p$rcr_z[2])
@@ -103,7 +108,11 @@ simulate_data <- function(n.cell, lo, hi, p, X, n_z, sdd, sdd.j, N_init, verbose
     D[,k] <- vapply(sdd.j, function(x) sum(sdd.D[x]), 1)
     if(p$NDD) p_est.i[,k] <- pmin(p$NDD_n/(nSd[,k]+D[,k]), p$p_est)
     d <- lapply(i, function(x) sim_recruits(k, d[[x]], p_est.i[x,k], nSd[x,k], 
-                                            B[x,k], D[x,k], p))
+                                            B[x,k], D[x,k], p, F))
+    ldd_k <- sample.int(n.cell, p$ldd)
+    for(j in seq_along(ldd_k)) {
+      d[[ldd_k[j]]] <- sim_recruits(k, d[[ldd_k[j]]], 1, 1, 0, 0, p, T)
+    }
     B[,k+1] <- vapply(i, function(x) sim_seedbank(nSd[x,k], B[x,k], D[x,k],p),1)
     if(verbose) cat("Finished", n.cell, "cells for year", k, "\n")
   }
