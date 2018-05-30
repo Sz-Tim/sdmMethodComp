@@ -8,7 +8,7 @@
 ## Setup
 ########
 # file specifications
-sp <- "sp1"
+sp <- "sp2"
 
 # load workspace
 pkgs <- c("tidyverse", "magrittr", "stringr", "here")
@@ -33,13 +33,13 @@ plot(lam.df$pMxd, log(lam.df$lambda), col=rgb(0,0,0,0.75))
 hist(log(lam.df$lambda))
 
 theme_set(theme_bw())
-ggplot(out, aes(fill=outcome, x=SDM)) + geom_bar(position="fill") + 
+ggplot(out, aes(fill=conf_lam, x=SDM)) + geom_bar(position="fill") + 
   facet_wrap(~issue) + scale_fill_brewer(name="", type="div") + 
   ylab("Proportion of cells")
-ggplot(out, aes(fill=outcome, x=issue)) + geom_bar(position="fill") + 
+ggplot(out, aes(fill=conf_lam, x=issue)) + geom_bar(position="fill") + 
   facet_wrap(~SDM) + scale_fill_brewer(name="", type="div") + 
-  ylab("Proportion of cells")
-ggplot(out, aes(x=lon, y=lat, fill=outcome)) +
+  ylab("Proportion of cells") + coord_flip()
+ggplot(out, aes(x=lon, y=lat, fill=conf_surv)) +
   geom_tile() + facet_grid(SDM~issue) + scale_fill_brewer(name="", type="div") +
   theme(axis.text=element_blank())
 ggplot(out, aes(x=lon, y=lat, fill=prP)) +
@@ -53,6 +53,12 @@ ggplot(out, aes(x=lon, y=lat, fill=prP.sd)) +
 ggplot(out, aes(x=lon, y=lat, fill=prP>0.5)) +
   geom_tile() + facet_grid(SDM~issue) + 
   theme(axis.text=element_blank())
+ggplot(out, aes(x=lon, y=lat, fill=lambda.f>=1)) +
+  geom_tile() + facet_grid(SDM~issue) + 
+  theme(axis.text=element_blank())
+ggplot(out, aes(x=lon, y=lat, fill=lam.S.f>=1)) +
+  geom_tile() + facet_grid(SDM~issue) + 
+  theme(axis.text=element_blank())
 ggplot(out, aes(x=lon, y=lat, fill=log(Btmax.f))) +
   geom_tile() + facet_grid(SDM~issue) + 
   scale_fill_gradient(low="white", high="red") +
@@ -62,14 +68,14 @@ ggplot(out, aes(x=lon, y=lat, fill=log(D.f))) +
   scale_fill_gradient(low="white", high="red") +
   theme(axis.text=element_blank())
 
-out.sum <- out %>% group_by(SDM, issue, outcome) %>%
+out.sum <- out %>% group_by(SDM, issue, conf_lam) %>%
   summarise(ct=n()) %>%
-  mutate(rate=case_when(outcome=="S:0 P:0" ~ ct/sum(lam.df$Surv.S==0),
-                        outcome=="S:0 P:1" ~ ct/sum(lam.df$Surv.S==0),
-                        outcome=="S:1 P:0" ~ ct/sum(lam.df$Surv.S > 0),
-                        outcome=="S:1 P:1" ~ ct/sum(lam.df$Surv.S > 0)))
+  mutate(rate=case_when(conf_lam=="S:0 P:0" ~ ct/sum(lam.df$Surv.S==0),
+                        conf_lam=="S:0 P:1" ~ ct/sum(lam.df$Surv.S==0),
+                        conf_lam=="S:1 P:0" ~ ct/sum(lam.df$Surv.S > 0),
+                        conf_lam=="S:1 P:1" ~ ct/sum(lam.df$Surv.S > 0)))
 tss.df <- out.sum %>% ungroup %>% group_by(SDM, issue) %>%
-  summarise(TSS=sum(rate[outcome %in% c("S:0 P:0", "S:1 P:1")])-1)
+  summarise(TSS=sum(rate[conf_lam %in% c("S:0 P:0", "S:1 P:1")])-1)
 ggplot(tss.df, aes(x=issue, colour=SDM, y=TSS, group=SDM)) + 
   geom_point(size=3) + geom_line() + ylim(0,1)
 
@@ -81,21 +87,21 @@ ggplot(out, aes(x=prP, y=1*(Surv.S>0))) + geom_point(alpha=0.05) +
   
 
 
-out %>% filter(outcome == "S:0 P:1") %>% group_by(SDM, issue) %>% 
+out %>% filter(conf_lam == "S:0 P:1") %>% group_by(SDM, issue) %>% 
   summarise(prop=round(n()/1084, 3)) %>% 
   ggplot(aes(x=issue, y=prop, colour=SDM)) + geom_point(size=3) +
   ggtitle("Commission Rate") + ylim(0,1) + ylab("Prop P=1 | S=0")
-out %>% filter(outcome == "S:1 P:0") %>%  group_by(SDM, issue) %>% 
+out %>% filter(conf_lam == "S:1 P:0") %>%  group_by(SDM, issue) %>% 
   summarise(prop=round(n()/1354, 3)) %>%
   ggplot(aes(x=issue, y=prop, colour=SDM)) + geom_point(size=3) + 
   ggtitle("Ommission Rate") + ylim(0, 1) + ylab("Prop P=0 | S=1")
-out %>% filter(outcome %in% c("S:1 P:1", "S:0 P:0")) %>% 
+out %>% filter(conf_lam %in% c("S:1 P:1", "S:0 P:0")) %>% 
   group_by(SDM, issue) %>% 
   summarise(prop=round(n()/2438, 3)) %>% 
   ggplot(aes(x=issue, y=prop, colour=SDM)) + geom_point(size=3) + 
   ggtitle("TSS") + ylim(0, 1) + ylab("Prop P=S")
 
-ggplot(out, aes(fill=sign(log(lam.S.f))==sign(log(lam.S)), x=SDM)) + 
+ggplot(out, aes(fill=sign(log(lambda.f))==sign(log(lambda)), x=SDM)) + 
   geom_bar(position="fill") + facet_wrap(~issue)
 
 ggplot(out, aes(x=lon, y=lat, fill=Surv.S.f-Surv.S)) +
@@ -121,8 +127,8 @@ ggplot(out, aes(x=lon, y=lat, fill=log(Surv.S.f))) + geom_tile() +
 ggplot(out, aes(x=lon, y=lat, fill=sign(log(lam.S.f))==sign(log(lam.S)))) +
   geom_tile() + facet_grid(SDM~issue)
 
-ggplot(filter(out, SDM=="IPM"), aes(x=lon, y=lat, fill=sign(log(lambda.f))==sign(log(lambda)))) +
-  geom_tile() + facet_wrap(~issue)
+ggplot(out, aes(x=lon, y=lat, fill=sign(log(lambda.f))==sign(log(lambda)))) +
+  geom_tile() + facet_grid(SDM~issue)
 
 ggplot(filter(out, SDM=="IPM"), aes(x=lon, y=lat, fill=lambda.f-lambda)) +
   geom_tile() + facet_wrap(~issue) + 

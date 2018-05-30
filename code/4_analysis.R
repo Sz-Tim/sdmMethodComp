@@ -8,7 +8,7 @@
 ## Setup
 ########
 # file specifications
-sp <- "sp1"
+sp <- "sp2"
 overwrite <- TRUE
 
 # load workspace
@@ -22,10 +22,14 @@ i_P <- extract_SDM_details(f_P)
 out <- map2(f_P, i_P, ~readRDS(.x) %>% mutate(SDM=.y[1], issue=.y[2])) %>%
   do.call(bind_rows, .) %>%
   full_join(dplyr::select(lam.df, -c(10:15,17)), ., by="id.inbd") %>%
-  mutate(outcome=case_when(Surv.S>0 & prP>=0.5 ~ "S:1 P:1",
+  mutate(conf_surv=case_when(Surv.S>0 & prP>=0.5 ~ "S:1 P:1",
                            Surv.S==0 & prP>=0.5 ~ "S:0 P:1",
                            Surv.S>0 & prP<0.5 ~ "S:1 P:0",
-                           Surv.S==0 & prP<0.5 ~ "S:0 P:0"))
+                           Surv.S==0 & prP<0.5 ~ "S:0 P:0"),
+         conf_lam=case_when(lambda>=1 & prP>=0.5 ~ "S:1 P:1",
+                           lambda<1 & prP>=0.5 ~ "S:0 P:1",
+                           lambda>=1 & prP<0.5 ~ "S:1 P:0",
+                           lambda<1 & prP<0.5 ~ "S:0 P:0"))
 
 if(overwrite) {
   write.csv(out, here(paste0("out/", sp, "_out.csv")), row.names=F)
