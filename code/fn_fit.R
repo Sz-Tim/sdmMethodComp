@@ -214,7 +214,7 @@ fit_CA <- function(sp, sampling.issue, modeling.issue, p, env.rct, env.rct.unsc,
   CA.f <- diagnostics <- vector("list", length(O_CA))
   for(i in 1:length(O_CA)) {
     O_CA.i <- O_CA[[i]]$d %>% filter(yr==p$tmax)
-    O_CA.lam <- O_CA[[i]]$d %>% filter(!is.na(lambda))
+    O_CA.lam <- O_CA[[i]]$d %>% filter(!is.na(lambda) & is.finite(lambda))
     O_CA.K <- O_CA.i %>% filter(id %in% O_CA.lam$id[abs(O_CA.lam$lambda-1)<0.05])
     sim.ls <- sim.lam <- vector("list", n_sim)
     
