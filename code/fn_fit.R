@@ -245,7 +245,7 @@ fit_CA <- function(sp, sampling.issue, modeling.issue, p, env.rct, env.rct.unsc,
     }
     
     # update parameters
-    p.CA <- set_g_p(tmax=50, 
+    p.CA <- set_g_p(tmax=p$tmax, 
                     lc.r=diff(range(lam.df$y)), lc.c=diff(range(lam.df$x)),
                     n.lc=5, N.p.t0=n.cell, 
                     K=vars.ls$K, 
