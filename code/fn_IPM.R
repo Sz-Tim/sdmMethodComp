@@ -169,9 +169,7 @@ fill_IPM_matrices <- function(n.cell, buffer, discrete, p, n_z, n_x,
   
   # storage objects
   IPMs <- Ps <- Fs <- Fb <- array(0, dim=c(p$n+1, p$n+1, n.cell))
-  Nt <- array(dim=c(p$n+1, n.cell, p$tmax+1))
   sdd.j <- vector("list", length=n.cell)
-  lam.t <- p_est.t <- matrix(nrow=n.cell, ncol=p$tmax)
   
   # IPM matrix setup
   L <- setup_IPM_matrix(p$n, p$z.rng, buffer)
@@ -200,25 +198,9 @@ fill_IPM_matrices <- function(n.cell, buffer, discrete, p, n_z, n_x,
                            Fs[z.i,z.i,1])
   }
   if(verbose) cat("Finished dispersal \n")
-  if(p$NDD) {
-    Nt[,,1] <- sapply(i, function(x) rpois(p$n+1, N_init[x]/(p$n+1)))
-    Ft <- Fs/p$p_est  # Fs was already multiplied by p$p_est
-    for(k in 1:p$tmax) {
-      p_est.t[,k] <- pmin(vapply(i, function(x) p$NDD_n/
-                                   sum(Ft[z.i,,x]*Nt[z.i,x,k]), 1), p$p_est)
-      Ft[z.i,,] <- vapply(i, function(x) Ft[z.i,,x] * p_est.t[x,k], Ft[z.i,,1])
-      IPM.k <- Ps + Ft
-      Nt[,,k+1] <- round(sapply(i, function(x) IPM.k[,,x] %*% Nt[,x,k]))
-      if(lam.final && k==p$tmax) {
-        lam.t[,k] <- vapply(i, function(x) Re(eigen(IPM.k[,,x])$values[1]), 1)
-      }
-      if(verbose) cat("Finished NDD for year", k, "\n")
-    }
-  }
   
   return(list(IPMs=Ps+Fs, Ps=Ps, Fb=Fb, Fs=Fs, 
-              lo=L$lo, hi=L$hi, b=L$b, y=L$y, h=L$h, sdd.j=sdd.j, 
-              Nt=Nt, lam.t=lam.t, p_est.t=p_est.t))
+              lo=L$lo, hi=L$hi, b=L$b, y=L$y, h=L$h, sdd.j=sdd.j))
 }
 
 
