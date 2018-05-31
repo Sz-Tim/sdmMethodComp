@@ -86,10 +86,10 @@ N_init[sample(filter(L$env.in, x>30 & y>30)$id.inbd,
 
 # Use assigned slopes to fill IPM matrix
 U <- fill_IPM_matrices(n.cell, buffer=0.75, discrete=1, p, n_z, n_x, 
-                       X, sdd.pr, L$env.in$id, N_init)
+                       X, sdd.pr$i, L$env.in$id, N_init)
 
 # Ground Truth: generate simulated data
-S <- simulate_data(n.cell, U$lo, U$hi, p, X, n_z, sdd.pr, U$sdd.j, N_init)
+S <- simulate_data(n.cell, U$lo, U$hi, p, X, n_z, sdd.pr$i, U$sdd.j, N_init)
 
 # Aggregate results
 lam.df <- L$env.in %>%
