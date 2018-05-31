@@ -204,7 +204,8 @@ fit_Mx <- function(sp, issue, sampling.issue, lam.df, vars, v.i, S_p, S_a) {
 fit_CA <- function(sp, sampling.issue, modeling.issue, p, env.rct, env.rct.unsc, 
                    lam.df, vars, v.i, v, m, N_init, sdd.pr, n.cell, n.grid, 
                    n_sim, n_cores) {
-  library(here); library(tidyverse); library(gbPopMod); library(MuMIn); library(doSNOW)
+  library(here); library(tidyverse); library(gbPopMod); 
+  library(MuMIn); library(lme4); library(doSNOW)
   
   # load observations
   O_CA <- readRDS(here(paste0("out/", sp, "_O_CA_", sampling.issue, ".rds")))
@@ -214,33 +215,30 @@ fit_CA <- function(sp, sampling.issue, modeling.issue, p, env.rct, env.rct.unsc,
   # Fit CA models
   CA.f <- diagnostics <- vector("list", length(O_CA))
   for(i in 1:length(O_CA)) {
-    O_CA.i <- O_CA[[i]]$d %>% filter(yr==p$tmax)
-    O_CA.lam <- O_CA[[i]]$d %>% filter(!is.na(lambda) & is.finite(lambda))
-    O_CA.K <- O_CA.i %>% filter(id %in% O_CA.lam$id[abs(O_CA.lam$lambda-1)<0.05])
-    sim.ls <- sim.lam <- vector("list", n_sim)
+    O_CA.i <- O_CA[[i]]$d 
+    O_CA.K <- O_CA.i %>% filter(id %in% O_CA.i$id[abs(O_CA.i$lambda-1)<0.05])
+    sim.ls <- vector("list", n_sim)
     
     # global models
     options(na.action="na.fail")
-    full.m <- list(K=glm(as.formula(paste("N ~", m, collapse="")),
+    full.m <- list(K=glmer(as.formula(paste("N ~", m, collapse="")),
                          data=O_CA.K, family="poisson"),
-                   s.jv=glm(as.formula(paste("cbind(s.jv.1, s.jv.0) ~", m,
+                   s.jv=glmer(as.formula(paste("cbind(s.jv.1, s.jv.0) ~", m,
                                              collapse="")), 
                             data=O_CA.i, family="binomial"),
-                   s.ad=glm(as.formula(paste("cbind(s.ad.1, s.ad.0) ~", m,
+                   s.ad=glmer(as.formula(paste("cbind(s.ad.1, s.ad.0) ~", m,
                                              collapse="")), 
                             data=O_CA.i, family="binomial"),
-                   p.f=glm(as.formula(paste("cbind(f.1, f.0) ~", m,
+                   p.f=glmer(as.formula(paste("cbind(f.1, f.0) ~", m,
                                             collapse="")), 
                            data=O_CA.i, family="binomial"),
-                   fec=glm(as.formula(paste("fec ~", m, collapse="")), 
-                           data=O_CA.i, family="poisson"),
-                   lam=lm(as.formula(paste("log(lambda) ~", m, collapse="")),
-                          data=O_CA.lam))
+                   fec=glmer(as.formula(paste("fec ~", m, collapse="")), 
+                           data=O_CA.i, family="poisson"))
     
     # store coefficients from optimal models
-    opt.m <- map(full.m, ~get.models(dredge(., m.lim=c(1,NA)), subset=1)[[1]])
-    vars.opt <- map(opt.m, coef)
-    vars.ls <- rep(list(v), 6); names(vars.ls) <- names(opt.m)
+    opt.m <- map(full.m, ~get.models(dredge(., fixed="(1|yr)"), subset=1)[[1]])
+    vars.opt <- map(opt.m, ~colMeans(coef(.)$yr))
+    vars.ls <- rep(list(v), length(full.m)); names(vars.ls) <- names(opt.m)
     for(j in seq_along(vars.ls)) {
       vars.ls[[j]][names(vars.opt[[j]])] <- vars.opt[[j]]
     }
@@ -287,30 +285,22 @@ fit_CA <- function(sp, sampling.issue, modeling.issue, p, env.rct, env.rct.unsc,
       sim.ls <- foreach(s=1:n_sim) %dopar% {
         gbPopMod::run_sim(n.grid, n.cell, p.CA, X.CA, sdd.pr, N.init, NULL, F)
       }
-      sim.lam <- foreach(s=1:n_sim) %dopar% {
-        gbPopMod::run_sim_lambda(n.grid, n.cell, p.CA, vars.ls$lam, X.CA, 
-                                 sdd.pr, N.init, "lm", F)
-      }
       stopCluster(p.c)
     } else {
       for(s in 1:n_sim) {
-        sim.ls[[s]] <- run_sim(n.grid, n.cell, p.CA, X.CA, sdd.pr, N.init, NULL, T)
-        sim.lam[[s]] <- run_sim_lambda(n.grid, n.cell, p.CA, vars.ls$lam, X.CA, 
-                                       sdd.pr, N.init, "lm", T)
+        sim.ls[[s]] <- run_sim(n.grid, n.cell, p.CA, X.CA, sdd.pr, N.init, NULL)
       }
     }
-    CA.f[[i]] <- aggregate_CA_simulations(sim.ls, p.CA$tmax, 
-                                          max(p.CA$age.f), sim.lam)
+    CA.f[[i]] <- aggregate_CA_simulations(sim.ls, p.CA$tmax, max(p.CA$age.f))
     diagnostics[[i]] <- list(p.CA, vars.ls)
-    rm(sim.ls); rm(sim.lam)
+    rm(sim.ls)
     cat("  Finished dataset", i, "\n\n")
   }
   out <- summarize_CA_samples(CA.f, lam.df$id)
   P_CAd <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
     mutate(prP=out$prP[,p.CA$tmax+1],
-           prP.sd=out$prP.sd[,p.CA$tmax+1],
            lam.S.f=rowMeans(out$N_ad.mn[,(-3:0)+p.CA$tmax]/
-                              (out$N_ad.mn[,(-4:-1)+p.CA$tmax])),
+                              (out$N_ad.mn[,(-4:-1)+p.CA$tmax]), na.rm=T),
            nSeed.f=out$nSd.mn[,p.CA$tmax], 
            D.f=out$D.mn[,p.CA$tmax],
            B0.f=out$B.mn[,1], 
@@ -321,13 +311,8 @@ fit_CA <- function(sp, sampling.issue, modeling.issue, p, env.rct, env.rct.unsc,
            nSdStay.f=nSeed.f*(1-p.CA$p_emig), 
            nSdLeave.f=nSeed.f*p.CA$p_emig)
   P_CAd$lam.S.f[is.nan(P_CAd$lam.S.f)] <- NA
-  P_CAl <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
-    mutate(prP=out$CA_lam.prP[,p.CA$tmax+1],
-           prP.sd=out$CA_lam.prP.sd[,p.CA$tmax+1],
-           Surv.S.f=out$CA_lam.N[,p.CA$tmax+1],
-           lambda.f=out$CA_lam.lam)
   
-  return(list(P_CAd=P_CAd, P_CAl=P_CAl, diag=diagnostics))
+  return(list(P_CAd=P_CAd,  diag=diagnostics))
 }
 
 
@@ -337,7 +322,8 @@ fit_CA <- function(sp, sampling.issue, modeling.issue, p, env.rct, env.rct.unsc,
 fit_IPM <- function(sp, sampling.issue, modeling.issue, p, env.rct.unsc, 
                    lam.df, vars, v.i, v, m, n_x, n_z, N_init, sdd.pr, n.cell,
                    n_sim, n_cores) {
-  library(here); library(tidyverse); library(magrittr); library(MuMIn); library(doSNOW)
+  library(here); library(tidyverse); library(magrittr); 
+  library(MuMIn); library(doSNOW)
   walk(paste0("code/fn_", c("aux", "sim", "IPM", "fit"), ".R"), ~source(here(.)))
   
   # load observations
@@ -406,7 +392,7 @@ fit_IPM <- function(sp, sampling.issue, modeling.issue, p, env.rct.unsc,
     # use estimated slopes to fill IPM matrix
     cat("||-- Calculating IPM matrices\n")
     U.f[[i]] <- fill_IPM_matrices(n.cell, buffer=0.75, discrete=1, p.IPM, n_z,
-                                  n_x, X.IPM, sdd.pr, lam.df$id, N_init)
+                                  n_x, X.IPM, sdd.pr$i, lam.df$id, N_init)
     
     # use estimated slopes to generate simulated data
     sim.ls <- vector("list", n_sim)
@@ -417,13 +403,13 @@ fit_IPM <- function(sp, sampling.issue, modeling.issue, p, env.rct.unsc,
         library(purrr); library(here)
         walk(paste0("code/fn_", c("aux", "sim", "IPM", "fit"), ".R"), ~source(here(.)))
         simulate_data(n.cell, U.f[[i]]$lo, U.f[[i]]$hi, p.IPM, X.IPM, n_z, 
-                      sdd.pr, U.f[[i]]$sdd.j, N_init)
+                      sdd.pr$i, U.f[[i]]$sdd.j, N_init)
       }
       stopCluster(p.c)
     } else {
       for(s in 1:n_sim) {
         sim.ls[[s]] <- simulate_data(n.cell, U.f[[i]]$lo, U.f[[i]]$hi, p.IPM, X.IPM, n_z, 
-                                     sdd.pr, U.f[[i]]$sdd.j, N_init)
+                                     sdd.pr$i, U.f[[i]]$sdd.j, N_init)
         cat("||-- Finished simulation", s, "\n")
       }
     }
@@ -436,7 +422,6 @@ fit_IPM <- function(sp, sampling.issue, modeling.issue, p, env.rct.unsc,
   
   P_CAi <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
     mutate(prP=out$Sf$prP,
-           prP.sd=out$Sf$prP.sd,
            lam.S.f=rowMeans(out$Sf$N_sim.mn[,(-3:0)+p.IPM$tmax]/
                               (out$Sf$N_sim.mn[,(-4:-1)+p.IPM$tmax]+0.0001)),
            nSeed.f=out$Sf$nSd.mn[,p.IPM$tmax], 
@@ -450,7 +435,6 @@ fit_IPM <- function(sp, sampling.issue, modeling.issue, p, env.rct.unsc,
            nSdLeave.f=nSeed.f*p.IPM$p_emig)
   P_IPM <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
     mutate(prP=out$Uf$prP,
-           prP.sd=out$Uf$prP.sd,
            lambda.f=out$Uf$lam.mn)
   
   return(list(P_IPM=P_IPM, P_CAi=P_CAi, diag=diagnostics))

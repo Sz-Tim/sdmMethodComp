@@ -85,7 +85,7 @@ z_pow <- function(z.vec, n_z) {
 
 
 ##-- calculate means and sds from multiple CA simulations
-aggregate_CA_simulations <- function(sim.ls, tmax, y.ad, sim.lam=NULL) {
+aggregate_CA_simulations <- function(sim.ls, tmax, y.ad) {
   library(tidyverse)
   l <- list(P=map(sim.ls, ~.$N[,,y.ad]>0),
             B=map(sim.ls, ~.$B),
@@ -95,13 +95,6 @@ aggregate_CA_simulations <- function(sim.ls, tmax, y.ad, sim.lam=NULL) {
             N_tot=map(sim.ls, ~apply(.$N, 1:2, sum)),
             N_ad=map(sim.ls, ~.$N[,,y.ad]),
             N_rcr=map(sim.ls, ~.$N[,,1]))
-  if(!is.null(sim.lam)) {
-    l$CA_lam.N <- map(sim.lam, ~.$N)
-    l$CA_lam.P <- map(sim.lam, ~.$N>0)
-    l$CA_lam.lam <- map(sim.lam, ~.$lam.E)
-  } else {
-    l$CA_lam.N <- l$CA_lam.P <- l$CA_lam.lam <- NA
-  }
   return(map(l, simplify2array))
 }
 
@@ -135,25 +128,16 @@ summarize_CA_samples <- function(CA.f, in.id) {
              D=map(CA.f, ~.$D),
              N_tot=map(CA.f, ~.$N_tot),
              N_ad=map(CA.f, ~.$N_ad),
-             N_rcr=map(CA.f, ~.$N_rcr),
-             CA_lam.P=map(CA.f, ~.$CA_lam.P),
-             CA_lam.N=map(CA.f, ~.$CA_lam.N),
-             CA_lam.lam=map(CA.f, ~.$CA_lam.lam)) %>%
+             N_rcr=map(CA.f, ~.$N_rcr)) %>%
     map(simplify2array)
   return(list(prP=apply(Sa$P[in.id,,,], 1:2, mean, na.rm=T),
-              prP.sd=apply(apply(Sa$P[in.id,,,], c(1,2,4), mean, na.rm=T), 1:2, sd),
               B.mn=apply(Sa$B[in.id,,,], 1:2, mean, na.rm=T),
               nSd.mn=apply(Sa$nSd[in.id,,,], 1:2, mean, na.rm=T),
               nSdStay.mn=apply(Sa$nSdStay[in.id,,,], 1:2, mean, na.rm=T),
               D.mn=apply(Sa$D[in.id,,,], 1:2, mean, na.rm=T),
               N_tot.mn=apply(Sa$N_tot[in.id,,,], 1:2, mean, na.rm=T),
               N_ad.mn=apply(Sa$N_ad[in.id,,,], 1:2, mean, na.rm=T),
-              N_rcr.mn=apply(Sa$N_rcr[in.id,,,], 1:2, mean, na.rm=T),
-              CA_lam.N=apply(Sa$CA_lam.N[in.id,,,], 1:2, mean, na.rm=T),
-              CA_lam.prP=apply(Sa$CA_lam.P[in.id,,,], 1:2, mean, na.rm=T),
-              CA_lam.prP.sd=apply(apply(Sa$CA_lam.P[in.id,,,], c(1,2,4), mean, na.rm=T), 
-                                1:2, sd),
-              CA_lam.lam=apply(Sa$CA_lam.lam[in.id,,,], 1, mean, na.rm=T)))
+              N_rcr.mn=apply(Sa$N_rcr[in.id,,,], 1:2, mean, na.rm=T)))
 }
 
 
@@ -166,7 +150,6 @@ summarize_IPM_samples <- function(U.f, S.f) {
     map(simplify2array)
   Ua_lam <- apply(Ua$IPMs, 3:4, function(x) Re(eigen(x)$values[1]))
   Uf <- list(prP=apply(Ua_lam>=1, 1, mean),
-             prP.sd=apply(Ua_lam>=1, 1, sd),
              lam.mn=apply(Ua_lam, 1, mean),
              IPM.mn=apply(Ua$IPMs, 1:3, mean),
              P.mn=apply(Ua$Ps, 1:3, mean),
@@ -182,7 +165,6 @@ summarize_IPM_samples <- function(U.f, S.f) {
              N_rcr=map(S.f, ~.$N_rcr)) %>%
     map(simplify2array)
   Sf <- list(prP=apply(Sa$P, 1, mean),
-             prP.sd=apply(apply(Sa$P, c(1,3), mean), 1, sd),
              B.mn=apply(Sa$B, 1:2, mean),
              nSd.mn=apply(Sa$nSd, 1:2, mean),
              D.mn=apply(Sa$D, 1:2, mean),
