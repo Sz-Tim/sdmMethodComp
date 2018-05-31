@@ -129,9 +129,11 @@ add_misDisperse <- function(p.mod, p, sdd_max_adj=2, sdd_rate_adj=.1, ldd=5) {
 
 ##-- Fit MaxEnt
 ##
-fit_Mx <- function(sp, sampling.issue, lam.df, vars, v.i, S_p, S_a) {
+fit_Mx <- function(sp, issue, sampling.issue, lam.df, vars, v.i, S_p, S_a) {
   library(dismo); library(here); library(tidyverse); library(raster)
-  path_iss <- paste0("out/maxent/", sampling.issue, "/")
+  path_sp <- paste0("out/maxent/", sp, "/")
+  if(!dir.exists(path_sp)) dir.create(path_sp)
+  path_iss <- paste0(path_sp, issue, "/")
   if(!dir.exists(path_iss)) dir.create(path_iss)
   # load observations
   O_Mx <- readRDS(here(paste0("out/", sp, "_O_Mx_", sampling.issue, ".rds")))
@@ -170,17 +172,16 @@ fit_Mx <- function(sp, sampling.issue, lam.df, vars, v.i, S_p, S_a) {
       d$run <- j
       dt <- d[d$Test.or.train=="train",]  # training data
       dtest <- d[d$Test.or.train=="test",]  # testing data
-      tp <- round(0.95*nrow(dt))  # number of points for 95% threshold 
       dt <- dt[order(dt$Logistic.prediction, decreasing=T),] 
       
       d_j[[j+1]] <- data.frame(Dataset=i, 
                                Run=j, 
-                               thresh_95_logistic=dt$Logistic.prediction[tp], 
+                               thresh_Obs=dt$Logistic.prediction[nrow(dt)], 
                                Bias=bias_type, 
                                test_n=nrow(dtest), 
                                train_n=nrow(dt)) 
     }
-    thresh <- mean(do.call("rbind", d_j)$thresh_95_logistic)
+    thresh <- mean(do.call("rbind", d_j)$thresh_Obs)
     Mx.p[[i]]@data@values[Mx.p[[i]]@data@values >= thresh] <- 1
     Mx.p[[i]]@data@values[Mx.p[[i]]@data@values < thresh] <- 0
   }
