@@ -104,8 +104,6 @@ lam.df <- L$env.in %>%
          Rcr.S=map_dbl(S$d, ~sum(is.na(.$size[.$yr==p$tmax]))),
          nSdStay=nSeed*(1-p$p_emig), 
          nSdLeave=nSeed*p$p_emig,
-         N.U=apply(U$Nt[-1,,p$tmax+1],2,sum), 
-         lam.U=U$lam.t[,p$tmax], 
          mn.age.z=map_dbl(S$d, ~mean(.$age[.$yr==p$tmax & 
                                            !is.na(.$sizeNext) &
                                            !is.na(.$size)])),
