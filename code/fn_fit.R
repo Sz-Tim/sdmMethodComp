@@ -184,6 +184,7 @@ fit_Mx <- function(sp, issue, sampling.issue, lam.df, vars, v.i, S_p, S_a) {
     thresh <- mean(do.call("rbind", d_j)$thresh_Obs)
     Mx.p[[i]]@data@values[Mx.p[[i]]@data@values >= thresh] <- 1
     Mx.p[[i]]@data@values[Mx.p[[i]]@data@values < thresh] <- 0
+    gc()
   }
   # munge output
   names(Mx.p) <- 1:length(Mx.p)
@@ -221,25 +222,35 @@ fit_CA <- function(sp, sampling.issue, modeling.issue, p, env.rct, env.rct.unsc,
     
     # global models
     options(na.action="na.fail")
-    full.m <- list(K=glmer(as.formula(paste("N ~", m, collapse="")),
-                         data=O_CA.K, family="poisson"),
-                   s.jv=glmer(as.formula(paste("cbind(s.jv.1, s.jv.0) ~", m,
-                                             collapse="")), 
-                            data=O_CA.i, family="binomial"),
-                   s.ad=glmer(as.formula(paste("cbind(s.ad.1, s.ad.0) ~", m,
-                                             collapse="")), 
-                            data=O_CA.i, family="binomial"),
-                   p.f=glmer(as.formula(paste("cbind(f.1, f.0) ~", m,
+    full.m <- opt.m <- vars.opt <- vector("list", 5)
+    names(full.m) <- c("K", "s.jv", "s.ad", "p.f", "fec")
+    names(opt.m) <- names(vars.opt) <- names(full.m)
+    
+    full.m$K <- glmer(as.formula(paste("N ~", m, collapse="")),
+                      data=O_CA.K, family="poisson")
+    full.m$s.jv <- glmer(as.formula(paste("cbind(s.jv.1, s.jv.0) ~", m, 
+                                          collapse="")), 
+                         data=O_CA.i, family="binomial")
+    if(n_distinct(O_CA.i$s.ad.0)>1) { # in case no mortality
+      full.m$s.ad <- glmer(as.formula(paste("cbind(s.ad.1, s.ad.0) ~", m,
                                             collapse="")), 
-                           data=O_CA.i, family="binomial"),
-                   fec=glmer(as.formula(paste("fec ~", m, collapse="")), 
-                           data=O_CA.i, family="poisson"))
+                           data=O_CA.i, family="binomial")
+    } 
+    full.m$p.f <- glmer(as.formula(paste("cbind(f.1, f.0) ~", m,
+                                         collapse="")), 
+                        data=O_CA.i, family="binomial")
+    full.m$fec <- glmer(as.formula(paste("fec ~", m, collapse="")), 
+                        data=O_CA.i, family="poisson")
     
     # store coefficients from optimal models
-    opt.m <- map(full.m, ~get.models(dredge(., fixed="(1|yr)"), subset=1)[[1]])
-    vars.opt <- map(opt.m, ~colMeans(coef(.)$yr))
     vars.ls <- rep(list(v), length(full.m)); names(vars.ls) <- names(opt.m)
-    for(j in seq_along(vars.ls)) {
+    for(j in seq_along(full.m)) {
+      if(is.null(full.m[[j]])) {
+        vars.opt[[j]] <- c("(Intercept)"=logit(0.9999))
+      } else {
+        opt.m[[j]] <- get.models(dredge(full.m[[j]]), subset=1)[[1]]
+        vars.opt[[j]] <- colMeans(coef(opt.m[[j]])$yr)
+      }
       vars.ls[[j]][names(vars.opt[[j]])] <- vars.opt[[j]]
     }
     
