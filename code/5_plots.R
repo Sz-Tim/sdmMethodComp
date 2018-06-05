@@ -8,12 +8,13 @@
 ## Setup
 ########
 # file specifications
-sp <- "sp3"
+sp <- "sp1"
 
 # load workspace
 pkgs <- c("tidyverse", "magrittr", "stringr", "here")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
 walk(paste0("code/fn_", c("IPM", "aux", "sim"), ".R"), ~source(here(.)))
+SDM_col <- c(Mx="#7b3294", IPM="#014636", CAi="#02818a", CAd="#67a9cf")
 out <- read.csv(here(paste0("out/", sp, "_out.csv")))
 out$issue <- factor(out$issue, 
                     levels=c("none", "noise", "geogBias", "sampBias",
@@ -46,10 +47,6 @@ ggplot(out, aes(x=lon, y=lat, fill=prP)) +
   geom_tile() + facet_grid(SDM~issue) + 
   scale_fill_gradient(low="white", high="red") +
   theme(axis.text=element_blank())
-ggplot(out, aes(x=lon, y=lat, fill=prP.sd)) +
-  geom_tile() + facet_grid(SDM~issue) + 
-  scale_fill_gradient(low="blue", high="white") +
-  theme(axis.text=element_blank())
 ggplot(out, aes(x=lon, y=lat, fill=prP>0.5)) +
   geom_tile() + facet_grid(SDM~issue) + 
   theme(axis.text=element_blank())
@@ -68,16 +65,23 @@ ggplot(out, aes(x=lon, y=lat, fill=log(D.f))) +
   scale_fill_gradient(low="white", high="red") +
   theme(axis.text=element_blank())
 
-out.sum <- out %>% group_by(SDM, issue, outcome) %>%
+out.sum <- out %>% group_by(SDM, issue, outcome, boundary) %>%
   summarise(ct=n()) %>%
-  mutate(rate=case_when(outcome=="S:0 P:0" ~ ct/sum(lam.df$Surv.S==0),
-                        outcome=="S:0 P:1" ~ ct/sum(lam.df$Surv.S==0),
-                        outcome=="S:1 P:0" ~ ct/sum(lam.df$Surv.S > 0),
-                        outcome=="S:1 P:1" ~ ct/sum(lam.df$Surv.S > 0)))
+  mutate(rate=case_when(outcome=="S:0 P:0" & boundary=="Surv" ~ ct/sum(lam.df$Surv.S==0),
+                        outcome=="S:0 P:1" & boundary=="Surv" ~ ct/sum(lam.df$Surv.S==0),
+                        outcome=="S:1 P:0" & boundary=="Surv" ~ ct/sum(lam.df$Surv.S > 0),
+                        outcome=="S:1 P:1" & boundary=="Surv" ~ ct/sum(lam.df$Surv.S > 0),
+                        outcome=="S:0 P:0" & boundary=="lam" ~ ct/sum(lam.df$lambda<1),
+                        outcome=="S:0 P:1" & boundary=="lam" ~ ct/sum(lam.df$lambda<1),
+                        outcome=="S:1 P:0" & boundary=="lam" ~ ct/sum(lam.df$lambda>=1),
+                        outcome=="S:1 P:1" & boundary=="lam" ~ ct/sum(lam.df$lambda>=1)))
 tss.df <- out.sum %>% ungroup %>% group_by(SDM, issue) %>%
   summarise(TSS=sum(rate[outcome %in% c("S:0 P:0", "S:1 P:1")])-1)
-ggplot(tss.df, aes(x=issue, colour=SDM, y=TSS, group=SDM)) + 
-  geom_point(size=3) + geom_line() + ylim(0,1)
+ggplot(tss.df, aes(x=TSS, y=issue, colour=SDM)) + geom_point(size=5, alpha=0.7) + 
+  geom_vline(xintercept=c(-1,1), colour="gray") + 
+  geom_vline(xintercept=0, colour="gray", linetype=2) +
+  theme(panel.grid.major.y=element_line(colour="gray")) +
+  xlim(-1,1) + scale_colour_manual(values=SDM_col)
 
 par(mfrow=c(5,6))
 map(list.files("out", "Diag_Mx", full.names=T), readRDS) %>%
@@ -157,11 +161,12 @@ ggplot(out, aes(x=N.S, y=N.S.f, colour=SDM, group=SDM)) +
   stat_smooth(se=F, method="loess") + geom_abline(slope=1, size=1)
 
 ggplot(out, aes(x=Surv.S, y=Surv.S.f, colour=SDM, group=SDM)) + 
-  geom_point(alpha=0.5) + facet_wrap(~issue) +
+  geom_point(alpha=0.5) + facet_wrap(~issue, scales="free") +
+  scale_colour_manual(values=SDM_col) + 
   stat_smooth(se=F, method="loess") + geom_abline(slope=1, size=1)
 
 ggplot(out, aes(x=Rcr.S, y=Rcr.S.f, colour=SDM, group=SDM)) + 
-  geom_point(alpha=0.5) + facet_wrap(~issue) +
+  geom_point(alpha=0.5) + facet_wrap(~issue, scales="free") +
   stat_smooth(se=F, method="loess") + geom_abline(slope=1, size=1)
 ggplot(out, aes(x=Rcr.S.f-Rcr.S, colour=SDM)) + geom_density() + facet_wrap(~issue)
 
@@ -170,7 +175,7 @@ ggplot(filter(out, SDM=="IPM"), aes(x=lambda, y=lambda.f)) +
   stat_smooth(se=F, method="loess") + geom_abline(slope=1, size=1)
 
 ggplot(out, aes(x=lam.S, y=lam.S.f)) + geom_point(alpha=0.5) + 
-  facet_grid(SDM~issue) +
+  facet_grid(SDM~issue) + scale_colour_manual(values=SDM_col) + 
   stat_smooth(se=F, method="loess") + geom_abline(slope=1, size=1)
 
 ggplot(filter(out, SDM=="IPM"), aes(x=lam.U, y=lam.U.f)) + 
