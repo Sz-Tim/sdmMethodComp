@@ -129,7 +129,7 @@ add_misDisperse <- function(p.mod, p, sdd_max_adj=2, sdd_rate_adj=.1, ldd=5) {
 
 ##-- Fit MaxEnt
 ##
-fit_Mx <- function(sp, issue, sampling.issue, lam.df, vars, v.i, S_p, S_a) {
+fit_MxE <- function(sp, issue, sampling.issue, lam.df, v) {
   library(dismo); library(here); library(tidyverse); library(raster)
   path_sp <- paste0("out/maxent/", sp, "/")
   if(!dir.exists(path_sp)) dir.create(path_sp)
@@ -137,12 +137,13 @@ fit_Mx <- function(sp, issue, sampling.issue, lam.df, vars, v.i, S_p, S_a) {
   if(!dir.exists(path_iss)) dir.create(path_iss)
   # load observations
   O_Mx <- readRDS(here(paste0("out/", sp, "_O_Mx_", sampling.issue, ".rds")))
-  X.Mx <- lam.df[,names(lam.df) %in% grep("2", names(vars)[v.i], invert=T, value=T)]
+  X.Mx <- lam.df[,names(lam.df) %in% v]
   temp.rast <- vector("list", ncol(X.Mx))
   for(vi in 1:ncol(X.Mx)) {
     temp.rast[[vi]] <- rasterFromXYZ(cbind(lam.df[,15:14], X.Mx[,vi]))
   }
   rast.Mx <- stack(temp.rast)
+  
   # fit MaxEnt models
   # if(sampling.issue=="sampBias") {
   #   # generate bias surface
@@ -153,49 +154,79 @@ fit_Mx <- function(sp, issue, sampling.issue, lam.df, vars, v.i, S_p, S_a) {
   # } else { 
     bias_type="none"
   # }
-  Mx.f <- Mx.p <- vector("list", length(O_Mx))
+  MxE.f <- MxE.p <- vector("list", length(O_Mx))
   fit.args <- c("responsecurves", "jackknife", "replicates=10", "plots",
                 "removeduplicates", "nothreshold", "nohinge", "pictures",
                 "noautofeature", "noprefixes", "writeplotdata",
                 "outputformat=logistic")
   for(i in seq_along(O_Mx)) {
-    # if(sampling.issue %in% c("sampBias", "geogBias")) {
-    #   fit.args <- c(fit.args, "biasfile=out/maxent/sampBias.asc", "biastype=3")
-    # }
+    if(sampling.issue %in% c("sampBias", "geogBias")) {
+      fit.args <- c(fit.args, "biasfile=out/maxent/sampBias.asc", "biastype=3")
+    }
     if(!dir.exists(paste0(path_iss, i))) dir.create(paste0(path_iss, i))
-    Mx.f[[i]] <- maxent(x=rast.Mx, p=as.matrix(lam.df[O_Mx[[i]], 15:14]),
+    MxE.f[[i]] <- maxent(x=rast.Mx, p=as.matrix(lam.df[O_Mx[[i]], 15:14]),
                         args=fit.args, path=paste0(path_iss, i))
-    Mx.p[[i]] <- mean(predict(Mx.f[[i]], rast.Mx, args="outputformat=logistic"))
+    MxE.p[[i]] <- mean(predict(MxE.f[[i]], rast.Mx, args="outputformat=logistic"))
     d_j <- vector("list", 10)
     for (j in 0:9){   #loop for each replicate
       d <- read.csv(paste0(path_iss, i, "/species_", j, "_samplePredictions.csv"))
       d$run <- j
       dt <- d[d$Test.or.train=="train",]  # training data
       dtest <- d[d$Test.or.train=="test",]  # testing data
-      dt <- dt[order(dt$Logistic.prediction, decreasing=T),] 
-      
-      d_j[[j+1]] <- data.frame(Dataset=i, 
-                               Run=j, 
-                               thresh_Obs=dt$Logistic.prediction[nrow(dt)], 
-                               Bias=bias_type, 
-                               test_n=nrow(dtest), 
-                               train_n=nrow(dt)) 
+      dt <- dt[order(dt$Logistic.prediction, decreasing=T),]
+
+      d_j[[j+1]] <- data.frame(Dataset=i,
+                               Run=j,
+                               thresh_Obs=dt$Logistic.prediction[nrow(dt)],
+                               Bias=bias_type,
+                               test_n=nrow(dtest),
+                               train_n=nrow(dt))
     }
     thresh <- mean(do.call("rbind", d_j)$thresh_Obs)
-    Mx.p[[i]]@data@values[Mx.p[[i]]@data@values >= thresh] <- 1
-    Mx.p[[i]]@data@values[Mx.p[[i]]@data@values < thresh] <- 0
+    MxE.p[[i]]@data@values[MxE.p[[i]]@data@values >= thresh] <- 1
+    MxE.p[[i]]@data@values[MxE.p[[i]]@data@values < thresh] <- 0
     gc()
   }
   # munge output
-  names(Mx.p) <- 1:length(Mx.p)
-  Mx.p.data <- map_dfr(Mx.p, ~.@data@values) %>% as.matrix
-  pred <- lam.df %>% 
+  names(MxE.p) <- 1:length(MxE.p)
+  MxE.p.data <- map_dfr(MxE.p, ~.@data@values) %>% as.matrix
+  P_MxE <- lam.df %>% 
     dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>%
-    mutate(prP=apply(Mx.p.data[lam.df$id,], 1, mean),
-           prP.sd=apply(Mx.p.data[lam.df$id,], 1, sd))
+    mutate(prP=apply(MxE.p.data[lam.df$id,], 1, mean),
+           prP.sd=apply(MxE.p.data[lam.df$id,], 1, sd))
   diagnostics <- NULL
-  # diagnostics <- map(Mx.f, ~evaluate(p=S_p, a=S_a, model=., x=rast.Mx))
-  return(P_Mx=list(pred=pred, diag=diagnostics))
+  # diagnostics <- map(MxE.f, ~evaluate(p=S_p, a=S_a, model=., x=rast.Mx))
+  return(list(P_MxE=P_MxE, diag=diagnostics))
+}
+
+
+
+##--- Fit MaxLike
+##
+fit_MxL <- function(sp, issue, sampling.issue, lam.df, v, m) {
+  library(here); library(tidyverse); library(raster); library(maxlike)
+  
+  O_Mx <- readRDS(here(paste0("out/", sp, "_O_Mx_", sampling.issue, ".rds")))
+  X.Mx <- lam.df[,names(lam.df) %in% v]
+  temp.rast <- vector("list", ncol(X.Mx))
+  for(vi in 1:ncol(X.Mx)) {
+    temp.rast[[vi]] <- rasterFromXYZ(cbind(lam.df[,15:14], X.Mx[,vi]))
+  }
+  rast.Mx <- stack(temp.rast)
+  MxL.f <- MxL.p <- vector("list", length(O_Mx))
+  for(i in  seq_along(O_Mx)) {
+    MxL.f[[i]] <- maxlike(as.formula(paste("~", m)), rast.Mx, hessian=F,
+                         as.matrix(lam.df[O_Mx[[i]], 15:14]), savedata=T)
+    MxL.p[[i]] <- predict(MxL.f[[i]])
+  }
+  names(MxL.p) <- 1:length(MxL.p)
+  MxL.p.data <- map_dfr(MxL.p, ~.@data@values) %>% as.matrix
+  P_MxL <- lam.df %>% 
+    dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>%
+    mutate(prP=apply(MxL.p.data[lam.df$id,], 1, mean),
+           prP.sd=apply(MxL.p.data[lam.df$id,], 1, sd))
+  diagnostics <- NULL#map(MxL.f, summary)
+  return(list(P_MxL=P_MxL, diag=diagnostics))
 }
 
 

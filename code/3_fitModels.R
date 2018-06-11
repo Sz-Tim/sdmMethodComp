@@ -56,6 +56,8 @@ foreach(i=seq_along(issue_i$Issue)) %dopar% {
   } else {
     v.i <- seq_along(vars)[-c(1,v.size)]
   }
+  v$Mx <- grep("2", names(vars)[v.i], invert=T, value=T)
+  m$MxL <- paste(c(v$Mx, paste0("I(", v$Mx, "^2)")), collapse=" + ")
   v$CA <- vars[c(1, v.i)]
   m$CA <- paste(c(names(v$CA)[-1], "(1|yr)"), collapse=" + ")
   v$IPM <- vars[c(1, v.size, v.i)]
@@ -64,23 +66,28 @@ foreach(i=seq_along(issue_i$Issue)) %dopar% {
   n$IPM$x <- rep(list(length(v.i)), 4)
   names(n$IPM$z) <- names(n$IPM$x) <- c("s", "g", "fl", "seed")
   
-  # fit MaxEnt
+  # fit MaxEnt & MaxLike
   if(issue %in% issue_i$Issue[c(1:4,8:9)]) {
-    P_Mx <- fit_Mx(sp, issue, samp_iss, lam.df, vars, v.i, S_p, S_a)
+    P_MxE <- fit_MxE(sp, issue, samp_iss, lam.df, v$Mx)
     if(overwrite) {
-      saveRDS(P_Mx$diag, here(paste0("out/", sp, "_Diag_Mx_", issue, ".rds")))
-      saveRDS(P_Mx$pred, here(paste0("out/", sp, "_P_Mx_", issue, ".rds")))
+      saveRDS(P_MxE$diag, here(paste0("out/", sp, "_Diag_MxE_", issue, ".rds")))
+      saveRDS(P_MxE$P_MxE, here(paste0("out/", sp, "_P_MxE_", issue, ".rds")))
+    }
+    P_MxL <- fit_MxL(sp, issue, samp_iss, lam.df, v$Mx, m$MxL)
+    if(overwrite) {
+      saveRDS(P_MxL$diag, here(paste0("out/", sp, "_Diag_MxL_", issue, ".rds")))
+      saveRDS(P_MxL$P_MxL, here(paste0("out/", sp, "_P_MxL_", issue, ".rds")))
     }
   }
 
-  # fit CA-demographic, CA-lambda
+  # fit CA-demographic
   P_CA <- fit_CA(sp, samp_iss, mod_iss, p, env.rct, env.rct.unsc, lam.df, vars,
                  v.i, v$CA, m$CA, N_init, sdd.pr, n.cell, n.grid, n_sim, n_core_sim)
   if(overwrite) {
     saveRDS(P_CA$diag_CAd, here(paste0("out/", sp, "_Diag_CAd_", issue, ".rds")))
     saveRDS(P_CA$P_CAd, here(paste0("out/", sp, "_P_CAd_", issue, ".rds")))
   }
-  # fit IPM
+  # fit IPM, CA-individual
   P_IPM <- fit_IPM(sp, samp_iss, mod_iss, p, env.rct.unsc, lam.df, vars, v.i,
                    v$IPM, m$IPM, n$IPM$x, n$IPM$z, N_init, sdd.pr, n.cell,
                    n_sim, n_core_sim)

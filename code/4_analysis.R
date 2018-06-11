@@ -22,7 +22,7 @@ i_P <- extract_SDM_details(f_P)
 out <- map2(f_P, i_P, ~readRDS(.x) %>% mutate(SDM=.y[1], issue=.y[2])) %>%
   do.call(bind_rows, .) %>%
   full_join(dplyr::select(lam.df, -c(10:15,17)), ., by="id.inbd") %>%
-  mutate(boundary=case_when(SDM %in% c("CAd", "CAi", "Mx") ~ "Surv",
+  mutate(boundary=case_when(SDM %in% c("CAd", "CAi", "MxE", "MxL") ~ "Surv",
                             SDM == "IPM" ~ "lam"),
          outcome=case_when(boundary=="Surv" & Surv.S>0 & prP>=0.5 ~ "S:1 P:1",
                            boundary=="Surv" & Surv.S==0 & prP>=0.5 ~ "S:0 P:1",
