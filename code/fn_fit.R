@@ -248,7 +248,7 @@ fit_CA <- function(sp, sampling.issue, modeling.issue, p, env.rct, env.rct.unsc,
   # load observations
   O_CA <- readRDS(here(paste0("out/", sp, "_O_CA_", sampling.issue, ".rds")))
   X.CA <- env.rct %>% rename(id.in=id.inbd) %>%
-    select(one_of("x", "y", "x_y", "inbd", "id", "id.in", names(vars)[v.i]))
+    dplyr::select(one_of("x", "y", "x_y", "inbd", "id", "id.in", names(vars)[v.i]))
   
   # Fit CA models
   CA.f <- diagnostics <- vector("list", length(O_CA))
@@ -470,7 +470,8 @@ fit_IPM <- function(sp, sampling.issue, modeling.issue, p, env.rct.unsc,
   }
   out <- summarize_IPM_samples(U.f, S.f)
   
-  P_CAi <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
+  P_CAi <- lam.df %>% 
+    dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
     mutate(prP=out$Sf$prP,
            lam.S.f=rowMeans(out$Sf$N_sim.mn[,(-3:0)+p.IPM$tmax]/
                               (out$Sf$N_sim.mn[,(-4:-1)+p.IPM$tmax]+0.0001)),
@@ -483,7 +484,8 @@ fit_IPM <- function(sp, sampling.issue, modeling.issue, p, env.rct.unsc,
            Rcr.S.f=out$Sf$N_rcr.mn,
            nSdStay.f=nSeed.f*(1-p.IPM$p_emig), 
            nSdLeave.f=nSeed.f*p.IPM$p_emig)
-  P_IPM <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
+  P_IPM <- lam.df %>% 
+    dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
     mutate(prP=out$Uf$prP,
            lambda.f=out$Uf$lam.mn)
   
