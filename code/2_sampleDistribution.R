@@ -23,14 +23,14 @@ env.in <- readRDS(here(paste0("out/", sp, "_env_in.rds")))
 p <- readRDS(here(paste0("out/", sp, "_p.rds")))
 S <- readRDS(here(paste0("out/", sp, "_S.rds")))
 U <- readRDS(here(paste0("out/", sp, "_U.rds")))
-lam.df <- readRDS(here(paste0("out/", sp, "_lam_df.rds"))) # env + true pop vals
+lam.df <- readRDS(here(paste0("out/", sp, "_lam_df.rds"))) # env & true pop vals
 n.cell <- nrow(env.in)
 
 
 ########
 ## Set sampling details
 ########
-n_samp <- 5  # number of unique samples to average across
+n_samp <- 10  # number of unique samples to average across
 O_n <- list(Corr=100, Mech=30)  # number of cells in sample
 O_yr <- list(Mx=p$tmax, CA=(-2:0)+p$tmax, IPM=p$tmax)  # years to sample
 P.i <- which(lam.df$Surv.S > 5)  # presences: survival past recruit stage
@@ -39,7 +39,7 @@ prop.sampled <- 1  # proportion of individuals sampled per sampled cell
 geog.excl <- which(env.in$x < 20)
 noise <- list(Mx=0.2, # proportion of observed presences that are false
               CA=list(N=0.02,  # N.obs = rnorm(N.true, N.true*N)
-                      fec=0.05),  # fec.obs = rnorm(fec.true, fec.true*fec)
+                      mu=0.05),  # fec.obs = rnorm(fec.true, fec.true*fec)
               IPM=list(g=0.1,  # sizeNext.obs = rnorm(SizeNext.true, g) 
                        seed=0.05)  # seed.obs = rnorm(seed.true, seed.true*seed)
 )

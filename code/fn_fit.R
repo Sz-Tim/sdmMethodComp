@@ -83,12 +83,12 @@ add_noise_Mx <- function(O_Mx, err, O_n, n_samp, Corr.sample, n.cell, P.i) {
 }
 add_noise_CA <- function(O_CA, err, n_samp) {
   # N.obs = rnorm(N.true, N.true*N) | (N.obs ≥ 0)
-  # fec.obs = rnorm(fec.true, fec.true*fec) | (fec.obs ≥ 0)
+  # mu.obs = rnorm(mu.true, mu.true*mu) | (mu.obs ≥ 0)
   for(s in 1:n_samp) {
     n_obs <- nrow(O_CA[[s]]$d)
     O_CA[[s]]$d <- O_CA[[s]]$d %>% 
       mutate(N=pmax(round(rnorm(n_obs, N, N*err$N)), 0),
-             fec=pmax(round(rnorm(n_obs, fec, fec*err$fec))), 0) %>%
+             mu=pmax(round(rnorm(n_obs, mu, mu*err$mu))), 0) %>%
       group_by(id) %>% mutate(lambda=N/lag(N,1))
   }
   return(O_CA)
@@ -254,24 +254,24 @@ fit_CA <- function(sp, sampling.issue, modeling.issue, p, env.rct, env.rct.unsc,
     # global models
     options(na.action="na.fail")
     full.m <- opt.m <- vars.opt <- vector("list", 5)
-    names(full.m) <- c("K", "s.jv", "s.ad", "p.f", "fec")
+    names(full.m) <- c("K", "s.M", "s.N", "p.f", "mu")
     names(opt.m) <- names(vars.opt) <- names(full.m)
     
     full.m$K <- glmer(as.formula(paste("N ~", m, collapse="")),
                       data=O_CA.K, family="poisson")
-    full.m$s.jv <- glmer(as.formula(paste("cbind(s.jv.1, s.jv.0) ~", m, 
+    full.m$s.M <- glmer(as.formula(paste("cbind(s.M.1, s.M.0) ~", m, 
                                           collapse="")), 
                          data=O_CA.i, family="binomial")
-    if(n_distinct(O_CA.i$s.ad.0)>1) { # in case no mortality
-      full.m$s.ad <- glmer(as.formula(paste("cbind(s.ad.1, s.ad.0) ~", m,
+    if(n_distinct(O_CA.i$s.N.0)>1) { # in case no mortality
+      full.m$s.N <- glmer(as.formula(paste("cbind(s.N.1, s.N.0) ~", m,
                                             collapse="")), 
-                           data=O_CA.i, family="binomial")
+                          data=O_CA.i, family="binomial")
     } 
     full.m$p.f <- glmer(as.formula(paste("cbind(f.1, f.0) ~", m,
                                          collapse="")), 
                         data=O_CA.i, family="binomial")
-    full.m$fec <- glmer(as.formula(paste("fec ~", m, collapse="")), 
-                        data=O_CA.i, family="poisson")
+    full.m$mu <- glmer(as.formula(paste("mu ~", m, collapse="")), 
+                       data=O_CA.i, family="poisson")
     
     # store coefficients from optimal models
     vars.ls <- rep(list(v), length(full.m)); names(vars.ls) <- names(opt.m)
@@ -290,14 +290,15 @@ fit_CA <- function(sp, sampling.issue, modeling.issue, p, env.rct, env.rct.unsc,
                     lc.r=diff(range(lam.df$y)), lc.c=diff(range(lam.df$x)),
                     n.lc=5, N.p.t0=n.cell, 
                     K=vars.ls$K, 
-                    s.jv=vars.ls$s.jv,
-                    s.ad=vars.ls$s.ad,
+                    s.M=vars.ls$s.M,
+                    s.N=vars.ls$s.N,
                     p.f=vars.ls$p.f,
-                    fec=vars.ls$fec,
-                    age.f=3, s.sb=p$s_SB, nSdFrt=1, 
-                    p.est=as.matrix(logit(p$p_est)), 
+                    mu=vars.ls$mu,
+                    m=3, gamma=1, 
+                    s.B=p$s_SB, g.D=p$rcr_dir, g.B=p$rcr_SB,
+                    p=as.matrix(logit(p$p_est)), 
                     sdd.max=p$sdd_max, sdd.rate=p$sdd_rate, n.ldd=1,
-                    p.eat=matrix(1), bird.hab=p$bird_hab, s.bird=1, method="lm")
+                    p.c=matrix(1), bird.hab=p$bird_hab, s.c=1, method="lm")
     p.CA$p_emig <- p$p_emig
     
     # impose issues
@@ -318,9 +319,9 @@ fit_CA <- function(sp, sampling.issue, modeling.issue, p, env.rct, env.rct.unsc,
     }
     
     # run simulations
-    N.init <- matrix(0, n.grid, p.CA$age.f)  # column for each age class
-    N.init[X.CA$id[X.CA$inbd], p.CA$age.f] <- N_init
-    N.init[X.CA$id[X.CA$inbd], -p.CA$age.f] <- round(N_init/5)
+    N.init <- matrix(0, n.grid, p.CA$m)  # column for each age class
+    N.init[X.CA$id[X.CA$inbd], p.CA$m] <- N_init
+    N.init[X.CA$id[X.CA$inbd], -p.CA$m] <- round(N_init/5)
     cat("||-- Starting simulations\n")
     if(n_cores > 1) {
       p.c <- makeCluster(n_cores); registerDoSNOW(p.c)
@@ -333,13 +334,14 @@ fit_CA <- function(sp, sampling.issue, modeling.issue, p, env.rct, env.rct.unsc,
         sim.ls[[s]] <- run_sim(n.grid, n.cell, p.CA, X.CA, sdd.pr, N.init, NULL)
       }
     }
-    CA.f[[i]] <- aggregate_CA_simulations(sim.ls, p.CA$tmax, max(p.CA$age.f))
+    CA.f[[i]] <- aggregate_CA_simulations(sim.ls, p.CA$tmax, max(p.CA$m))
     diagnostics[[i]] <- list(p.CA, vars.ls)
     rm(sim.ls)
     cat("  Finished dataset", i, "\n\n")
   }
   out <- summarize_CA_samples(CA.f, lam.df$id)
-  P_CAd <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
+  P_CAd <- lam.df %>% 
+    dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
     mutate(prP=out$prP[,p.CA$tmax+1],
            lam.S.f=rowMeans(out$N_ad.mn[,(-3:0)+p.CA$tmax]/
                               (out$N_ad.mn[,(-4:-1)+p.CA$tmax]), na.rm=T),
