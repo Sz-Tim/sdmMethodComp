@@ -18,18 +18,24 @@ sample_for_CA <- function(S, Mech.sample, O_n, O_yr, n_samp, prop.sampled) {
       i <- Mech.sample[[s]][j]
       CA.d[[j]] <- data.frame(S$d[[i]]) %>% filter(yr %in% O_yr$CA)
       CA.d[[j]] <- sample_frac(CA.d[[j]], prop.sampled)
+      if(!all(O_yr$CA %in% CA.d[[j]]$yr)) {
+        missing.yr <- O_yr$CA[!O_yr$CA %in% CA.d[[j]]$yr]
+        CA.d[[j]] <- CA.d[[j]] %>%
+          add_row(yr=missing.yr, 
+                  age=NA, sizeNext=NA, seed=NA, fl=NA, surv=NA, size=NA)
+      }
       CA.d[[j]] <- CA.d[[j]] %>% group_by(yr) %>% 
         summarise(N=sum(!is.na(size)), 
-                  s.ad.0=sum(surv[age>2]==0, na.rm=TRUE),
-                  s.ad.1=sum(surv[age>2]==1, na.rm=TRUE),
-                  s.jv.0=sum(surv[age<3]==0, na.rm=TRUE),
-                  s.jv.1=sum(surv[age<3]==1, na.rm=TRUE),
+                  s.N.0=sum(surv[age>2]==0, na.rm=TRUE),
+                  s.N.1=sum(surv[age>2]==1, na.rm=TRUE),
+                  s.M.0=sum(surv[age<3]==0, na.rm=TRUE),
+                  s.M.1=sum(surv[age<3]==1, na.rm=TRUE),
                   f.0=sum(fl==0, na.rm=TRUE),
                   f.1=sum(fl==1, na.rm=TRUE),
-                  fec=mean(seed, na.rm=TRUE) %>% round,
+                  mu=mean(seed, na.rm=TRUE) %>% round,
                   nSeed=sum(seed, na.rm=TRUE),
-                  N.rcr=sum(is.na(size))) %>%
-        mutate(fec=ifelse(is.nan(fec), 0, fec)) %>%
+                  N.rcr=sum(is.na(size) & !is.na(sizeNext))) %>%
+        mutate(mu=ifelse(is.nan(mu), 0, mu)) %>%
         ungroup() %>%
         mutate(lambda=N/lag(N,1)) %>%
         add_column(id.inbd=i) %>%
