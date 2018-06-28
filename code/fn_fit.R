@@ -166,9 +166,9 @@ fit_MxE <- function(sp, issue, sampling.issue, lam.df, v) {
                 "noautofeature", "noprefixes", "writeplotdata",
                 "outputformat=logistic")
   for(i in seq_along(O_Mx)) {
-    if(sampling.issue %in% c("sampBias", "geogBias")) {
-      fit.args <- c(fit.args, "biasfile=out/maxent/sampBias.asc", "biastype=3")
-    }
+    # if(sampling.issue %in% c("sampBias", "geogBias")) {
+    #   fit.args <- c(fit.args, "biasfile=out/maxent/sampBias.asc", "biastype=3")
+    # }
     if(!dir.exists(paste0(path_iss, i))) dir.create(paste0(path_iss, i))
     MxE.f[[i]] <- maxent(x=rast.Mx, p=as.matrix(lam.df[O_Mx[[i]], 15:14]),
                         args=fit.args, path=paste0(path_iss, i))
