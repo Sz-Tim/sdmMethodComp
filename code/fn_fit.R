@@ -219,17 +219,21 @@ fit_MxL <- function(sp, issue, sampling.issue, lam.df, v, m) {
     temp.rast[[vi]] <- rasterFromXYZ(cbind(lam.df[,15:14], X.Mx[,vi]))
   }
   rast.Mx <- stack(temp.rast)
-  MxL.f <- MxL.p <- vector("list", length(O_Mx))
+  MxL.f <- MxL.p <- MxL.PA <- thresh <- vector("list", length(O_Mx))
   for(i in  seq_along(O_Mx)) {
     MxL.f[[i]] <- maxlike(as.formula(paste("~", m)), rast.Mx, hessian=F,
                          as.matrix(lam.df[O_Mx[[i]], 15:14]), savedata=T)
     MxL.p[[i]] <- predict(MxL.f[[i]])
+    thresh[[i]] <- min(MxL.p[[i]]@data@values[lam.df$id[O_Mx[[i]]]])
+    MxL.PA[[i]] <- MxL.p[[i]]@data@values > thresh[[i]]
   }
   names(MxL.p) <- 1:length(MxL.p)
   MxL.p.data <- map_dfr(MxL.p, ~.@data@values) %>% as.matrix
+  MxL.PA <- do.call("cbind", MxL.PA)
   P_MxL <- lam.df %>% 
     dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>%
-    mutate(prP=apply(MxL.p.data[lam.df$id,], 1, mean),
+    mutate(prP=apply(MxL.PA[lam.df$id,], 1, mean),
+           prP_raw=apply(MxL.p.data[lam.df$id,], 1, mean),
            prP.sd=apply(MxL.p.data[lam.df$id,], 1, sd))
   diagnostics <- NULL#map(MxL.f, summary)
   return(list(P_MxL=P_MxL, diag=diagnostics))
