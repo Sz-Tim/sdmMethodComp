@@ -5,8 +5,8 @@
 
 library(maptools); library(raster); library(rgeos); library(rgdal)
 library(spatialEco); library(tidyverse); library(doSNOW); library(foreach)
-n_core <- 2
-cell_side <- 50000  # cell dimensions in meters; cell_area = cell_side^2
+n_core <- 8
+cell_side <- 5000  # cell dimensions in meters; cell_area = cell_side^2
 
 
 
@@ -75,7 +75,7 @@ clim.rast <- crop(clim.rast, extent(ENF.wgs), snap="out")
 clim.rast <- projectRaster(clim.rast, crs=alb_CRS)
 # Calculate mean value within each grid cell
 p.c <- makeCluster(n_core); registerDoSNOW(p.c)
-clim.df <- foreach(i=seq_along(clim.var), .combine="data.frame", 
+clim.df <- foreach(i=seq_along(clim.var), .combine="data.frame", .errorhandling="pass",
                    .packages=c("sp", "spatialEco")) %dopar% {
   zonal.stats(grd, clim.rast[[i]], mean, trace=F, plot=F)
 }
@@ -108,17 +108,22 @@ if(reclass_first) {
 }
 # Separate land cover categories to binary layers & calculate mean (=proportion)
 p.c <- makeCluster(n_core); registerDoSNOW(p.c)
-nlcd.df <- foreach(i=seq_along(nlcd.val), #.combine="data.frame",
+nlcd.df <- foreach(i=seq_along(nlcd.val), .errorhandling="pass",
                    .packages=c("raster", "sp", "spatialEco")) %dopar% {
-  nlcd.i <- layerize(nlcd.rast, classes=nlcd.val[i], 
-                     filename=paste0("data/nlcd/layers/lc_", nlcd.val[i], ".grd"))
+  f.i <- paste0("data/nlcd/layers/lc_", nlcd.val[i], ".grd")
+  if(file.exists(f.i)) {
+    nlcd.i <- raster(f.i)
+  } else {
+    nlcd.i <- layerize(nlcd.rast, classes=nlcd.val[i], filename=f.i)
+  }
   zonal.stats(grd, nlcd.i, mean, trace=F, plot=F)
 }
 stopCluster(p.c)
 rm(nlcd.rast)
+nlcd.df <- as.data.frame(do.call("cbind", nlcd.df))
 names(nlcd.df) <- paste0("nlcd_", nlcd.val)
 grd.df <- cbind(grd.df, nlcd.df)
-rm(nlcd.bin); removeTmpFiles(0)
+removeTmpFiles(0)
 
 
 
@@ -127,15 +132,18 @@ rm(nlcd.bin); removeTmpFiles(0)
 ## lines for all primary and secondary roads by state and were downloaded on 
 ## 2018 June 13 from <ftp://ftp2.census.gov/geo/tiger/TIGER2017/PRISECROADS>.
 ##------
-roads <- dir("data/roads/primary_secondary", "*.shp$", full.names=T)
-roads <- do.call(rbind, lapply(roads, rgdal::readOGR))
-roads <- spTransform(roads, alb_CRS)
-rd.grd <- raster::intersect(roads, grd)
-rd.grd$length <- gLength(rd.grd, byid=TRUE)
-x <- tapply(rd.grd$length, rd.grd$layer, sum)
+library(sf)
+road.f <- dir("data/roads", "*.shp$", full.names=T)
+rd.grd <- lapply(road.f, st_read) %>%
+  do.call(rbind, .) %>%
+  st_transform(., alb_CRS@projargs) %>%
+  st_crop(., extent(ENF.us)) %>%
+  st_intersection(., st_as_sf(grd)) %>%
+  mutate(length=st_length(.)) %>%
+  group_by(layer) %>%
+  summarise(length=sum(length))
 grd.df$rd_len <- 0
-grd.df$rd_len[as.integer(names(x))] <- x
-
+grd.df$rd_len[rd.grd$layer] <- rd.grd$length
 
 
 
