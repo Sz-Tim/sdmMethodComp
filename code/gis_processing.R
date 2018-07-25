@@ -120,7 +120,8 @@ nlcd.df <- foreach(i=seq_along(nlcd.val), .errorhandling="pass",
 }
 stopCluster(p.c)
 rm(nlcd.rast)
-nlcd.df <- as.data.frame(do.call("cbind", nlcd.df))
+nlcd.df <- as.data.frame(do.call("cbind", nlcd.df)) 
+nlcd.df <- nlcd.df/rowSums(nlcd.df)
 names(nlcd.df) <- paste0("nlcd_", nlcd.val)
 grd.df <- cbind(grd.df, nlcd.df)
 removeTmpFiles(0)
@@ -147,7 +148,7 @@ grd.df$rd_len[rd.grd$layer] <- rd.grd$length
 
 
 
-write.csv(grd.df, paste0("data/ENF_", cell_side/1000, "km.csv"))
+write_csv(grd.df, paste0("data/ENF_", cell_side/1000, "km.csv"))
 
 
 
