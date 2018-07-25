@@ -36,7 +36,11 @@ hist(log(lam.df$lambda))
 
 theme_set(theme_bw())
 ggplot(out, aes(x=lon, y=lat, fill=lambda>1)) + geom_tile() + ggtitle(sp)
+ggplot(out, aes(x=lon, y=lat, fill=lambda)) + geom_tile() + ggtitle(sp) +
+  scale_fill_gradient(low="white", high="red")
 ggplot(out, aes(x=lon, y=lat, fill=Surv.S>0)) + geom_tile() + ggtitle(sp)
+ggplot(out, aes(x=lon, y=lat, fill=Surv.S)) + geom_tile() + ggtitle(sp) +
+  scale_fill_gradient(low="white", high="red")
 ggplot(out, aes(fill=outcome, x=SDM)) + geom_bar(position="fill") + 
   facet_wrap(~issue) + scale_fill_brewer(name="", type="div") + 
   ylab("Proportion of cells") + ggtitle(sp)
