@@ -18,18 +18,24 @@ sample_for_CA <- function(S, Mech.sample, O_n, O_yr, n_samp, prop.sampled) {
       i <- Mech.sample[[s]][j]
       CA.d[[j]] <- data.frame(S$d[[i]]) %>% filter(yr %in% O_yr$CA)
       CA.d[[j]] <- sample_frac(CA.d[[j]], prop.sampled)
+      if(!all(O_yr$CA %in% CA.d[[j]]$yr)) {
+        missing.yr <- O_yr$CA[!O_yr$CA %in% CA.d[[j]]$yr]
+        CA.d[[j]] <- CA.d[[j]] %>%
+          add_row(yr=missing.yr, 
+                  age=NA, sizeNext=NA, seed=NA, fl=NA, surv=NA, size=NA)
+      }
       CA.d[[j]] <- CA.d[[j]] %>% group_by(yr) %>% 
         summarise(N=sum(!is.na(size)), 
-                  s.ad.0=sum(surv[age>2]==0, na.rm=TRUE),
-                  s.ad.1=sum(surv[age>2]==1, na.rm=TRUE),
-                  s.jv.0=sum(surv[age<3]==0, na.rm=TRUE),
-                  s.jv.1=sum(surv[age<3]==1, na.rm=TRUE),
+                  s.N.0=sum(surv[age>2]==0, na.rm=TRUE),
+                  s.N.1=sum(surv[age>2]==1, na.rm=TRUE),
+                  s.M.0=sum(surv[age<3]==0, na.rm=TRUE),
+                  s.M.1=sum(surv[age<3]==1, na.rm=TRUE),
                   f.0=sum(fl==0, na.rm=TRUE),
                   f.1=sum(fl==1, na.rm=TRUE),
-                  fec=mean(seed, na.rm=TRUE) %>% round,
+                  mu=mean(seed, na.rm=TRUE) %>% round,
                   nSeed=sum(seed, na.rm=TRUE),
-                  N.rcr=sum(is.na(size))) %>%
-        mutate(fec=ifelse(is.nan(fec), 0, fec)) %>%
+                  N.rcr=sum(is.na(size) & !is.na(sizeNext))) %>%
+        mutate(mu=ifelse(is.nan(mu), 0, mu)) %>%
         ungroup() %>%
         mutate(lambda=N/lag(N,1)) %>%
         add_column(id.inbd=i) %>%
@@ -83,12 +89,12 @@ add_noise_Mx <- function(O_Mx, err, O_n, n_samp, Corr.sample, n.cell, P.i) {
 }
 add_noise_CA <- function(O_CA, err, n_samp) {
   # N.obs = rnorm(N.true, N.true*N) | (N.obs ≥ 0)
-  # fec.obs = rnorm(fec.true, fec.true*fec) | (fec.obs ≥ 0)
+  # mu.obs = rnorm(mu.true, mu.true*mu) | (mu.obs ≥ 0)
   for(s in 1:n_samp) {
     n_obs <- nrow(O_CA[[s]]$d)
     O_CA[[s]]$d <- O_CA[[s]]$d %>% 
       mutate(N=pmax(round(rnorm(n_obs, N, N*err$N)), 0),
-             fec=pmax(round(rnorm(n_obs, fec, fec*err$fec))), 0) %>%
+             mu=pmax(round(rnorm(n_obs, mu, mu*err$mu))), 0) %>%
       group_by(id) %>% mutate(lambda=N/lag(N,1))
   }
   return(O_CA)
@@ -160,9 +166,9 @@ fit_MxE <- function(sp, issue, sampling.issue, lam.df, v) {
                 "noautofeature", "noprefixes", "writeplotdata",
                 "outputformat=logistic")
   for(i in seq_along(O_Mx)) {
-    if(sampling.issue %in% c("sampBias", "geogBias")) {
-      fit.args <- c(fit.args, "biasfile=out/maxent/sampBias.asc", "biastype=3")
-    }
+    # if(sampling.issue %in% c("sampBias", "geogBias")) {
+    #   fit.args <- c(fit.args, "biasfile=out/maxent/sampBias.asc", "biastype=3")
+    # }
     if(!dir.exists(paste0(path_iss, i))) dir.create(paste0(path_iss, i))
     MxE.f[[i]] <- maxent(x=rast.Mx, p=as.matrix(lam.df[O_Mx[[i]], 15:14]),
                         args=fit.args, path=paste0(path_iss, i))
@@ -213,17 +219,21 @@ fit_MxL <- function(sp, issue, sampling.issue, lam.df, v, m) {
     temp.rast[[vi]] <- rasterFromXYZ(cbind(lam.df[,15:14], X.Mx[,vi]))
   }
   rast.Mx <- stack(temp.rast)
-  MxL.f <- MxL.p <- vector("list", length(O_Mx))
+  MxL.f <- MxL.p <- MxL.PA <- thresh <- vector("list", length(O_Mx))
   for(i in  seq_along(O_Mx)) {
     MxL.f[[i]] <- maxlike(as.formula(paste("~", m)), rast.Mx, hessian=F,
                          as.matrix(lam.df[O_Mx[[i]], 15:14]), savedata=T)
     MxL.p[[i]] <- predict(MxL.f[[i]])
+    thresh[[i]] <- min(MxL.p[[i]]@data@values[lam.df$id[O_Mx[[i]]]])
+    MxL.PA[[i]] <- MxL.p[[i]]@data@values > thresh[[i]]
   }
   names(MxL.p) <- 1:length(MxL.p)
   MxL.p.data <- map_dfr(MxL.p, ~.@data@values) %>% as.matrix
+  MxL.PA <- do.call("cbind", MxL.PA)
   P_MxL <- lam.df %>% 
     dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>%
-    mutate(prP=apply(MxL.p.data[lam.df$id,], 1, mean),
+    mutate(prP=apply(MxL.PA[lam.df$id,], 1, mean),
+           prP_raw=apply(MxL.p.data[lam.df$id,], 1, mean),
            prP.sd=apply(MxL.p.data[lam.df$id,], 1, sd))
   diagnostics <- NULL#map(MxL.f, summary)
   return(list(P_MxL=P_MxL, diag=diagnostics))
@@ -242,7 +252,7 @@ fit_CA <- function(sp, sampling.issue, modeling.issue, p, env.rct, env.rct.unsc,
   # load observations
   O_CA <- readRDS(here(paste0("out/", sp, "_O_CA_", sampling.issue, ".rds")))
   X.CA <- env.rct %>% rename(id.in=id.inbd) %>%
-    select(one_of("x", "y", "x_y", "inbd", "id", "id.in", names(vars)[v.i]))
+    dplyr::select(one_of("x", "y", "x_y", "inbd", "id", "id.in", names(vars)[v.i]))
   
   # Fit CA models
   CA.f <- diagnostics <- vector("list", length(O_CA))
@@ -254,24 +264,24 @@ fit_CA <- function(sp, sampling.issue, modeling.issue, p, env.rct, env.rct.unsc,
     # global models
     options(na.action="na.fail")
     full.m <- opt.m <- vars.opt <- vector("list", 5)
-    names(full.m) <- c("K", "s.jv", "s.ad", "p.f", "fec")
+    names(full.m) <- c("K", "s.M", "s.N", "p.f", "mu")
     names(opt.m) <- names(vars.opt) <- names(full.m)
     
     full.m$K <- glmer(as.formula(paste("N ~", m, collapse="")),
                       data=O_CA.K, family="poisson")
-    full.m$s.jv <- glmer(as.formula(paste("cbind(s.jv.1, s.jv.0) ~", m, 
+    full.m$s.M <- glmer(as.formula(paste("cbind(s.M.1, s.M.0) ~", m, 
                                           collapse="")), 
                          data=O_CA.i, family="binomial")
-    if(n_distinct(O_CA.i$s.ad.0)>1) { # in case no mortality
-      full.m$s.ad <- glmer(as.formula(paste("cbind(s.ad.1, s.ad.0) ~", m,
+    if(n_distinct(O_CA.i$s.N.0)>1) { # in case no mortality
+      full.m$s.N <- glmer(as.formula(paste("cbind(s.N.1, s.N.0) ~", m,
                                             collapse="")), 
-                           data=O_CA.i, family="binomial")
+                          data=O_CA.i, family="binomial")
     } 
     full.m$p.f <- glmer(as.formula(paste("cbind(f.1, f.0) ~", m,
                                          collapse="")), 
                         data=O_CA.i, family="binomial")
-    full.m$fec <- glmer(as.formula(paste("fec ~", m, collapse="")), 
-                        data=O_CA.i, family="poisson")
+    full.m$mu <- glmer(as.formula(paste("mu ~", m, collapse="")), 
+                       data=O_CA.i, family="poisson")
     
     # store coefficients from optimal models
     vars.ls <- rep(list(v), length(full.m)); names(vars.ls) <- names(opt.m)
@@ -290,14 +300,15 @@ fit_CA <- function(sp, sampling.issue, modeling.issue, p, env.rct, env.rct.unsc,
                     lc.r=diff(range(lam.df$y)), lc.c=diff(range(lam.df$x)),
                     n.lc=5, N.p.t0=n.cell, 
                     K=vars.ls$K, 
-                    s.jv=vars.ls$s.jv,
-                    s.ad=vars.ls$s.ad,
+                    s.M=vars.ls$s.M,
+                    s.N=vars.ls$s.N,
                     p.f=vars.ls$p.f,
-                    fec=vars.ls$fec,
-                    age.f=3, s.sb=p$s_SB, nSdFrt=1, 
-                    p.est=as.matrix(logit(p$p_est)), 
+                    mu=vars.ls$mu,
+                    m=3, gamma=1, 
+                    s.B=p$s_SB, g.D=p$rcr_dir, g.B=p$rcr_SB,
+                    p=as.matrix(logit(p$p_est)), 
                     sdd.max=p$sdd_max, sdd.rate=p$sdd_rate, n.ldd=1,
-                    p.eat=matrix(1), bird.hab=p$bird_hab, s.bird=1, method="lm")
+                    p.c=matrix(1), bird.hab=p$bird_hab, s.c=1, method="lm")
     p.CA$p_emig <- p$p_emig
     
     # impose issues
@@ -318,9 +329,9 @@ fit_CA <- function(sp, sampling.issue, modeling.issue, p, env.rct, env.rct.unsc,
     }
     
     # run simulations
-    N.init <- matrix(0, n.grid, p.CA$age.f)  # column for each age class
-    N.init[X.CA$id[X.CA$inbd], p.CA$age.f] <- N_init
-    N.init[X.CA$id[X.CA$inbd], -p.CA$age.f] <- round(N_init/5)
+    N.init <- matrix(0, n.grid, p.CA$m)  # column for each age class
+    N.init[X.CA$id[X.CA$inbd], p.CA$m] <- N_init
+    N.init[X.CA$id[X.CA$inbd], -p.CA$m] <- round(N_init/5)
     cat("||-- Starting simulations\n")
     if(n_cores > 1) {
       p.c <- makeCluster(n_cores); registerDoSNOW(p.c)
@@ -333,13 +344,14 @@ fit_CA <- function(sp, sampling.issue, modeling.issue, p, env.rct, env.rct.unsc,
         sim.ls[[s]] <- run_sim(n.grid, n.cell, p.CA, X.CA, sdd.pr, N.init, NULL)
       }
     }
-    CA.f[[i]] <- aggregate_CA_simulations(sim.ls, p.CA$tmax, max(p.CA$age.f))
+    CA.f[[i]] <- aggregate_CA_simulations(sim.ls, p.CA$tmax, max(p.CA$m))
     diagnostics[[i]] <- list(p.CA, vars.ls)
     rm(sim.ls)
     cat("  Finished dataset", i, "\n\n")
   }
   out <- summarize_CA_samples(CA.f, lam.df$id)
-  P_CAd <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
+  P_CAd <- lam.df %>% 
+    dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
     mutate(prP=out$prP[,p.CA$tmax+1],
            lam.S.f=rowMeans(out$N_ad.mn[,(-3:0)+p.CA$tmax]/
                               (out$N_ad.mn[,(-4:-1)+p.CA$tmax]), na.rm=T),
@@ -462,7 +474,8 @@ fit_IPM <- function(sp, sampling.issue, modeling.issue, p, env.rct.unsc,
   }
   out <- summarize_IPM_samples(U.f, S.f)
   
-  P_CAi <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
+  P_CAi <- lam.df %>% 
+    dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
     mutate(prP=out$Sf$prP,
            lam.S.f=rowMeans(out$Sf$N_sim.mn[,(-3:0)+p.IPM$tmax]/
                               (out$Sf$N_sim.mn[,(-4:-1)+p.IPM$tmax]+0.0001)),
@@ -475,7 +488,8 @@ fit_IPM <- function(sp, sampling.issue, modeling.issue, p, env.rct.unsc,
            Rcr.S.f=out$Sf$N_rcr.mn,
            nSdStay.f=nSeed.f*(1-p.IPM$p_emig), 
            nSdLeave.f=nSeed.f*p.IPM$p_emig)
-  P_IPM <- lam.df %>% select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
+  P_IPM <- lam.df %>% 
+    dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
     mutate(prP=out$Uf$prP,
            lambda.f=out$Uf$lam.mn)
   
