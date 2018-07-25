@@ -14,6 +14,7 @@ sp <- "sp1"
 pkgs <- c("tidyverse", "magrittr", "stringr", "here")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
 walk(paste0("code/fn_", c("IPM", "aux", "sim"), ".R"), ~source(here(.)))
+lam.df <- readRDS(here(paste0("out/", sp, "_lam_df.rds")))
 SDM_col <- c(MxE="#3f007d", MxL="#6a51a3", 
              IPM="#014636", CAi="#02818a", CAd="#67a9cf")
 out <- read.csv(here(paste0("out/", sp, "_out.csv")))
