@@ -17,53 +17,62 @@ logit <- function (x) {
 
 
 
-##-- generate landscape
-build_landscape <- function(f, x_max=Inf, y_max=Inf) {
+##-- generate landscape 
+#' Assemble the necessary landscape files. This aggregates NLCD categories and
+#' extracts the specified bioclimatic variables, returning one full-grid
+#' dataframe with variables scaled, one full-grid dataframe with raw values, one
+#' in-bound dataframe with scaled values, and an index for the scaling.
+#' @param f Landscape grid file (e.g., ENF_50km.csv)
+#' @param nlcd_agg Dataframe with NLCD aggregation scheme
+#' @param clim_X Column names for bioclimatic variables to include. Defaults to all 19 variables
+#' @param x_max \code{Inf} Maximum number of rows in grid (Inf = full-scale)
+#' @param y_max \code{Inf} Maximum number of columns in grid (Inf = full-scale)
+build_landscape <- function(f, nlcd_agg, clim_X=paste0("bio10_", 1:19), 
+                            x_max=Inf, y_max=Inf) {
   library(tidyverse)
   # load GIS data
-  lc.df <- read_csv(f) %>% 
-    filter(!is.na(bio1_mean)) %>%
-    mutate(x=as.integer(factor(.$left)),
-           y=as.integer(factor(.$top, levels=rev(levels(factor(.$top))))),
+  f.df <- read_csv(f) %>% 
+    mutate(x=as.integer(factor(.$long)),
+           y=as.integer(factor(.$lat, levels=rev(levels(factor(.$lat))))),
            x_y=paste(x, y, sep="_"))
+  lc.cat <- unique(nlcd_agg$agg)
+  n_lc <- length(lc.cat)
+  n_clim <- length(clim_X)
+  # aggregate NLCD
+  nlcd_agg$orig <- paste0("nlcd_", nlcd_agg$orig)
+  agg.mx <- matrix(nrow=nrow(f.df), ncol=n_lc)
+  colnames(agg.mx) <- lc.cat
+  for(i in 1:n_lc) {
+    agg.mx[,i] <- rowSums(f.df[, with(nlcd_agg, orig[agg==lc.cat[i]])])
+  }
+  # assemble specified variables
+  l.df <- cbind(f.df[, c("long", "lat", "x", "y", "x_y", clim_X)], agg.mx)
   # store scaling mean and sd
-  X.col <- c(16, 18, 4:8)
-  lc.scale <- select(lc.df, X.col) %>% scale
-  scale.i <- cbind(sc_mn=attributes(lc.scale)$`scaled:center`,
-                   sc_sd=attributes(lc.scale)$`scaled:scale`)
-  rownames(scale.i) <- c("temp", "prec", "pOpn", "pOth", "pDec", "pEvg", "pMxd")
+  l.scale <- select(l.df, -(1:5)) %>% scale
+  scale.i <- cbind(sc_mn=attributes(l.scale)$`scaled:center`,
+                   sc_sd=attributes(l.scale)$`scaled:scale`)
+  rownames(scale.i) <- colnames(l.scale)
   # establish grid with x=1:ncol, y=1:nrow
-  env.rct <- as.tibble(expand.grid(x=1:max(lc.df$x), y=1:max(lc.df$y))) %>%
+  rct <- as.tibble(expand.grid(x=1:max(l.df$x), y=1:max(l.df$y))) %>%
     mutate(x_y=paste(x, y, sep="_")) 
-  match_id <- match(env.rct$x_y, lc.df$x_y)
+  match_id <- match(rct$x_y, l.df$x_y)
   # pair environmental variables
-  env.rct <- env.rct %>%
-    mutate(temp=lc.scale[match_id,1],
-           temp2=temp^2,
-           prec=lc.scale[match_id,2],
-           prec2=prec^2,
-           pOpn=lc.scale[match_id,3],
-           pOth=lc.scale[match_id,4],
-           pDec=lc.scale[match_id,5],
-           pEvg=lc.scale[match_id,6],
-           pMxd=lc.scale[match_id,7],
-           inbd=!is.na(match(.$x_y, lc.df$x_y)),
-           lat=lc.df$top[match_id],
-           lon=lc.df$left[match_id],
-           rdLen=lc.df$rdLen[match_id]) %>%
+  l.rct <- l.scale[match_id, rep(1:ncol(l.scale), rep(2:1, c(n_clim, n_lc)))]
+  l.rct[,2*(1:n_clim)] <- l.rct[,2*(1:n_clim)]^2
+  colnames(l.rct)[2*(1:n_clim)] <- paste0(colnames(l.rct)[2*(1:n_clim)], "_sq")
+  env.rct <- cbind(l.rct, rct) %>%
+    mutate(inbd=!is.na(match(.$x_y, l.df$x_y)),
+           lat=l.df$lat[match_id],
+           lon=l.df$long[match_id],
+           rdLen=f.df$rd_len[match_id]) %>%
     filter(x <= x_max & y <= y_max) %>%
     mutate(id=row_number(), 
            id.inbd=min_rank(na_if(inbd*id, 0)))
-  env.rct[is.na(env.rct)] <- 0
-  match_id <- match(env.rct$x_y, lc.df$x_y)
-  env.rct.unscaled <- env.rct %>%
-    mutate(pOpn=lc.df$nlcd1_mean[match_id],
-           pOth=lc.df$nlcd2_mean[match_id],
-           pDec=lc.df$nlcd3_mean[match_id],
-           pEvg=lc.df$nlcd4_mean[match_id],
-           pMxd=lc.df$nlcd5_mean[match_id])
+  # env.rct[is.na(env.rct)] <- 0
+  env.rct.unscaled <- cbind(env.rct[,-(1:(n_lc+n_clim*2))], 
+                            l.df[match_id,-(1:5)])
   # subset inbound cells
-  env.in <- filter(env.rct, inbd) %>% select(4:12, 1:3, 13:18) 
+  env.in <- filter(env.rct, inbd)
   return(list(env.rct=env.rct, env.rct.unscaled=env.rct.unscaled,
               env.in=env.in, scale.i=scale.i))
 }

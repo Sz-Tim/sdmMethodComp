@@ -138,16 +138,17 @@ add_misDisperse <- function(p.mod, p, sdd_max_adj=2, sdd_rate_adj=.1, ldd=5) {
 fit_MxE <- function(sp, issue, sampling.issue, lam.df, v) {
   library(dismo); library(here); library(tidyverse); library(raster)
   path_sp <- paste0("out/maxent/", sp, "/")
-  if(!dir.exists(path_sp)) dir.create(path_sp)
+  if(!dir.exists(path_sp)) dir.create(path_sp, recursive=T)
   path_iss <- paste0(path_sp, issue, "/")
-  if(!dir.exists(path_iss)) dir.create(path_iss)
+  if(!dir.exists(path_iss)) dir.create(path_iss, recursive=T)
   # load observations
-  O_Mx <- readRDS(here(paste0("out/", sp, "_O_Mx_", sampling.issue, ".rds")))
+  O_Mx <- readRDS(here("vs", sp, paste0("O_Mx_", sampling.issue, ".rds")))
   X.Mx <- lam.df[,names(lam.df) %in% v]
   temp.rast <- vector("list", ncol(X.Mx))
   for(vi in 1:ncol(X.Mx)) {
-    temp.rast[[vi]] <- rasterFromXYZ(cbind(lam.df[,15:14], X.Mx[,vi]))
+    temp.rast[[vi]] <- rasterFromXYZ(cbind(lam.df[,c("lon","lat")], X.Mx[,vi]))
   }
+  names(temp.rast) <- names(X.Mx)
   rast.Mx <- stack(temp.rast)
   
   # fit MaxEnt models
@@ -169,8 +170,8 @@ fit_MxE <- function(sp, issue, sampling.issue, lam.df, v) {
     # if(sampling.issue %in% c("sampBias", "geogBias")) {
     #   fit.args <- c(fit.args, "biasfile=out/maxent/sampBias.asc", "biastype=3")
     # }
-    if(!dir.exists(paste0(path_iss, i))) dir.create(paste0(path_iss, i))
-    MxE.f[[i]] <- maxent(x=rast.Mx, p=as.matrix(lam.df[O_Mx[[i]], 15:14]),
+    if(!dir.exists(paste0(path_iss, i))) dir.create(paste0(path_iss, i), recursive=T)
+    MxE.f[[i]] <- maxent(x=rast.Mx, p=as.matrix(lam.df[O_Mx[[i]], c("lon", "lat")]),
                         args=fit.args, path=paste0(path_iss, i))
     MxE.p[[i]] <- mean(predict(MxE.f[[i]], rast.Mx, args="outputformat=logistic"))
     d_j <- vector("list", 10)
@@ -212,17 +213,18 @@ fit_MxE <- function(sp, issue, sampling.issue, lam.df, v) {
 fit_MxL <- function(sp, issue, sampling.issue, lam.df, v, m) {
   library(here); library(tidyverse); library(raster); library(maxlike)
   
-  O_Mx <- readRDS(here(paste0("out/", sp, "_O_Mx_", sampling.issue, ".rds")))
+  O_Mx <- readRDS(here("vs/", sp, paste0("O_Mx_", sampling.issue, ".rds")))
   X.Mx <- lam.df[,names(lam.df) %in% v]
   temp.rast <- vector("list", ncol(X.Mx))
   for(vi in 1:ncol(X.Mx)) {
-    temp.rast[[vi]] <- rasterFromXYZ(cbind(lam.df[,15:14], X.Mx[,vi]))
+    temp.rast[[vi]] <- rasterFromXYZ(cbind(lam.df[,c("lon", "lat")], X.Mx[,vi]))
   }
+  names(temp.rast) <- names(X.Mx)
   rast.Mx <- stack(temp.rast)
   MxL.f <- MxL.p <- MxL.PA <- thresh <- vector("list", length(O_Mx))
   for(i in  seq_along(O_Mx)) {
     MxL.f[[i]] <- maxlike(as.formula(paste("~", m)), rast.Mx, hessian=F,
-                         as.matrix(lam.df[O_Mx[[i]], 15:14]), savedata=T)
+                         as.matrix(lam.df[O_Mx[[i]], c("lon", "lat")]), savedata=T)
     MxL.p[[i]] <- predict(MxL.f[[i]])
     thresh[[i]] <- min(MxL.p[[i]]@data@values[lam.df$id[O_Mx[[i]]]])
     MxL.PA[[i]] <- MxL.p[[i]]@data@values > thresh[[i]]
@@ -250,9 +252,10 @@ fit_CA <- function(sp, sampling.issue, modeling.issue, p, env.rct, env.rct.unsc,
   library(MuMIn); library(lme4); library(doSNOW)
   
   # load observations
-  O_CA <- readRDS(here(paste0("out/", sp, "_O_CA_", sampling.issue, ".rds")))
+  O_CA <- readRDS(here("vs", sp, paste0("O_CA_", sampling.issue, ".rds")))
   X.CA <- env.rct %>% rename(id.in=id.inbd) %>%
     dplyr::select(one_of("x", "y", "x_y", "inbd", "id", "id.in", names(vars)[v.i]))
+  n_LC <- n_distinct(read_csv(here("vs", sp, "aggLC.csv"))$agg)
   
   # Fit CA models
   CA.f <- diagnostics <- vector("list", length(O_CA))
@@ -315,14 +318,16 @@ fit_CA <- function(sp, sampling.issue, modeling.issue, p, env.rct, env.rct.unsc,
     if(modeling.issue=="noSB") p.CA$s.sb <- 0
     if(modeling.issue=="underDisp") {
       p.CA <- add_misDisperse(p.CA, p, sdd_max_adj=-2, sdd_rate_adj=10, ldd=1)
-      sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=env.rct.unsc, lc.col=8:12,
+      sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=env.rct.unsc, 
+                              lc.col=tail(1:ncol(env.rct.unscaled), n_LC),
                               g.p=list(sdd.max=p.CA$sdd.max, 
                                        sdd.rate=p.CA$sdd.rate, 
                                        bird.hab=p.CA$bird.hab))
     }
     if(modeling.issue=="overDisp") {
       p.CA <- add_misDisperse(p.CA, p, sdd_max_adj=2, sdd_rate_adj=.1, ldd=3)
-      sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=env.rct.unsc, lc.col=8:12,
+      sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=env.rct.unsc, 
+                              lc.col=tail(1:ncol(env.rct.unscaled), n_LC),
                               g.p=list(sdd.max=p.CA$sdd.max, 
                                        sdd.rate=p.CA$sdd.rate, 
                                        bird.hab=p.CA$bird.hab))
@@ -381,7 +386,7 @@ fit_IPM <- function(sp, sampling.issue, modeling.issue, p, env.rct.unsc,
   walk(paste0("code/fn_", c("aux", "sim", "IPM", "fit"), ".R"), ~source(here(.)))
   
   # load observations
-  O_IPM <- readRDS(here(paste0("out/", sp, "_O_IPM_", sampling.issue, ".rds")))
+  O_IPM <- readRDS(here("vs", sp, paste0("O_IPM_", sampling.issue, ".rds")))
   X.IPM <- map(n_x, ~as.matrix(lam.df[,names(lam.df) %in% names(vars)[v.i]]))
   
   # Fit IPM models

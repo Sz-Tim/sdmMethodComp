@@ -14,16 +14,16 @@ sp <- "sp1"
 pkgs <- c("tidyverse", "magrittr", "stringr", "here")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
 walk(paste0("code/fn_", c("IPM", "aux", "sim"), ".R"), ~source(here(.)))
-lam.df <- readRDS(here(paste0("out/", sp, "_lam_df.rds")))
-SDM_col <- c(MxE="#3f007d", MxL="#6a51a3", 
-             IPM="#014636", CAi="#02818a", CAd="#67a9cf")
-out <- read.csv(here(paste0("out/", sp, "_out.csv")))
+lam.df <- readRDS(here("vs", sp, "lam_df.rds"))
+out <- read_csv(here("out", sp, "out.csv"))
 out$issue <- factor(out$issue, 
                     levels=c("none", "noise", "geogBias", "sampBias",
                              "noSB", "underDisp", "overDisp", "clim", "lc"),
                     labels=c("None", "Measurement error", "Geographic bias", 
                              "Sampling bias", "No Seedbank", "Under dispersal",
                              "Over dispersal", "Climate Only", "LC only"))
+SDM_col <- c(MxE="#3f007d", MxL="#6a51a3", 
+             IPM="#014636", CAi="#02818a", CAd="#67a9cf")
 
 par(mfrow=c(3,3))
 plot(lam.df$temp, log(lam.df$lambda), col=rgb(0,0,0,0.75))

@@ -11,18 +11,21 @@
 ## Setup
 ########
 # file specifications
-sp <- "sp2"
+sp <- "sp1"
 overwrite <- TRUE
-env.f <- "data/landcover_5km.csv"  # file with environmental data
+env.f <- "data/ENF_50km.csv"  # file with environmental data
 
 # load workspace
 pkgs <- c("gbPopMod", "tidyverse", "magrittr", "here")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
 walk(paste0("code/fn_", c("IPM", "aux", "sim"), ".R"), ~source(here(.)))
+agg.f <- read_csv(here("vs", sp, "aggLC.csv"))
 
 L <- build_landscape(f=here(env.f), 
-                     x_max=Inf, # ncol in landscape; Inf for full dataset
-                     y_max=Inf) # nrow in landscape; Inf for full dataset
+                     nlcd_agg=agg.f,
+                     clim_X=paste0("bio10_", c(1, 2, 12, 15)),
+                     x_max=Inf, 
+                     y_max=Inf) 
 n.cell <- sum(L$env.rct$inbd)
 
 
@@ -30,28 +33,28 @@ n.cell <- sum(L$env.rct$inbd)
 ## Set species traits
 ########
 p=list(n=30,  # ncells in IPM matrix
-       tmax=30,  # time steps for NDD & simulations
-       n0=200,  # initial pop sizes
+       tmax=100,  # time steps for NDD & simulations
+       n0=100,  # initial pop sizes
        prop_init=0.01,  # proportion of cells with initial populations
        z.rng=c(1,12),  # initial size range
        s_z=c(-4, 2.1, -.09),  # b1 + b2*z + b3*z^2
-       s_x=c(1, -.1, -2, -.1, 2, -2, -.4, -2, -1),  # b1*x1 + ...
+       s_x=c(-1, -0.3, -2, 0, -1, -0.2),  # b1*x1 + ...
        g_z=c(.2, 2, -0.1),  # b1 + b2*z + b3*z^2
-       g_x=c(1, -.1, -1, -.1, 2, -2, 0, -2, -1),  # b1*x1 + ...
+       g_x=c(-0.2, 0, -2, 0.2, -1, 0.3, -1, 0, -3, 1, 0.5, 3),  # b1*x1 + ...
        g_sig=1,  # growth ~ N(E, g_sig)
        fl_z=c(-1.5, .1, .1),  # b1 + b2*z + b3*z^2
-       fl_x=c(-1, -.1, -2, -.1, 1, 1),  # b1*x1 + ...
+       fl_x=c(-1, 0, 0, -1, -1, 0.2, -1, -0.1),  # b1*x1 + ...
        seed_z=c(2, 0.5, -.03),  # b1 + b2*z + b2*z^2
-       seed_x=c(1, -.1, -1, -.1, .2, .2, 0, -1),  # b1*x1 + ...
+       seed_x=c(-0.7, -0.2, -1, -0.1, -2),  # b1*x1 + ...
        rcr_z=c(1.5, 0.4),  # N(mean=rcrt1, sd=rcrt2)
        p_est=0.03,  # p(establishment)
        NDD=T,  # negative density dependent p_est
        rcr_SB=0.5,  # p(recruit from seedbank)
-       rcr_dir=0.5,  # p(recruit directly)
+       rcr_dir=0,  # p(recruit directly)
        s_SB=0.75,  # p(survive in seedbank additional year)
-       sdd_max=5,  # max SDD distance in cells
-       sdd_rate=.8,  # SDD dispersal rate
-       ldd=1,
+       sdd_max=2,  # max SDD distance in cells
+       sdd_rate=10,  # SDD dispersal rate
+       ldd=2,
        bird_hab=c(1,1,1,1,1)  # bird habitat preferences among LC types
 )
 p$NDD_n <- p$n0/3  # mean number of recruits if NDD
@@ -65,7 +68,9 @@ n_x <- list(s=length(p$s_x), # n env covariates for each vital rate
             fl=length(p$fl_x), 
             seed=length(p$seed_x))
 X <- map(n_x, ~as.matrix(L$env.in[,1:.]))  # env covariates for each vital rate
-sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=L$env.rct.unscaled, lc.col=8:12,
+sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=L$env.rct.unscaled, 
+                        lc.col=tail(1:ncol(L$env.rct.unscaled), 
+                                    n_distinct(agg.f$agg)),
                         g.p=list(sdd.max=p$sdd_max, 
                                  sdd.rate=p$sdd_rate, 
                                  bird.hab=p$bird_hab))
@@ -81,7 +86,7 @@ sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=L$env.rct.unscaled, lc.col=8:12,
 # Initial populations
 N_init <- rep(0, n.cell)
 # N_init[sample.int(n.cell, p$prop_init*n.cell, replace=F)] <- p$n0
-N_init[sample(filter(L$env.in, x>30 & y>30)$id.inbd, 
+N_init[sample(filter(L$env.in, x>40 & y<20)$id.inbd, 
               p$prop_init*n.cell, replace=F)] <- p$n0
 
 # Use assigned slopes to fill IPM matrix
@@ -119,16 +124,16 @@ lam.df <- L$env.in %>%
 ## Store true species distribution
 ########
 if(overwrite) {
-  saveRDS(L$scale.i, here(paste0("out/", sp, "_cov_scale.rds")))
-  saveRDS(L$env.rct, here(paste0("out/", sp, "_env_rct.rds")))
-  saveRDS(L$env.rct.unscaled, here(paste0("out/", sp, "_env_rct_unscaled.rds")))
-  saveRDS(L$env.in, here(paste0("out/", sp, "_env_in.rds")))
-  saveRDS(p, here(paste0("out/", sp, "_p.rds")))
-  saveRDS(N_init, here(paste0("out/", sp, "_N_init.rds")))
-  saveRDS(sdd.pr, here(paste0("out/", sp, "_sdd.rds")))
-  saveRDS(U, here(paste0("out/", sp, "_U.rds")))
-  saveRDS(S, here(paste0("out/", sp, "_S.rds")))
-  saveRDS(lam.df, here(paste0("out/", sp, "_lam_df.rds")))
+  saveRDS(L$scale.i, here("vs", sp, "cov_scale.rds"))
+  saveRDS(L$env.rct, here("vs", sp, "env_rct.rds"))
+  saveRDS(L$env.rct.unscaled, here("vs", sp, "env_rct_unscaled.rds"))
+  saveRDS(L$env.in, here("vs", sp, "env_in.rds"))
+  saveRDS(p, here("vs", sp, "p.rds"))
+  saveRDS(N_init, here("vs", sp, "N_init.rds"))
+  saveRDS(sdd.pr, here("vs", sp, "sdd.rds"))
+  saveRDS(U, here("vs", sp, "U.rds"))
+  saveRDS(S, here("vs", sp, "S.rds"))
+  saveRDS(lam.df, here("vs", sp, "lam_df.rds"))
 }
 
 
