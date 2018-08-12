@@ -30,7 +30,7 @@ n.cell <- nrow(env.in)
 ########
 ## Set sampling details
 ########
-n_samp <- 50  # number of unique samples to average across
+n_samp <- 5  # number of unique samples to average across
 O_n <- list(Corr=50, Mech=25)  # number of cells in sample
 O_yr <- list(Mx=p$tmax, CA=(-2:0)+p$tmax, IPM=p$tmax)  # years to sample
 P.i <- which(lam.df$Surv.S > 5)  # presences: survival past recruit stage

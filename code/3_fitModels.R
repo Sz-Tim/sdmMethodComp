@@ -14,7 +14,7 @@ sp <- "sp1"
 overwrite <- TRUE
 n_core_iss <- 2  # number of issues to run in parallel
 n_core_sim <- 2  # number of simulations to run in parallel for each issue
-n_sim <- 4 # number of simulations per sample (mechanistic only)
+n_sim <- 2 # number of simulations per sample (mechanistic only)
 
 # load workspace
 pkgs <- c("dismo", "gbPopMod", "tidyverse", "magrittr", "MuMIn", "here", "doSNOW")
@@ -39,7 +39,7 @@ if(!dir.exists(here("out", sp))) dir.create(here("out", sp))
 
 
 p.c <- makeCluster(n_core_iss); registerDoSNOW(p.c)
-foreach(i=seq_along(issue_i$Issue)) %dopar% {
+foreach(i=seq_along(issue_i$Issue), .packages=pkgs) %dopar% {
   # load issues
   issue <- issue_i$Issue[i]
   samp_iss <- issue_i$Sampling[i]

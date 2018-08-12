@@ -13,7 +13,7 @@
 # file specifications
 sp <- "sp1"
 overwrite <- TRUE
-env.f <- "data/ENF_50km.csv"  # file with environmental data
+env.f <- "data/ENF_10km.csv"  # file with environmental data
 
 # load workspace
 pkgs <- c("gbPopMod", "tidyverse", "magrittr", "here")
@@ -24,8 +24,8 @@ agg.f <- read_csv(here("vs", sp, "aggLC.csv"))
 L <- build_landscape(f=here(env.f), 
                      nlcd_agg=agg.f,
                      clim_X=paste0("bio10_", c(1, 2, 12, 15)),
-                     x_max=Inf, 
-                     y_max=Inf) 
+                     x_max=150, 
+                     y_max=100) 
 n.cell <- sum(L$env.rct$inbd)
 
 
@@ -33,7 +33,7 @@ n.cell <- sum(L$env.rct$inbd)
 ## Set species traits
 ########
 p=list(n=30,  # ncells in IPM matrix
-       tmax=100,  # time steps for NDD & simulations
+       tmax=30,  # time steps for NDD & simulations
        n0=100,  # initial pop sizes
        prop_init=0.01,  # proportion of cells with initial populations
        z.rng=c(1,12),  # initial size range
@@ -52,9 +52,9 @@ p=list(n=30,  # ncells in IPM matrix
        rcr_SB=0.5,  # p(recruit from seedbank)
        rcr_dir=0,  # p(recruit directly)
        s_SB=0.75,  # p(survive in seedbank additional year)
-       sdd_max=2,  # max SDD distance in cells
-       sdd_rate=10,  # SDD dispersal rate
-       ldd=2,
+       sdd_max=4,  # max SDD distance in cells
+       sdd_rate=3,  # SDD dispersal rate
+       ldd=1,
        bird_hab=c(1,1,1,1,1)  # bird habitat preferences among LC types
 )
 p$NDD_n <- p$n0/3  # mean number of recruits if NDD
@@ -86,7 +86,7 @@ sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=L$env.rct.unscaled,
 # Initial populations
 N_init <- rep(0, n.cell)
 # N_init[sample.int(n.cell, p$prop_init*n.cell, replace=F)] <- p$n0
-N_init[sample(filter(L$env.in, x>40 & y<20)$id.inbd, 
+N_init[sample(filter(L$env.in, x<40 & y<50)$id.inbd, 
               p$prop_init*n.cell, replace=F)] <- p$n0
 
 # Use assigned slopes to fill IPM matrix
