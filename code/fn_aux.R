@@ -46,8 +46,7 @@ build_landscape <- function(f, nlcd_agg, clim_X=paste0("bio10_", 1:19),
     agg.mx[,i] <- rowSums(f.df[, with(nlcd_agg, orig[agg==lc.cat[i]])])
   }
   # assemble specified variables
-  l.df <- cbind(f.df[, c("long", "lat", "x", "y", "x_y", clim_X)], agg.mx) %>%
-    filter(x <= x_max & y <= y_max)
+  l.df <- cbind(f.df[, c("long", "lat", "x", "y", "x_y", clim_X)], agg.mx)
   # store scaling mean and sd
   l.scale <- select(l.df, -(1:5)) %>% scale
   scale.i <- cbind(sc_mn=attributes(l.scale)$`scaled:center`,
@@ -66,9 +65,12 @@ build_landscape <- function(f, nlcd_agg, clim_X=paste0("bio10_", 1:19),
            lat=l.df$lat[match_id],
            lon=l.df$long[match_id],
            rdLen=f.df$rd_len[match_id]) %>%
+    filter(x <= x_max & y <= y_max) %>%
     mutate(id=row_number(), 
            id.inbd=min_rank(na_if(inbd*id, 0)))
   # env.rct[is.na(env.rct)] <- 0
+  l.df <- filter(l.df, x <= x_max & y <= y_max)
+  match_id <- match(env.rct$x_y, l.df$x_y)
   env.rct.unscaled <- cbind(env.rct[,-(1:(n_lc+n_clim*2))], 
                             l.df[match_id,-(1:5)])
   # subset inbound cells
