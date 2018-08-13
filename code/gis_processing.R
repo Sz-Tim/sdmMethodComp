@@ -6,7 +6,7 @@
 library(maptools); library(raster); library(rgeos); library(rgdal)
 library(spatialEco); library(tidyverse); library(doSNOW); library(foreach)
 n_core <- 8
-cell_side <- 5000  # cell dimensions in meters; cell_area = cell_side^2
+cell_side <- 3000  # cell dimensions in meters; cell_area = cell_side^2
 
 
 
@@ -152,16 +152,5 @@ write_csv(grd.df, paste0("data/ENF_", cell_side/1000, "km.csv"))
 
 
 
-pdf("ENF_nlcd.pdf")
-plot(nlcd.rast)
-plot(states, add=T, col=NA, border="white")
-plot(ENF, add=T, col=rgb(0,0,1,0.2), border="blue")
-dev.off()
-
-tiff("ENF.tif", width=10, height=10, units="in", res=300)
-plot(ENF)
-plot(states, add=T, col=NA, border="gray30")
-plot(ENF, add=T, col=rgb(0,0,1,0.3), border="blue")
-dev.off()
 
 
