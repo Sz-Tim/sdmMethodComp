@@ -56,7 +56,6 @@ foreach(i=seq_along(issue_i$Issue), .packages=pkgs) %dopar% {
     v.i <- seq_along(vars)[-c(1,v.size)]
   }
   v$Mx <- grep("_sq|_cu", names(vars)[v.i], invert=T, value=T)
-  m$MxL <- paste(c(v$Mx, paste0("I(", v$Mx, "^2)")), collapse=" + ")
   v$CA <- vars[c(1, v.i)]
   m$CA <- paste(c(names(v$CA)[-1], "(1|yr)"), collapse=" + ")
   v$IPM <- vars[c(1, v.size, v.i)]
@@ -65,20 +64,14 @@ foreach(i=seq_along(issue_i$Issue), .packages=pkgs) %dopar% {
   n$IPM$x <- rep(list(length(v.i)), 4)
   names(n$IPM$z) <- names(n$IPM$x) <- c("s", "g", "fl", "seed")
   
-  # fit MaxEnt & MaxLike
+  # fit MaxEnt
   if(issue %in% issue_i$Issue[c(1:4,8:9)]) {
     P_MxE <- fit_MxE(sp, issue, samp_iss, lam.df, v$Mx)
     if(overwrite) {
       saveRDS(P_MxE$diag, here("out", sp, paste0("Diag_MxE_", issue, ".rds")))
       saveRDS(P_MxE$P_MxE, here("out", sp, paste0("P_MxE_", issue, ".rds")))
     }
-    P_MxL <- fit_MxL(sp, issue, samp_iss, lam.df, v$Mx, m$MxL)
-    if(overwrite) {
-      saveRDS(P_MxL$diag, here("out", sp, paste0("Diag_MxL_", issue, ".rds")))
-      saveRDS(P_MxL$P_MxL, here("out", sp, paste0("P_MxL_", issue, ".rds")))
-    }
   }
-
   # fit CA-demographic
   P_CA <- fit_CA(sp, samp_iss, mod_iss, p, env.rct, env.rct.unsc, lam.df, vars,
                  v.i, v$CA, m$CA, N_init, sdd.pr, n.cell, n.grid, n_sim, n_core_sim)

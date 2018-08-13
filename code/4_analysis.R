@@ -23,16 +23,14 @@ out <- map2(f_P, i_P, ~readRDS(.x) %>% mutate(SDM=.y[1], issue=.y[2])) %>%
   do.call(bind_rows, .) %>%
   full_join(dplyr::select(lam.df, -one_of("x", "y", "x_y", "inbd", "lat", "lon", "id")), 
             ., by="id.inbd") %>%
-  mutate(boundary=case_when(SDM %in% c("CAd", "CAi", "MxE", "MxL") ~ "Surv",
-                            SDM == "IPM" ~ "lam"),
-         outcome=case_when(boundary=="Surv" & Surv.S>0 & prP>=0.5 ~ "S:1 P:1",
-                           boundary=="Surv" & Surv.S==0 & prP>=0.5 ~ "S:0 P:1",
-                           boundary=="Surv" & Surv.S>0 & prP<0.5 ~ "S:1 P:0",
-                           boundary=="Surv" & Surv.S==0 & prP<0.5 ~ "S:0 P:0",
-                           boundary=="lam" & lambda>=1 & prP>=0.5 ~ "S:1 P:1",
-                           boundary=="lam" & lambda<1 & prP>=0.5 ~ "S:0 P:1",
-                           boundary=="lam" & lambda>=1 & prP<0.5 ~ "S:1 P:0",
-                           boundary=="lam" & lambda<1 & prP<0.5 ~ "S:0 P:0"))
+  mutate(fate_S=case_when(Surv.S>0 & prP>=0.5 ~ "S:1 P:1",
+                          Surv.S==0 & prP>=0.5 ~ "S:0 P:1",
+                          Surv.S>0 & prP<0.5 ~ "S:1 P:0",
+                          Surv.S==0 & prP<0.5 ~ "S:0 P:0"),
+         fate_lam=case_when(lambda>=1 & prP>=0.5 ~ "S:1 P:1",
+                            lambda<1 & prP>=0.5 ~ "S:0 P:1",
+                            lambda>=1 & prP<0.5 ~ "S:1 P:0",
+                            lambda<1 & prP<0.5 ~ "S:0 P:0"))
 
 if(overwrite) {
   write_csv(out, here("out", sp, "out.csv"))

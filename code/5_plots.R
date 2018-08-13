@@ -15,15 +15,14 @@ pkgs <- c("tidyverse", "magrittr", "stringr", "here")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
 walk(paste0("code/fn_", c("IPM", "aux", "sim"), ".R"), ~source(here(.)))
 lam.df <- readRDS(here("vs", sp, "lam_df.rds"))
-out <- read_csv(here("out", sp, "out.csv"))
+out <- read.csv(here("out", sp, "out.csv"))
 out$issue <- factor(out$issue, 
                     levels=c("none", "noise", "geogBias", "sampBias",
                              "noSB", "underDisp", "overDisp", "clim", "lc"),
                     labels=c("None", "Measurement error", "Geographic bias", 
                              "Sampling bias", "No Seedbank", "Under dispersal",
                              "Over dispersal", "Climate Only", "LC only"))
-SDM_col <- c(MxE="#3f007d", MxL="#6a51a3", 
-             IPM="#014636", CAi="#02818a", CAd="#67a9cf")
+SDM_col <- c(MxE="#3f007d", IPM="#014636", CAi="#02818a", CAd="#67a9cf")
 
 par(mfrow=c(3,3))
 plot(lam.df$temp, log(lam.df$lambda), col=rgb(0,0,0,0.75))
@@ -42,13 +41,14 @@ ggplot(out, aes(x=lon, y=lat, fill=lambda)) + geom_tile() + ggtitle(sp) +
 ggplot(out, aes(x=lon, y=lat, fill=Surv.S>0)) + geom_tile() + ggtitle(sp)
 ggplot(out, aes(x=lon, y=lat, fill=Surv.S)) + geom_tile() + ggtitle(sp) +
   scale_fill_gradient(low="white", high="red")
-ggplot(out, aes(fill=outcome, x=SDM)) + geom_bar(position="fill") + 
+
+ggplot(out, aes(fill=fate_lam, x=SDM)) + geom_bar(position="fill") + 
   facet_wrap(~issue) + scale_fill_brewer(name="", type="div") + 
   ylab("Proportion of cells") + ggtitle(sp)
-ggplot(out, aes(fill=outcome, x=issue)) + geom_bar(position="fill") + 
+ggplot(out, aes(fill=fate_lam, x=issue)) + geom_bar(position="fill") + 
   facet_wrap(~SDM) + scale_fill_brewer(name="", type="div") + 
   ylab("Proportion of cells") + coord_flip() + ggtitle(sp)
-ggplot(out, aes(x=lon, y=lat, fill=outcome)) +
+ggplot(out, aes(x=lon, y=lat, fill=fate_lam)) +
   geom_tile() + facet_grid(SDM~issue) + scale_fill_brewer(name="", type="div") +
   theme(axis.text=element_blank()) + ggtitle(sp)
 ggplot(out, aes(x=lon, y=lat, fill=prP)) +
@@ -73,18 +73,18 @@ ggplot(out, aes(x=lon, y=lat, fill=log(D.f))) +
   scale_fill_gradient(low="white", high="red") +
   theme(axis.text=element_blank())
 
-out.sum <- out %>% group_by(SDM, issue, outcome, boundary) %>%
+out.sum <- out %>% group_by(SDM, issue, fate_lam, boundary) %>%
   summarise(ct=n()) %>%
-  mutate(rate=case_when(outcome=="S:0 P:0" & boundary=="Surv" ~ ct/sum(lam.df$Surv.S==0),
-                        outcome=="S:0 P:1" & boundary=="Surv" ~ ct/sum(lam.df$Surv.S==0),
-                        outcome=="S:1 P:0" & boundary=="Surv" ~ ct/sum(lam.df$Surv.S > 0),
-                        outcome=="S:1 P:1" & boundary=="Surv" ~ ct/sum(lam.df$Surv.S > 0),
-                        outcome=="S:0 P:0" & boundary=="lam" ~ ct/sum(lam.df$lambda<1),
-                        outcome=="S:0 P:1" & boundary=="lam" ~ ct/sum(lam.df$lambda<1),
-                        outcome=="S:1 P:0" & boundary=="lam" ~ ct/sum(lam.df$lambda>=1),
-                        outcome=="S:1 P:1" & boundary=="lam" ~ ct/sum(lam.df$lambda>=1)))
+  mutate(rate=case_when(fate_lam=="S:0 P:0" & boundary=="Surv" ~ ct/sum(lam.df$Surv.S==0),
+                        fate_lam=="S:0 P:1" & boundary=="Surv" ~ ct/sum(lam.df$Surv.S==0),
+                        fate_lam=="S:1 P:0" & boundary=="Surv" ~ ct/sum(lam.df$Surv.S > 0),
+                        fate_lam=="S:1 P:1" & boundary=="Surv" ~ ct/sum(lam.df$Surv.S > 0),
+                        fate_lam=="S:0 P:0" & boundary=="lam" ~ ct/sum(lam.df$lambda<1),
+                        fate_lam=="S:0 P:1" & boundary=="lam" ~ ct/sum(lam.df$lambda<1),
+                        fate_lam=="S:1 P:0" & boundary=="lam" ~ ct/sum(lam.df$lambda>=1),
+                        fate_lam=="S:1 P:1" & boundary=="lam" ~ ct/sum(lam.df$lambda>=1)))
 tss.df <- out.sum %>% ungroup %>% group_by(SDM, issue) %>%
-  summarise(TSS=sum(rate[outcome %in% c("S:0 P:0", "S:1 P:1")])-1) %>%
+  summarise(TSS=sum(rate[fate_lam %in% c("S:0 P:0", "S:1 P:1")])-1) %>%
   ungroup %>% mutate(issue=fct_rev(issue))
 ggplot(tss.df, aes(x=TSS, y=issue, colour=SDM)) + ggtitle(sp) +
   geom_point(size=5, alpha=0.7) + 
@@ -102,15 +102,15 @@ ggplot(out, aes(x=prP, y=1*(Surv.S>0))) + geom_point(alpha=0.05) +
   
 
 
-out %>% filter(outcome == "S:0 P:1") %>% group_by(SDM, issue) %>% 
+out %>% filter(fate_lam == "S:0 P:1") %>% group_by(SDM, issue) %>% 
   summarise(prop=round(n()/1084, 3)) %>% 
   ggplot(aes(x=issue, y=prop, colour=SDM)) + geom_point(size=3) +
   ggtitle("Commission Rate") + ylim(0,1) + ylab("Prop P=1 | S=0")
-out %>% filter(outcome == "S:1 P:0") %>%  group_by(SDM, issue) %>% 
+out %>% filter(fate_lam == "S:1 P:0") %>%  group_by(SDM, issue) %>% 
   summarise(prop=round(n()/1354, 3)) %>%
   ggplot(aes(x=issue, y=prop, colour=SDM)) + geom_point(size=3) + 
   ggtitle("Ommission Rate") + ylim(0, 1) + ylab("Prop P=0 | S=1")
-out %>% filter(outcome %in% c("S:1 P:1", "S:0 P:0")) %>% 
+out %>% filter(fate_lam %in% c("S:1 P:1", "S:0 P:0")) %>% 
   group_by(SDM, issue) %>% 
   summarise(prop=round(n()/2438, 3)) %>% 
   ggplot(aes(x=issue, y=prop, colour=SDM)) + geom_point(size=3) + 
