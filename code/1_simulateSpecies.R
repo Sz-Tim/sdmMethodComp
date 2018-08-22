@@ -131,6 +131,8 @@ if(overwrite) {
   saveRDS(p, here("vs", sp, "p.rds"))
   saveRDS(N_init, here("vs", sp, "N_init.rds"))
   saveRDS(sdd.pr, here("vs", sp, "sdd.rds"))
+  saveRDS(sdd.j, here("vs", sp, "sdd_j.rds"))
+  saveRDS(p.ij, here("vs", sp, "p_ij.rds"))
   saveRDS(U, here("vs", sp, "U.rds"))
   saveRDS(S, here("vs", sp, "S.rds"))
   saveRDS(lam.df, here("vs", sp, "lam_df.rds"))
