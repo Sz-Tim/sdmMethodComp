@@ -150,26 +150,14 @@ fit_MxE <- function(sp, issue, sampling.issue, lam.df, v) {
   }
   names(temp.rast) <- names(X.Mx)
   rast.Mx <- stack(temp.rast)
-  
-  # fit MaxEnt models
-  # if(sampling.issue=="sampBias") {
-  #   # generate bias surface
-  #   bias_type <- "samp"
-  # } else if(sampling.issue=="geogBias") {
-  #   # generate bias surface
-  #   bias_type <- "geog"
-  # } else { 
-    bias_type="none"
-  # }
+
+  bias_type="none"
   MxE.f <- MxE.p <- vector("list", length(O_Mx))
   fit.args <- c("responsecurves", "jackknife", "replicates=10", "plots",
                 "removeduplicates", "nothreshold", "nohinge", "pictures",
                 "noautofeature", "noprefixes", "writeplotdata",
                 "outputformat=logistic")
   for(i in seq_along(O_Mx)) {
-    # if(sampling.issue %in% c("sampBias", "geogBias")) {
-    #   fit.args <- c(fit.args, "biasfile=out/maxent/sampBias.asc", "biastype=3")
-    # }
     if(!dir.exists(paste0(path_iss, i))) dir.create(paste0(path_iss, i), recursive=T)
     MxE.f[[i]] <- maxent(x=rast.Mx, p=as.matrix(lam.df[O_Mx[[i]], c("lon", "lat")]),
                         args=fit.args, path=paste0(path_iss, i))
