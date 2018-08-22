@@ -254,5 +254,118 @@ extract_SDM_details <- function(f) {
 
 
 
-
+##-- fit vital rate regressions for PNAS 2017 species
+#' For a specified species, fit vital rate regressions using the defined 
+#' climatic variables and maximum size exponent. 
+#' @param sp \code{"barberry"} One of 'barberry', 'lindera', 'garlic_mustard', 
+#' or 'tower_mustard'
+#' @param clim_X \code{"bio10_1"} Column names for bioclimatic variables to include
+#' @param n_z \code{3} Maximum exponent to raise the size distribution to
+#' @return List of parameters for all vital rate regressions, in addition to
+#' rcr_z, z.rng, rcr_dir, p_est, and s_SB
+fit_PNAS_species <- function(sp="barberry", clim_X="bio10_1", n_z=3) {
+  ##-- Set up
+  pkgs <- c("tidyverse", "magrittr", "here", "sp", "sf")
+  suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
+  walk(paste0("code/fn_", c("IPM", "aux", "sim"), ".R"), ~source(here(.)))
+  alb_CRS <- CRS(paste("+proj=aea", "+lat_1=29.5", "+lat_2=45.5", "+lat_0=23",
+                       "+lon_0=-96", "+x_0=0", "+y_0=0", "+ellps=GRS80",
+                       "+towgs84=0,0,0,-0,-0,-0,0", "+units=m", "+no_defs",  
+                       collapse=" ")) # Albers Equal Area from NLCD
+  plot_i <- read_csv("data/PNAS_2017/plot_coords.csv") %>%
+    st_as_sf(., coords=c("long", "lat"), crs=4326) %>%
+    st_transform(., crs=alb_CRS@projargs)
+  env.in <- build_landscape(f="data/ENF_5km.csv", 
+                            nlcd_agg=read.csv(here("data/PNAS_2017/",
+                                                   ifelse(grepl("mustard", sp),
+                                                          "aggLC_mustard.csv", 
+                                                          "aggLC_woody.csv"))),
+                            clim_X=clim_X,
+                            x_max=Inf, 
+                            y_max=150)$env.in
+  n.cell <- sum(env.in$inbd)
+  sp.ls <- readRDS("data/PNAS_2017/species_data_list.rds")
+  
+  # extract covariates for cells containing PNAS plots: 5km grid cells
+  plot_i$id.inbd <- NA
+  coord <- st_coordinates(plot_i)
+  for(i in 1:nrow(plot_i)) {
+    plot_i$id.inbd[i] <- env.in$id.inbd[abs(env.in$lon-coord[i,1]) < 2500 & 
+                                          abs(env.in$lat-coord[i,2]) < 2500]
+  }
+  X.df <- right_join(env.in, st_set_geometry(plot_i, NULL), by="id.inbd")
+  vars <- rep(0, sum(grepl("bio", names(env.in))) + 1 + n_z)
+  names(vars) <- c("(Intercept)", "size", paste0("size", 2:n_z),
+                   names(env.in)[1:sum(grepl("bio", names(env.in)))])
+  covariates <- paste0("~ ", paste(names(vars)[-1], collapse=" + "))
+  
+  # fit vital rate regressions
+  ## storage objects
+  params <- list()
+  vital.par <- map(1:4, ~c(vars))
+  vital.reg <- vector("list", 4)
+  names(vital.par) <- names(vital.reg) <- c("surv", "growth", "flower", "seeds")
+  ## datasets
+  plot.df <- sp.ls[[sp]] %>% 
+    filter(habitat==ifelse(grepl("mustard", sp), 1, 0)) %>%
+    select(wplot, size, sizeNext, surv, fec1, fec2, fec3, flowering) %>%
+    mutate(size2=size^2, size3=size^3) %>%
+    left_join(., X.df, by="wplot")
+  all.df <- read.csv(dir("data/PNAS_2017", sp, full.names=T)) %>%
+    mutate(size2=size^2, size3=size^3)
+  ## 1. survival: logit(s) ~ size + env
+  ## 2. growth: sizeNext ~ size + env
+  ## 3. flowering: logit(fl) ~ size (+ env for mustards)
+  ## 4. seeds: log(seeds) ~ size (+ env for mustards)
+  vital.reg[[1]] <- glm(as.formula(paste0("surv", covariates)), 
+                        data=filter(plot.df, !is.na(surv)), family="binomial")
+  vital.reg[[2]] <- lm(as.formula(paste0("sizeNext", covariates)), 
+                       data=filter(plot.df, !is.na(size) & !is.na(sizeNext)))
+  if(grepl("mustard", sp)) {
+    vital.reg[[3]] <- glm(as.formula(paste0("sizeNext", covariates)), 
+                          data=filter(plot.df, !is.na(flowering) & !is.na(size)), 
+                          family="binomial")
+    vital.reg[[4]] <- glm(as.formula(paste0("sizeNext", covariates)), 
+                          data=filter(plot.df, !is.na(fec1) & !is.na(flowering)), 
+                          family="poisson")
+  } else {
+    vital.reg[[3]] <- glm(as.formula(paste0("flowering ~ size + ", 
+                                            paste0("size", 2:n_z, collapse=" + "))), 
+                          data=filter(all.df, !is.na(flowering) & !is.na(size)), 
+                          family="binomial")
+    vital.reg[[4]] <- glm(as.formula(paste0("fec1 ~ size + ", 
+                                            paste0("size", 2:n_z, collapse=" + "))), 
+                          data=filter(all.df, !is.na(fec1) & !is.na(flowering)), 
+                          family="poisson")
+  }
+  
+  # store parameter estimates
+  for(i in seq_along(vital.reg)) {
+    vital.par[[i]][names(coef(vital.reg[[i]]))] <- coef(vital.reg[[i]])
+    vital.par[[i]][is.na(vital.par[[i]])] <- 0
+  }
+  ## vital rate regressions
+  params$s_z <- vital.par[[1]][1:(n_z+1)]
+  params$s_x <- vital.par[[1]][(n_z+2):length(vital.par[[1]])]
+  params$g_z <- vital.par[[2]][1:(n_z+1)]
+  params$g_x <- vital.par[[2]][(n_z+2):length(vital.par[[2]])]
+  params$g_sig <- summary(vital.reg[[2]])$sigma
+  params$fl_z <- vital.par[[3]][1:(n_z+1)]
+  params$fl_x <- vital.par[[3]][(n_z+2):length(vital.par[[3]])]
+  params$seed_z <- vital.par[[4]][1:(n_z+1)]
+  params$seed_x <- vital.par[[4]][(n_z+2):length(vital.par[[4]])]
+  ## recruit size distribution
+  rcr_dist <- filter(all.df, Year.planted==Year.size & is.na(flowering))$size
+  params$rcr_z <- c(mean(rcr_dist, na.rm=T), sd(rcr_dist, na.rm=T))
+  ## allowable size range
+  params$z.rng <- with(all.df, range(c(size, sizeNext), na.rm=TRUE))*c(.75,1.25)
+  ## probability of direct recruitment (i.e., germination)
+  params$rcr_dir <- params$rcr_SB <- mean(all.df$fec2, na.rm=T)
+  ## probability of establishment given germination
+  params$p_est <- mean(all.df$fec3, na.rm=T)
+  ## seed bank survival
+  params$s_SB <- ifelse(grepl("mustard", sp), 0.8, 0.9)
+  
+  return(p=params)
+}
 
