@@ -11,7 +11,7 @@
 sp <- "sp1"
 
 # load workspace
-pkgs <- c("tidyverse", "magrittr", "stringr", "here")
+pkgs <- c("tidyverse", "magrittr", "stringr", "here", "viridis")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
 walk(paste0("code/fn_", c("IPM", "aux", "sim"), ".R"), ~source(here(.)))
 lam.df <- readRDS(here("vs", sp, "lam_df.rds"))
@@ -26,13 +26,13 @@ SDM_col <- c(MxE="#3f007d", MxL="#6a51a3",
              IPM="#014636", CAi="#02818a", CAd="#67a9cf")
 
 par(mfrow=c(3,3))
-plot(lam.df$temp, log(lam.df$lambda), col=rgb(0,0,0,0.75))
-plot(lam.df$prec, log(lam.df$lambda), col=rgb(0,0,0,0.75))
-plot(lam.df$pOpn, log(lam.df$lambda), col=rgb(0,0,0,0.75))
-plot(lam.df$pOth, log(lam.df$lambda), col=rgb(0,0,0,0.75))
-plot(lam.df$pDec, log(lam.df$lambda), col=rgb(0,0,0,0.75))
-plot(lam.df$pEvg, log(lam.df$lambda), col=rgb(0,0,0,0.75))
-plot(lam.df$pMxd, log(lam.df$lambda), col=rgb(0,0,0,0.75))
+plot(lam.df$bio10_1, log(lam.df$lambda), col=rgb(0,0,0,0.75))
+plot(lam.df$bio10_12, log(lam.df$lambda), col=rgb(0,0,0,0.75))
+plot(lam.df$Opn, log(lam.df$lambda), col=rgb(0,0,0,0.75))
+plot(lam.df$Oth, log(lam.df$lambda), col=rgb(0,0,0,0.75))
+plot(lam.df$Dec, log(lam.df$lambda), col=rgb(0,0,0,0.75))
+plot(lam.df$Evg, log(lam.df$lambda), col=rgb(0,0,0,0.75))
+plot(lam.df$Mxd, log(lam.df$lambda), col=rgb(0,0,0,0.75))
 hist(log(lam.df$lambda))
 
 theme_set(theme_bw())
