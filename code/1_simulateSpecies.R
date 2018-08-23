@@ -11,20 +11,25 @@
 ## Setup
 ########
 # file specifications
-sp <- "barberry"
+spp.virt <- c(barberry="sp1", lindera="sp2", 
+              garlic_mustard="sp3", tower_mustard="sp4")
+sp <- names(spp.virt)[1]
 overwrite <- TRUE
 env.f <- "data/ENF_10km.csv"  # file with environmental data
 clim_X <- paste0("bio10_", c(1, 12))
+Sys.setenv("MC_CORES"=4)
 
 # load workspace
-pkgs <- c("gbPopMod", "tidyverse", "magrittr", "here")
+pkgs <- c("gbPopMod", "tidyverse", "magrittr", "here", "parallel")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
 walk(paste0("code/fn_", c("IPM", "aux", "sim"), ".R"), ~source(here(.)))
-agg.f <- read_csv(here("vs", "sp1", "aggLC.csv"))
-
-L <- build_landscape(f=here(env.f), nlcd_agg=agg.f, clim_X=clim_X,
-                     x_max=Inf, y_max=Inf) 
+agg.sp <- read.csv(here("data/PNAS_2017/", ifelse(grepl("mustard", sp),
+                                                  "aggLC_mustard.csv", 
+                                                  "aggLC_woody.csv")))
+L <- build_landscape(f=here(env.f), nlcd_agg=agg.sp, clim_X=clim_X,
+                     x_max=Inf, y_max=150) 
 n.cell <- sum(L$env.rct$inbd)
+
 
 
 ########
@@ -55,9 +60,9 @@ n.cell <- sum(L$env.rct$inbd)
 #        ldd=1,  # number of LDD events per year
 #        bird_hab=c(1,1,1,1,1)  # bird habitat preferences among LC types
 # )
-p <- fit_PNAS_species(sp=sp, clim_X=clim_X, n_z=3)
+p <- fit_PNAS_species(sp=sp, nlcd_agg=agg.sp, clim_X=clim_X, n_z=3)
 p$n <- 30
-p$tmax <- 100
+p$tmax <- 50
 p$n0 <- 100
 p$prop_init <- 0.01
 p$NDD <- T
@@ -78,13 +83,13 @@ n_x <- list(s=length(p$s_x), # n env covariates for each vital rate
 X <- map(n_x, ~as.matrix(L$env.in[,1:.]))  # env covariates for each vital rate
 sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=L$env.rct.unscaled, 
                         lc.col=tail(1:ncol(L$env.rct.unscaled), 
-                                    n_distinct(agg.f$agg)),
+                                    n_distinct(agg.sp$agg)),
                         g.p=list(sdd.max=p$sdd_max, 
                                  sdd.rate=p$sdd_rate, 
                                  bird.hab=p$bird_hab))
-sdd.j <- lapply(1:n.cell, function(x) which(sdd.pr$i[,,2,]==L$env.in$id[x], 
-                                            arr.ind=T)) 
-p.ij <- lapply(1:n.cell, function(x) sdd.pr$i[,,1,][sdd.j[[x]]]) 
+sdd.j <- mclapply(1:n.cell, function(x) which(sdd.pr$i[,,2,]==L$env.in$id[x], 
+                                              arr.ind=T))
+p.ij <- mclapply(1:n.cell, function(x) sdd.pr$i[,,1,][sdd.j[[x]]]) 
 # NOTE: sdd.pr[,,2,] indexes based on `id` (id for each cell in grid) instead  
 # of `id.inbd` (id for inbound cells only), but sdd.pr[,,,i] includes only
 # inbound cells, so the layer index aligns with `id.inbd`. This makes 
@@ -135,18 +140,21 @@ lam.df <- L$env.in %>%
 ## Store true species distribution
 ########
 if(overwrite) {
-  saveRDS(L$scale.i, here("vs", sp, "cov_scale.rds"))
-  saveRDS(L$env.rct, here("vs", sp, "env_rct.rds"))
-  saveRDS(L$env.rct.unscaled, here("vs", sp, "env_rct_unscaled.rds"))
-  saveRDS(L$env.in, here("vs", sp, "env_in.rds"))
-  saveRDS(p, here("vs", sp, "p.rds"))
-  saveRDS(N_init, here("vs", sp, "N_init.rds"))
-  saveRDS(sdd.pr, here("vs", sp, "sdd.rds"))
-  saveRDS(sdd.j, here("vs", sp, "sdd_j.rds"))
-  saveRDS(p.ij, here("vs", sp, "p_ij.rds"))
-  saveRDS(U, here("vs", sp, "U.rds"))
-  saveRDS(S, here("vs", sp, "S.rds"))
-  saveRDS(lam.df, here("vs", sp, "lam_df.rds"))
+  if(!dir.exists(here("vs", spp.virt[[sp]]))) {
+    dir.create(here("vs", spp.virt[[sp]]), recursive=T)
+  }
+  saveRDS(L$scale.i, here("vs", spp.virt[[sp]], "cov_scale.rds"))
+  saveRDS(L$env.rct, here("vs", spp.virt[[sp]], "env_rct.rds"))
+  saveRDS(L$env.rct.unscaled, here("vs", spp.virt[[sp]], "env_rct_unscaled.rds"))
+  saveRDS(L$env.in, here("vs", spp.virt[[sp]], "env_in.rds"))
+  saveRDS(p, here("vs", spp.virt[[sp]], "p.rds"))
+  saveRDS(N_init, here("vs", spp.virt[[sp]], "N_init.rds"))
+  saveRDS(sdd.pr, here("vs", spp.virt[[sp]], "sdd.rds"))
+  saveRDS(sdd.j, here("vs", spp.virt[[sp]], "sdd_j.rds"))
+  saveRDS(p.ij, here("vs", spp.virt[[sp]], "p_ij.rds"))
+  saveRDS(U, here("vs", spp.virt[[sp]], "U.rds"))
+  saveRDS(S, here("vs", spp.virt[[sp]], "S.rds"))
+  saveRDS(lam.df, here("vs", spp.virt[[sp]], "lam_df.rds"))
 }
 
 
