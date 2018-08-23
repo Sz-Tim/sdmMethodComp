@@ -268,15 +268,9 @@ extract_SDM_details <- function(f) {
 fit_PNAS_species <- function(sp="barberry", nlcd_agg=nlcd_agg, 
                              clim_X="bio10_1", n_z=3) {
   ##-- Set up
-  library(tidyverse); library(magrittr); library(here); library(sp); library(sf)
+  library(tidyverse); library(magrittr); library(here)
   walk(paste0("code/fn_", c("IPM", "aux", "sim"), ".R"), ~source(here(.)))
-  alb_CRS <- CRS(paste("+proj=aea", "+lat_1=29.5", "+lat_2=45.5", "+lat_0=23",
-                       "+lon_0=-96", "+x_0=0", "+y_0=0", "+ellps=GRS80",
-                       "+towgs84=0,0,0,-0,-0,-0,0", "+units=m", "+no_defs",  
-                       collapse=" ")) # Albers Equal Area from NLCD
-  plot_i <- suppressMessages(read_csv("data/PNAS_2017/plot_coords.csv")) %>%
-    st_as_sf(., coords=c("long", "lat"), crs=4326) %>%
-    st_transform(., crs=alb_CRS@projargs)
+  plot_i <- suppressMessages(read_csv("data/PNAS_2017/plot_coords.csv"))
   env.in <- build_landscape(f="data/ENF_5km.csv", 
                             nlcd_agg=nlcd_agg,
                             clim_X=clim_X,
@@ -287,12 +281,11 @@ fit_PNAS_species <- function(sp="barberry", nlcd_agg=nlcd_agg,
   
   # extract covariates for cells containing PNAS plots: 5km grid cells
   plot_i$id.inbd <- NA
-  coord <- st_coordinates(plot_i)
   for(i in 1:nrow(plot_i)) {
-    plot_i$id.inbd[i] <- env.in$id.inbd[abs(env.in$lon-coord[i,1]) < 2500 & 
-                                          abs(env.in$lat-coord[i,2]) < 2500]
+    plot_i$id.inbd[i] <- env.in$id.inbd[abs(env.in$lon-plot_i$lon[i]) < 2500 & 
+                                          abs(env.in$lat-plot_i$lat[i]) < 2500]
   }
-  X.df <- right_join(env.in, st_set_geometry(plot_i, NULL), by="id.inbd")
+  X.df <- right_join(env.in, plot_i, by="id.inbd")
   vars <- rep(0, sum(grepl("bio", names(env.in))) + 1 + n_z)
   names(vars) <- c("(Intercept)", "size", paste0("size", 2:n_z),
                    names(env.in)[1:sum(grepl("bio", names(env.in)))])
