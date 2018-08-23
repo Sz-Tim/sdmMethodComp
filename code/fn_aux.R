@@ -36,7 +36,7 @@ build_landscape <- function(f, nlcd_agg, clim_X=paste0("bio10_", 1:19),
                             x_max=Inf, y_max=Inf) {
   library(tidyverse)
   # load GIS data & create x-y columns for landscape grid
-  f.df <- read_csv(f) %>% 
+  f.df <- suppressMessages(read_csv(f)) %>% 
     mutate(x=as.integer(factor(.$long)),
            y=as.integer(factor(.$lat, levels=rev(levels(factor(.$lat))))),
            x_y=paste(x, y, sep="_"))
@@ -193,7 +193,7 @@ summarize_CAd_samples <- function(CA.f, in.id) {
 
 
 
-##-- calculate means across multiple samples for IPM and individual CA simulations
+##-- calculate means across multiple samples for IPM & individual CA simulations
 #' Summarize IPM and individual CA simulations across multiple samples. As 
 #' throughout, 'U' refers to the theoretical IPM output and 'S' refers to the
 #' individual CA simulations.
@@ -259,27 +259,26 @@ extract_SDM_details <- function(f) {
 #' climatic variables and maximum size exponent. 
 #' @param sp \code{"barberry"} One of 'barberry', 'lindera', 'garlic_mustard', 
 #' or 'tower_mustard'
-#' @param clim_X \code{"bio10_1"} Column names for bioclimatic variables to include
+#' @param nlcd_agg Dataframe with NLCD aggregation scheme
+#' @param clim_X \code{"bio10_1"} Column names for bioclimatic variables to
+#'  include
 #' @param n_z \code{3} Maximum exponent to raise the size distribution to
 #' @return List of parameters for all vital rate regressions, in addition to
 #' rcr_z, z.rng, rcr_dir, p_est, and s_SB
-fit_PNAS_species <- function(sp="barberry", clim_X="bio10_1", n_z=3) {
+fit_PNAS_species <- function(sp="barberry", nlcd_agg=nlcd_agg, 
+                             clim_X="bio10_1", n_z=3) {
   ##-- Set up
-  pkgs <- c("tidyverse", "magrittr", "here", "sp", "sf")
-  suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
+  library(tidyverse); library(magrittr); library(here); library(sp); library(sf)
   walk(paste0("code/fn_", c("IPM", "aux", "sim"), ".R"), ~source(here(.)))
   alb_CRS <- CRS(paste("+proj=aea", "+lat_1=29.5", "+lat_2=45.5", "+lat_0=23",
                        "+lon_0=-96", "+x_0=0", "+y_0=0", "+ellps=GRS80",
                        "+towgs84=0,0,0,-0,-0,-0,0", "+units=m", "+no_defs",  
                        collapse=" ")) # Albers Equal Area from NLCD
-  plot_i <- read_csv("data/PNAS_2017/plot_coords.csv") %>%
+  plot_i <- suppressMessages(read_csv("data/PNAS_2017/plot_coords.csv")) %>%
     st_as_sf(., coords=c("long", "lat"), crs=4326) %>%
     st_transform(., crs=alb_CRS@projargs)
   env.in <- build_landscape(f="data/ENF_5km.csv", 
-                            nlcd_agg=read.csv(here("data/PNAS_2017/",
-                                                   ifelse(grepl("mustard", sp),
-                                                          "aggLC_mustard.csv", 
-                                                          "aggLC_woody.csv"))),
+                            nlcd_agg=nlcd_agg,
                             clim_X=clim_X,
                             x_max=Inf, 
                             y_max=150)$env.in
@@ -330,11 +329,13 @@ fit_PNAS_species <- function(sp="barberry", clim_X="bio10_1", n_z=3) {
                           family="poisson")
   } else {
     vital.reg[[3]] <- glm(as.formula(paste0("flowering ~ size + ", 
-                                            paste0("size", 2:n_z, collapse=" + "))), 
+                                            paste0("size", 2:n_z, 
+                                                   collapse=" + "))), 
                           data=filter(all.df, !is.na(flowering) & !is.na(size)), 
                           family="binomial")
     vital.reg[[4]] <- glm(as.formula(paste0("fec1 ~ size + ", 
-                                            paste0("size", 2:n_z, collapse=" + "))), 
+                                            paste0("size", 2:n_z, 
+                                                   collapse=" + "))), 
                           data=filter(all.df, !is.na(fec1) & !is.na(flowering)), 
                           family="poisson")
   }
