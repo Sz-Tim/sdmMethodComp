@@ -8,22 +8,22 @@
 #' Generate expected values for simulation based on the vital rate regressions
 #' from the IPM and the current size distribution
 #' @param k Current year
-#' @param z.i Current size distribution in cell i
-#' @param e.k Row numbers in \code{E_i} to generate expected values for
+#' @param z.ik Current size distribution in cell i
+#' @param e.ik Row numbers in \code{E_i} to generate expected values for
 #' @param E_i List of expected values for each individual in cell i
 #' @param p List of parameters
-#' @param X List of covariates, with elements \code{.$s, .$g, .$fl, .$seed}
-#' @param n_z Maximum exponent to raise the size distribution to
+#' @param X.i List of covariates, with elements \code{.$s, .$g, .$fl, .$seed}
+#' @param n_z List of maximum exponents to raise the size distribution to
 #' @return List E_i with new expected values appended
-sim_expected <- function(k, z.i, e.k, E_i, p, X, n_z) {
-  if(length(z.i) > 0) {
-    z.mx <- cbind(1, z.i, z.i^2, z.i^3)
-    E_i$yr[e.k] <- k
-    E_i$size[e.k] <- z.i
-    E_i$s[e.k] <- antilogit(z.mx[,1:n_z$s] %*% p$s_z + c(X$s %*% p$s_x))
-    E_i$g[e.k] <- z.mx[,1:n_z$g] %*% p$g_z + c(X$g %*% p$g_x)
-    E_i$fl[e.k] <- antilogit(z.mx[,1:n_z$fl] %*% p$fl_z + c(X$fl %*% p$fl_x))
-    E_i$seed[e.k] <- exp(z.mx[,1:n_z$seed] %*% p$seed_z + c(X$seed %*% p$seed_x))
+sim_expected <- function(k, z.ik, e.ik, E_i, p, X.i, n_z) {
+  if(length(z.ik) > 0) {
+    z.mx <- cbind(1, z.ik, z.ik^2, z.ik^3)
+    E_i$yr[e.ik] <- k
+    E_i$size[e.ik] <- z.ik
+    E_i$s[e.ik] <- antilogit(z.mx[,1:n_z$s] %*% p$s_z + c(X.i$s %*% p$s_x))
+    E_i$g[e.ik] <- z.mx[,1:n_z$g] %*% p$g_z + c(X.i$g %*% p$g_x)
+    E_i$fl[e.ik] <- antilogit(z.mx[,1:n_z$fl] %*% p$fl_z + c(X.i$fl %*% p$fl_x))
+    E_i$seed[e.ik] <- exp(z.mx[,1:n_z$seed] %*% p$seed_z + c(X.i$seed %*% p$seed_x))
   }
   return(E_i)
 }
@@ -35,27 +35,27 @@ sim_expected <- function(k, z.i, e.k, E_i, p, X, n_z) {
 #' Generate realized values for simulation based on the expected values 
 #' produced by \link{sim_expected}
 #' @param k Current year
-#' @param z.i Current size distribution
+#' @param z.ik Current size distribution
 #' @param d_i List of simulated data for cell i
-#' @param d.k Row numbers in \code{d_i} to generate realized values for
-#' @param e.k Row numbers in \code{E_i} to generate expected values for
+#' @param d.ik Row numbers in \code{d_i} to generate realized values for
+#' @param e.ik Row numbers in \code{E_i} to generate expected values for
 #' @param E_i List of expected values for each individual in cell i
 #' @param p List of parameters
 #' @param lo Minimum allowable size
 #' @param hi Maximum allowable size
 #' @return List d_i with new realized values appended
-sim_realized <- function(k, z.i, d_i, d.k, e.k, E_i, p, lo, hi) {
-  n_t <- length(d.k)
+sim_realized <- function(k, z.ik, d_i, d.ik, e.ik, E_i, p, lo, hi) {
+  n_t <- length(d.ik)
   if(n_t > 0) {
-    d_i$yr[d.k] <- k
-    d_i$size[d.k] <- z.i
-    d_i$surv[d.k] <- rbinom(n_t, 1, E_i$s[e.k])
-    surv.ik <- ifelse(d_i$surv[d.k], 1, NA)
-    d_i$sizeNext[d.k] <- rnorm(n_t, E_i$g[e.k], p$g_sig) * surv.ik
-    d_i$sizeNext[d.k] <- pmax(d_i$sizeNext[d.k], lo)
-    d_i$sizeNext[d.k] <- pmin(d_i$sizeNext[d.k], hi)
-    d_i$fl[d.k] <- fl.ik <- rbinom(n_t, 1, E_i$fl[e.k]) * surv.ik
-    d_i$seed[d.k] <- rpois(n_t, E_i$seed[e.k]) * ifelse(fl.ik, 1, NA)
+    d_i$yr[d.ik] <- k
+    d_i$size[d.ik] <- z.ik
+    d_i$surv[d.ik] <- rbinom(n_t, 1, E_i$s[e.ik])
+    surv.ik <- ifelse(d_i$surv[d.ik], 1, NA)
+    d_i$sizeNext[d.ik] <- rnorm(n_t, E_i$g[e.ik], p$g_sig) * surv.ik
+    d_i$sizeNext[d.ik] <- pmax(d_i$sizeNext[d.ik], lo)
+    d_i$sizeNext[d.ik] <- pmin(d_i$sizeNext[d.ik], hi)
+    d_i$fl[d.ik] <- fl.ik <- rbinom(n_t, 1, E_i$fl[e.ik]) * surv.ik
+    d_i$seed[d.ik] <- rpois(n_t, E_i$seed[e.ik]) * ifelse(fl.ik, 1, NA)
   }
   return(d_i)
 }
