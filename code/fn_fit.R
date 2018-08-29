@@ -150,26 +150,14 @@ fit_MxE <- function(sp, issue, sampling.issue, lam.df, v) {
   }
   names(temp.rast) <- names(X.Mx)
   rast.Mx <- stack(temp.rast)
-  
-  # fit MaxEnt models
-  # if(sampling.issue=="sampBias") {
-  #   # generate bias surface
-  #   bias_type <- "samp"
-  # } else if(sampling.issue=="geogBias") {
-  #   # generate bias surface
-  #   bias_type <- "geog"
-  # } else { 
-    bias_type="none"
-  # }
+
+  bias_type="none"
   MxE.f <- MxE.p <- vector("list", length(O_Mx))
   fit.args <- c("responsecurves", "jackknife", "replicates=10", "plots",
                 "removeduplicates", "nothreshold", "nohinge", "pictures",
                 "noautofeature", "noprefixes", "writeplotdata",
                 "outputformat=logistic")
   for(i in seq_along(O_Mx)) {
-    # if(sampling.issue %in% c("sampBias", "geogBias")) {
-    #   fit.args <- c(fit.args, "biasfile=out/maxent/sampBias.asc", "biastype=3")
-    # }
     if(!dir.exists(paste0(path_iss, i))) dir.create(paste0(path_iss, i), recursive=T)
     MxE.f[[i]] <- maxent(x=rast.Mx, p=as.matrix(lam.df[O_Mx[[i]], c("lon", "lat")]),
                         args=fit.args, path=paste0(path_iss, i))
@@ -349,12 +337,12 @@ fit_CA <- function(sp, sampling.issue, modeling.issue, p, env.rct, env.rct.unsc,
         sim.ls[[s]] <- run_sim(n.grid, n.cell, p.CA, X.CA, sdd.pr, N.init, NULL)
       }
     }
-    CA.f[[i]] <- aggregate_CA_simulations(sim.ls, p.CA$tmax, max(p.CA$m))
+    CA.f[[i]] <- aggregate_CAd_simulations(sim.ls, max(p.CA$m))
     diagnostics[[i]] <- list(p.CA, vars.ls)
     rm(sim.ls)
     cat("  Finished dataset", i, "\n\n")
   }
-  out <- summarize_CA_samples(CA.f, lam.df$id)
+  out <- summarize_CAd_samples(CA.f, lam.df$id)
   P_CAd <- lam.df %>% 
     dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
     mutate(prP=out$prP[,p.CA$tmax+1],
@@ -379,8 +367,8 @@ fit_CA <- function(sp, sampling.issue, modeling.issue, p, env.rct, env.rct.unsc,
 ##-- fit IPM
 ##
 fit_IPM <- function(sp, sampling.issue, modeling.issue, p, env.rct.unsc, 
-                   lam.df, vars, v.i, v, m, n_x, n_z, N_init, sdd.pr, n.cell,
-                   n_sim, n_cores) {
+                   lam.df, vars, v.i, v, m, n_x, n_z, N_init, sdd.pr, sdd.j, 
+                   p.ij, n.cell, n_sim, n_cores) {
   library(here); library(tidyverse); library(magrittr); 
   library(MuMIn); library(doSNOW)
   walk(paste0("code/fn_", c("aux", "sim", "IPM", "fit"), ".R"), ~source(here(.)))
@@ -439,6 +427,9 @@ fit_IPM <- function(sp, sampling.issue, modeling.issue, p, env.rct.unsc,
                               g.p=list(sdd.max=p.IPM$sdd.max, 
                                        sdd.rate=p.IPM$sdd.rate, 
                                        bird.hab=p$bird_hab))
+      sdd.j <- lapply(1:n.cell, function(x) which(sdd.pr$i[,,2,]==lam.df$id[x], 
+                                                  arr.ind=T)) 
+      p.ij <- lapply(1:n.cell, function(x) sdd.pr$i[,,1,][sdd.j[[x]]]) 
     }
     if(modeling.issue=="overDisp") {
       p.IPM <- add_misDisperse(p.IPM, p, sdd_max_adj=2, sdd_rate_adj=.1, ldd=5)
@@ -446,44 +437,46 @@ fit_IPM <- function(sp, sampling.issue, modeling.issue, p, env.rct.unsc,
                               g.p=list(sdd.max=p.IPM$sdd.max, 
                                        sdd.rate=p.IPM$sdd.rate, 
                                        bird.hab=p$bird_hab))
+      sdd.j <- lapply(1:n.cell, function(x) which(sdd.pr$i[,,2,]==lam.df$id[x], 
+                                                  arr.ind=T)) 
+      p.ij <- lapply(1:n.cell, function(x) sdd.pr$i[,,1,][sdd.j[[x]]]) 
     }
     
     # use estimated slopes to fill IPM matrix
     cat("||-- Calculating IPM matrices\n")
     U.f[[i]] <- fill_IPM_matrices(n.cell, buffer=0.75, discrete=1, p.IPM, n_z,
-                                  n_x, X.IPM, sdd.pr$i, lam.df$id, N_init)
+                                  n_x, X.IPM, sdd.j, p.ij, N_init)
     
     # use estimated slopes to generate simulated data
     sim.ls <- vector("list", n_sim)
     cat("||-- Starting simulations\n")
     if(n_cores > 1) {
       p.c <- makeCluster(n_cores); registerDoSNOW(p.c)
-      sim.ls <- foreach(s=1:n_sim) %dopar% {
-        library(purrr); library(here)
+      sim.ls <- foreach(s=1:n_sim, .packages=c("purrr", "here")) %dopar% {
         walk(paste0("code/fn_", c("aux", "sim", "IPM", "fit"), ".R"), ~source(here(.)))
         simulate_data(n.cell, U.f[[i]]$lo, U.f[[i]]$hi, p.IPM, X.IPM, n_z, 
-                      sdd.pr$i, U.f[[i]]$sdd.j, N_init)
+                      sdd.pr$i, sdd.j, N_init)
       }
       stopCluster(p.c)
     } else {
       for(s in 1:n_sim) {
         sim.ls[[s]] <- simulate_data(n.cell, U.f[[i]]$lo, U.f[[i]]$hi, p.IPM, X.IPM, n_z, 
-                                     sdd.pr$i, U.f[[i]]$sdd.j, N_init)
+                                     sdd.pr$i, sdd.j, N_init)
         cat("||-- Finished simulation", s, "\n")
       }
     }
-    S.f[[i]] <- aggregate_IPM_simulations(sim.ls, p.IPM$tmax)
+    S.f[[i]] <- aggregate_CAi_simulations(sim.ls, p.IPM$tmax)
     diagnostics[[i]] <- vars.ls
     rm(sim.ls)
     cat("  Finished dataset", i, "\n\n")
   }
-  out <- summarize_IPM_samples(U.f, S.f)
+  out <- summarize_IPM_CAi_samples(U.f, S.f)
   
   P_CAi <- lam.df %>% 
     dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
     mutate(prP=out$Sf$prP,
-           lam.S.f=rowMeans(out$Sf$N_sim.mn[,(-3:0)+p.IPM$tmax]/
-                              (out$Sf$N_sim.mn[,(-4:-1)+p.IPM$tmax]+0.0001)),
+           lam.S.f=rowMeans(out$Sf$N_surv.mn[,(-3:0)+p.IPM$tmax]/
+                              (out$Sf$N_surv.mn[,(-4:-1)+p.IPM$tmax]+0.0001)),
            nSeed.f=out$Sf$nSd.mn[,p.IPM$tmax], 
            D.f=out$Sf$D.mn[,p.IPM$tmax],
            B0.f=out$Sf$B.mn[,1], 
