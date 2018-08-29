@@ -308,18 +308,25 @@ fit_PNAS_species <- function(sp="barberry", nlcd_agg, clim_X="bio10_1",
   ## datasets
   plot.df <- sp.ls[[sp]] %>% 
     filter(habitat==ifelse(grepl("mustard", sp), 1, 0)) %>%
-    select(wplot, size, sizeNext, surv, fec1, fec2, fec3, flowering) %>%
+    select(wplot, size, sizeNext, surv, fec1, fec2, fec3, flowering,
+           Ph.ave, N, PAR) %>%
     mutate(size2=size^2, size3=size^3) %>%
     left_join(., X.df, by="wplot")
   all.df <- read.csv(dir("data/PNAS_2017", sp, full.names=T)) %>%
     mutate(size2=size^2, size3=size^3)
+  hab.mns <- all.df %>% group_by(habitat) %>% 
+    summarise(PAR=mean(PAR, na.rm=T), 
+              pH=mean(Ph.ave, na.rm=T),
+              N=mean(N, na.rm=T))
   ## 1. survival: logit(s) ~ size + env
   ## 2. growth: sizeNext ~ size + env
   ## 3. flowering: logit(fl) ~ size (+ env for mustards)
   ## 4. seeds: log(seeds) ~ size (+ env for mustards)
-  vital.reg[[1]] <- glm(as.formula(paste0("surv", covariates)), 
+  vital.reg[[1]] <- glm(as.formula(paste0("surv", covariates, 
+                                          " + PAR + Ph.ave + N")), 
                         data=filter(plot.df, !is.na(surv)), family="binomial")
-  vital.reg[[2]] <- lm(as.formula(paste0("sizeNext", covariates)), 
+  vital.reg[[2]] <- lm(as.formula(paste0("sizeNext", covariates, 
+                                         " + PAR + Ph.ave + N")), 
                        data=filter(plot.df, !is.na(size) & !is.na(sizeNext)))
   if(grepl("mustard", sp)) {
     ## these are bienniel species
@@ -342,8 +349,14 @@ fit_PNAS_species <- function(sp="barberry", nlcd_agg, clim_X="bio10_1",
   }
   
   # store parameter estimates
+  vital.coef <- map(vital.reg, coef)
   for(i in seq_along(vital.reg)) {
-    vital.par[[i]][names(coef(vital.reg[[i]]))] <- coef(vital.reg[[i]])
+    vital.coef[[i]][1] <- vital.coef[[i]][1] + 
+      sum(vital.coef[[i]][c("PAR", "Ph.ave", "N")]*
+            hab.mns[ifelse(grepl("mustard", sp), 2, 1),-1], na.rm=T)
+    vital.coef[[i]] <- vital.coef[[i]][!names(vital.coef[[i]]) %in% 
+                                                c("PAR", "Ph.ave", "N")]
+    vital.par[[i]][names(vital.coef[[i]])] <- vital.coef[[i]]
     vital.par[[i]][is.na(vital.par[[i]])] <- 0
   }
   ## vital rate regressions

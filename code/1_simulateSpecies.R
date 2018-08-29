@@ -16,19 +16,19 @@ spp.virt <- c(barberry="sp1", lindera="sp2",
 sp <- names(spp.virt)[1]
 overwrite <- TRUE
 env.f <- "data/ENF_10km.csv"  # file with environmental data
-clim_X <- paste0("bio10_", c(5, 13))
+clim_X <- paste0("bio10_", c(5, "prMay"))
 max_z_pow <- 1
-Sys.setenv("MC_CORES"=4)
+n.cores <- 8
 
 # load workspace
-pkgs <- c("gbPopMod", "tidyverse", "magrittr", "here", "parallel")
+pkgs <- c("gbPopMod", "tidyverse", "magrittr", "here", "doSNOW", "foreach")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
 walk(paste0("code/fn_", c("IPM", "aux", "sim"), ".R"), ~source(here(.)))
 nlcd.sp <- read.csv(here("data/PNAS_2017/", ifelse(grepl("mustard", sp),
                                                    "aggLC_mustard.csv", 
                                                    "aggLC_woody.csv")))
 L <- build_landscape(f=here(env.f), nlcd_agg=nlcd.sp, clim_X=clim_X,
-                     x_max=Inf, y_max=150) 
+                     x_max=Inf, y_max=Inf) 
 n.cell <- sum(L$env.rct$inbd)
 
 
@@ -36,7 +36,7 @@ n.cell <- sum(L$env.rct$inbd)
 ########
 ## Set species traits
 ########
-p <- fit_PNAS_species(sp, nlcd.sp, clim_X, TRUE, max_z_pow)
+p <- fit_PNAS_species(sp, nlcd.sp, clim_X, FALSE, max_z_pow)
 p$n <- 30
 p$tmax <- 100
 p$n0 <- 100
@@ -63,9 +63,12 @@ sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=L$env.rct.unscaled,
                         g.p=list(sdd.max=p$sdd_max, 
                                  sdd.rate=p$sdd_rate, 
                                  bird.hab=p$bird_hab))
-sdd.j <- mclapply(1:n.cell, function(x) which(sdd.pr$i[,,2,]==L$env.in$id[x], 
-                                              arr.ind=T))
-p.ij <- mclapply(1:n.cell, function(x) sdd.pr$i[,,1,][sdd.j[[x]]]) 
+p.c <- makeCluster(n.cores); registerDoSNOW(p.c)
+sdd.j <- foreach(x=1:n.cell) %dopar% {
+  which(sdd.pr$i[,,2,]==L$env.in$id[x], arr.ind=T)
+}
+p.ij <- foreach(x=1:n.cell) %dopar% { sdd.pr$i[,,1,][sdd.j[[x]]] }
+stopCluster(p.c)
 # NOTE: sdd.pr[,,2,] indexes based on `id` (id for each cell in grid) instead  
 # of `id.inbd` (id for inbound cells only), but sdd.pr[,,,i] includes only
 # inbound cells, so the layer index aligns with `id.inbd`. This makes 
