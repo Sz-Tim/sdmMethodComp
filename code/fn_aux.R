@@ -51,14 +51,9 @@ build_landscape <- function(f, nlcd_agg, clim_X=paste0("bio10_", 1:19),
     agg.mx[,i] <- rowSums(f.df[, with(nlcd_agg, orig[agg==lc.cat[i]])])
   }
   # assemble specified variables
-<<<<<<< HEAD
-  l.df <- cbind(f.df[, c("long", "lat", "x", "y", "x_y", clim_X)], agg.mx)
-  # store scaling mean and sd
-=======
   l.df <- cbind(f.df[, c("long", "lat", "x", "y", "x_y", clim_X)], agg.mx) %>%
     filter(x <= x_max & y <= y_max)
   # center & scale covariates, store center & scale
->>>>>>> f0ea3ed979848274765f2e3b3b342ab561091c54
   l.scale <- select(l.df, -(1:5)) %>% scale
   scale.i <- cbind(sc_mn=attributes(l.scale)$`scaled:center`,
                    sc_sd=attributes(l.scale)$`scaled:scale`)
@@ -76,16 +71,10 @@ build_landscape <- function(f, nlcd_agg, clim_X=paste0("bio10_", 1:19),
            lat=l.df$lat[match_id],
            lon=l.df$long[match_id],
            rdLen=f.df$rd_len[match_id]) %>%
-    filter(x <= x_max & y <= y_max) %>%
     mutate(id=row_number(), 
            id.inbd=min_rank(na_if(inbd*id, 0)))
   # env.rct[is.na(env.rct)] <- 0
-<<<<<<< HEAD
-  l.df <- filter(l.df, x <= x_max & y <= y_max)
-  match_id <- match(env.rct$x_y, l.df$x_y)
-=======
   # pair unscaled environmental variables (required for dispersal probabilities)
->>>>>>> f0ea3ed979848274765f2e3b3b342ab561091c54
   env.rct.unscaled <- cbind(env.rct[,-(1:(n_lc+n_clim*2))], 
                             l.df[match_id,-(1:5)])
   # subset inbound cells
