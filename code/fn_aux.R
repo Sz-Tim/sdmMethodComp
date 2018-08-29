@@ -262,20 +262,18 @@ extract_SDM_details <- function(f) {
 #' @param nlcd_agg Dataframe with NLCD aggregation scheme
 #' @param clim_X \code{"bio10_1"} Column names for bioclimatic variables to
 #'  include
+#' @param clim_sq \code{TRUE} Include square of each clim_X?
 #' @param n_z \code{3} Maximum exponent to raise the size distribution to
 #' @return List of parameters for all vital rate regressions, in addition to
 #' rcr_z, z.rng, rcr_dir, p_est, and s_SB
-fit_PNAS_species <- function(sp="barberry", nlcd_agg=nlcd_agg, 
-                             clim_X="bio10_1", n_z=3) {
+fit_PNAS_species <- function(sp="barberry", nlcd_agg, clim_X="bio10_1", 
+                             clim_sq=TRUE, n_z=3) {
   ##-- Set up
-  library(tidyverse); library(magrittr); library(here)
+  library(tidyverse); library(magrittr); library(here); library(MuMIn)
   walk(paste0("code/fn_", c("IPM", "aux", "sim"), ".R"), ~source(here(.)))
   plot_i <- suppressMessages(read_csv("data/PNAS_2017/plot_coords.csv"))
-  env.in <- build_landscape(f="data/ENF_5km.csv", 
-                            nlcd_agg=nlcd_agg,
-                            clim_X=clim_X,
-                            x_max=Inf, 
-                            y_max=150)$env.in
+  env.in <- build_landscape(f="data/ENF_5km.csv", nlcd_agg=nlcd_agg,
+                            clim_X=clim_X, x_max=Inf, y_max=150)$env.in
   n.cell <- sum(env.in$inbd)
   sp.ls <- readRDS("data/PNAS_2017/species_data_list.rds")
   
@@ -286,10 +284,20 @@ fit_PNAS_species <- function(sp="barberry", nlcd_agg=nlcd_agg,
                                           abs(env.in$lat-plot_i$lat[i]) < 2500]
   }
   X.df <- right_join(env.in, plot_i, by="id.inbd")
-  vars <- rep(0, sum(grepl("bio", names(env.in))) + 1 + n_z)
-  names(vars) <- c("(Intercept)", "size", paste0("size", 2:n_z),
-                   names(env.in)[1:sum(grepl("bio", names(env.in)))])
-  covariates <- paste0("~ ", paste(names(vars)[-1], collapse=" + "))
+  vars <- rep(0, 1+n_z+sum(grepl("bio", names(env.in))))
+  if(n_z>1) {
+    names(vars) <- c("(Intercept)", "size", paste0("size", 2:n_z),
+                     names(env.in)[1:sum(grepl("bio", names(env.in)))])
+  } else {
+    names(vars) <- c("(Intercept)", "size", 
+                     names(env.in)[1:sum(grepl("bio", names(env.in)))])
+  }
+  if(clim_sq) {
+    covariates <- paste0("~ ", paste(names(vars)[-1], collapse=" + "))
+  } else {
+    covariates <- paste0("~ ", paste(names(vars[-grep("sq", names(vars))])[-1],
+                                     collapse=" + "))
+  }
   
   # fit vital rate regressions
   ## storage objects
@@ -314,22 +322,22 @@ fit_PNAS_species <- function(sp="barberry", nlcd_agg=nlcd_agg,
   vital.reg[[2]] <- lm(as.formula(paste0("sizeNext", covariates)), 
                        data=filter(plot.df, !is.na(size) & !is.na(sizeNext)))
   if(grepl("mustard", sp)) {
-    vital.reg[[3]] <- glm(as.formula(paste0("sizeNext", covariates)), 
+    ## these are bienniel species
+    ## need to modify IPM construction so P applies in first year, F in second
+    vital.reg[[3]] <- glm(as.formula(paste0("flowering", covariates)), 
                           data=filter(plot.df, !is.na(flowering) & !is.na(size)), 
                           family="binomial")
-    vital.reg[[4]] <- glm(as.formula(paste0("sizeNext", covariates)), 
-                          data=filter(plot.df, !is.na(fec1) & !is.na(flowering)), 
+    vital.reg[[4]] <- glm(as.formula(paste0("fec1", covariates)), 
+                          data=filter(plot.df, !is.na(fec1) & !is.na(size)), 
                           family="poisson")
   } else {
-    vital.reg[[3]] <- glm(as.formula(paste0("flowering ~ size + ", 
-                                            paste0("size", 2:n_z, 
-                                                   collapse=" + "))), 
-                          data=filter(all.df, !is.na(flowering) & !is.na(size)), 
+    z_form <- ifelse(n_z==1, "~ size",
+                     paste0("~ size + ", paste0("size", 2:n_z, collapse=" + ")))
+    vital.reg[[3]] <- glm(as.formula(paste0("flowering", z_form)), 
+                          data=filter(all.df, !is.na(flowering)), 
                           family="binomial")
-    vital.reg[[4]] <- glm(as.formula(paste0("fec1 ~ size + ", 
-                                            paste0("size", 2:n_z, 
-                                                   collapse=" + "))), 
-                          data=filter(all.df, !is.na(fec1) & !is.na(flowering)), 
+    vital.reg[[4]] <- glm(as.formula(paste0("fec1", z_form)), 
+                          data=filter(all.df, !is.na(fec1)), 
                           family="poisson")
   }
   
