@@ -197,7 +197,8 @@ setup_IPM_matrix <- function(n=100, z.rng=c(1,10), buffer=0.25) {
 #' @param z.i Vector of sizes: discretized size range in approximated IPM matrix
 #' @param p List of parameters
 #' @param n_z List of number of size covariates for each vital rate regression
-#' @param n_x List of number of environmental covariates for each vital rate regression
+#' @param n_x List of number of environmental covariates for each vital rate 
+#' regression
 #' @param X_s Matrix of environmental covariates for survival regression
 #' @param X_g Matrix of environmental covariates for growth regression
 #' @return P matrix with survival & growth kernel
