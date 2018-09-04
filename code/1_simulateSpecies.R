@@ -15,10 +15,14 @@ spp.virt <- c(barberry="sp1", lindera="sp2",
               garlic_mustard="sp3", tower_mustard="sp4")
 sp <- names(spp.virt)[1]
 overwrite <- TRUE
-env.f <- "data/ENF_10km.csv"  # file with environmental data
+env.f <- "data/ENF_3km.csv"  # file with environmental data
 clim_X <- paste0("bio10_", c(5, "prMay"))
 max_z_pow <- 1
-n.cores <- 8
+n.cores <- 4
+x_min <- 500
+x_max <- Inf
+y_min <- 0
+y_max <- 300
 
 # load workspace
 pkgs <- c("gbPopMod", "tidyverse", "magrittr", "here", "doSNOW", "foreach")
@@ -28,7 +32,7 @@ nlcd.sp <- read.csv(here("data/PNAS_2017/", ifelse(grepl("mustard", sp),
                                                    "aggLC_mustard.csv", 
                                                    "aggLC_woody.csv")))
 L <- build_landscape(f=here(env.f), nlcd_agg=nlcd.sp, clim_X=clim_X,
-                     x_max=Inf, y_max=Inf) 
+                     x_min, x_max, y_min, y_max) 
 n.cell <- sum(L$env.rct$inbd)
 
 
@@ -36,7 +40,8 @@ n.cell <- sum(L$env.rct$inbd)
 ########
 ## Set species traits
 ########
-p <- fit_PNAS_species(sp, nlcd.sp, clim_X, FALSE, max_z_pow)
+p <- fit_PNAS_species(sp, env.f, nlcd.sp, clim_X, FALSE, max_z_pow, 
+                      x_min, x_max, y_min, y_max)
 p$n <- 30
 p$tmax <- 100
 p$n0 <- 100
