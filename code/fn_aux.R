@@ -26,14 +26,16 @@ logit <- function (x) {
 #' extracts the specified bioclimatic variables, returning one full-grid
 #' dataframe with variables scaled, one full-grid dataframe with raw values, one
 #' in-bound dataframe with scaled values, and an index for the scaling.
-#' @param f Landscape grid file (e.g., ENF_50km.csv)
+#' @param f Landscape grid file (e.g., ENF_5km.csv)
 #' @param nlcd_agg Dataframe with NLCD aggregation scheme
 #' @param clim_X Column names for bioclimatic variables to include. Defaults to 
 #' all 19 variables
-#' @param x_max \code{Inf} Maximum number of rows in grid (Inf = full-scale)
-#' @param y_max \code{Inf} Maximum number of columns in grid (Inf = full-scale)
+#' @param x_max \code{Inf} Maximum row in grid (Inf = full-scale)
+#' @param x_min \code{0} Minimum row in grid (0 = full-scale)
+#' @param y_max \code{Inf} Maximum column in grid (Inf = full-scale)
+#' @param y_min \code{0} Minimum column in grid (0 = full-scale)
 build_landscape <- function(f, nlcd_agg, clim_X=paste0("bio10_", 1:19), 
-                            x_max=Inf, y_max=Inf) {
+                            x_min=0, x_max=Inf, y_min=0, y_max=Inf) {
   library(tidyverse)
   # load GIS data & create x-y columns for landscape grid
   f.df <- suppressMessages(read_csv(f)) %>% 
@@ -52,7 +54,7 @@ build_landscape <- function(f, nlcd_agg, clim_X=paste0("bio10_", 1:19),
   }
   # assemble specified variables
   l.df <- cbind(f.df[, c("long", "lat", "x", "y", "x_y", clim_X)], agg.mx) %>%
-    filter(x <= x_max & y <= y_max)
+    filter(x>=x_min & x<=x_max & y>=y_min & y<=y_max)
   # center & scale covariates, store center & scale
   l.scale <- select(l.df, -(1:5)) %>% scale
   scale.i <- cbind(sc_mn=attributes(l.scale)$`scaled:center`,
@@ -259,6 +261,7 @@ extract_SDM_details <- function(f) {
 #' climatic variables and maximum size exponent. 
 #' @param sp \code{"barberry"} One of 'barberry', 'lindera', 'garlic_mustard', 
 #' or 'tower_mustard'
+#' @param f Landscape grid file (e.g., ENF_5km.csv)
 #' @param nlcd_agg Dataframe with NLCD aggregation scheme
 #' @param clim_X \code{"bio10_1"} Column names for bioclimatic variables to
 #'  include
@@ -266,22 +269,25 @@ extract_SDM_details <- function(f) {
 #' @param n_z \code{3} Maximum exponent to raise the size distribution to
 #' @return List of parameters for all vital rate regressions, in addition to
 #' rcr_z, z.rng, rcr_dir, p_est, and s_SB
-fit_PNAS_species <- function(sp="barberry", nlcd_agg, clim_X="bio10_1", 
-                             clim_sq=TRUE, n_z=3) {
+fit_PNAS_species <- function(sp="barberry", f, nlcd_agg, clim_X="bio10_1", 
+                             clim_sq=TRUE, n_z=3, 
+                             x_min=0, x_max=Inf, y_min=0, y_max=Inf) {
   ##-- Set up
   library(tidyverse); library(magrittr); library(here); library(MuMIn)
   walk(paste0("code/fn_", c("IPM", "aux", "sim"), ".R"), ~source(here(.)))
   plot_i <- suppressMessages(read_csv("data/PNAS_2017/plot_coords.csv"))
-  env.in <- build_landscape(f="data/ENF_5km.csv", nlcd_agg=nlcd_agg,
-                            clim_X=clim_X, x_max=Inf, y_max=150)$env.in
+  env.in <- build_landscape(f=f, nlcd_agg=nlcd_agg,
+                            clim_X=clim_X, x_min=x_min, x_max=x_max, 
+                            y_min=y_min, y_max=y_max)$env.in
   n.cell <- sum(env.in$inbd)
   sp.ls <- readRDS("data/PNAS_2017/species_data_list.rds")
   
-  # extract covariates for cells containing PNAS plots: 5km grid cells
+  # extract covariates for cells containing PNAS plots
+  radius <- mean(diff(sort(unique(env.in$lat))))/2
   plot_i$id.inbd <- NA
   for(i in 1:nrow(plot_i)) {
-    plot_i$id.inbd[i] <- env.in$id.inbd[abs(env.in$lon-plot_i$lon[i]) < 2500 & 
-                                          abs(env.in$lat-plot_i$lat[i]) < 2500]
+    plot_i$id.inbd[i] <- env.in$id.inbd[abs(env.in$lon-plot_i$lon[i]) < radius & 
+                                          abs(env.in$lat-plot_i$lat[i]) < radius]
   }
   X.df <- right_join(env.in, plot_i, by="id.inbd")
   vars <- rep(0, 1+n_z+sum(grepl("bio", names(env.in))))
@@ -302,18 +308,20 @@ fit_PNAS_species <- function(sp="barberry", nlcd_agg, clim_X="bio10_1",
   # fit vital rate regressions
   ## storage objects
   params <- list()
-  vital.par <- map(1:4, ~c(vars))
-  vital.reg <- vector("list", 4)
-  names(vital.par) <- names(vital.reg) <- c("surv", "growth", "flower", "seeds")
+  vital.par <- map(1:5, ~c(vars))
+  vital.reg <- vector("list", length(vital.par))
+  names(vital.par) <- names(vital.reg) <- c("surv", "growth", 
+                                            "flower", "seeds", "germ")
   ## datasets
   plot.df <- sp.ls[[sp]] %>% 
     filter(habitat==ifelse(grepl("mustard", sp), 1, 0)) %>%
     select(wplot, size, sizeNext, surv, fec1, fec2, fec3, flowering,
-           Ph.ave, N, PAR) %>%
+           n.germ.0, n.germ.1, Ph.ave, N, PAR) %>%
     mutate(size2=size^2, size3=size^3) %>%
     left_join(., X.df, by="wplot")
   all.df <- read.csv(dir("data/PNAS_2017", sp, full.names=T)) %>%
-    mutate(size2=size^2, size3=size^3)
+    mutate(size2=size^2, size3=size^3) %>%
+    left_join(., X.df, by="wplot")
   hab.mns <- all.df %>% group_by(habitat) %>% 
     summarise(PAR=mean(PAR, na.rm=T), 
               pH=mean(Ph.ave, na.rm=T),
@@ -347,6 +355,10 @@ fit_PNAS_species <- function(sp="barberry", nlcd_agg, clim_X="bio10_1",
                           data=filter(all.df, !is.na(fec1)), 
                           family="poisson")
   }
+  vital.reg[[5]] <- glm(as.formula(paste0("cbind(n.germ.1, n.germ.0)",
+                                          str_remove(covariates, "size.+\\+"), 
+                                          " + Ph.ave")),
+                        data=filter(all.df, !is.na(fec2)), family="binomial")
   
   # store parameter estimates
   vital.coef <- map(vital.reg, coef)
