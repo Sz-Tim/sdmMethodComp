@@ -124,13 +124,13 @@ calc_rcrDir <- function(z1, z.v, p, n_seedz, n_flz, X.seed, X.fl) {
 
 
 ##-- Recruits (seedbank)
-##   z' ~ P(s.SB) * N(mn, sd)
+##   z' ~ P(rcrSB) * N(mn, sd)
 #' Calculate size distribution of seed bank recruits based on size & environment
 #' @param z1 Vector of recruit sizes to calculate probability for
 #' @param p List of parameters
 #' @return Vector of recruit size distribution
 calc_rcrSB <- function(z1, p) {
-  p$s_SB * dnorm(z1, p$rcr_z[1], p$rcr_z[2])
+  p$rcr_SB * dnorm(z1, p$rcr_z[1], p$rcr_z[2])
 }
 
 
@@ -228,9 +228,11 @@ fill_P <- function(h, y, z.i, p, n_z, n_x, X_s, X_g) {
 #' @param n_x List of number of environmental covariates for each vital rate regression
 #' @param X_fl Matrix of environmental covariates for flowering regression
 #' @param X_seed Matrix of environmental covariates for seed regression
+#' @param X_germ Matrix of environmental covariates for germination regression
 #' @return F matrix with fecundity kernel
-fill_F <- function(h, y, z.i, p, n_z, n_x, X_fl, X_seed) {
+fill_F <- function(h, y, z.i, p, n_z, n_x, X_fl, X_seed, X_germ=NULL) {
   F.mx <- matrix(0, nrow=p$n+1, ncol=p$n+1)
+  if(!is.null(X_germ)) p$rcr_dir <- p$rcr_SB <- antilogit(c(p$germ_x%*%X_germ))
   F.mx[z.i,z.i] <- outer(y, y, calc_rcrDir, p=p, n_seedz=n_z$seed, n_flz=n_z$fl, 
                          X.seed=X_seed, X.fl=X_fl) * h * p$p_est
   F.mx[1,z.i] <- calc_addSB(y, p=p, n_seedz=n_z$seed, n_flz=n_z$fl, 
@@ -276,9 +278,9 @@ fill_IPM_matrices <- function(n.cell, buffer, discrete, p, n_z, n_x,
   ## local growth
   if(verbose) cat("Beginning local growth \n")
   Ps <- vapply(i, function(x) fill_P(Mx$h, Mx$y, z.i, p, n_z, n_x, 
-                                            X$s[x,], X$g[x,]), Ps[,,1])
-  Fb <- vapply(i, function(x) fill_F(Mx$h, Mx$y, z.i, p, n_z, n_x, 
-                                            X$fl[x,], X$seed[x,]), Fb[,,1])
+                                     X$s[x,], X$g[x,]), Ps[,,1])
+  Fb <- vapply(i, function(x) fill_F(Mx$h, Mx$y, z.i, p, n_z, n_x, X$fl[x,], 
+                                     X$seed[x,], X$germ[x,]), Fb[,,1])
   Fs[z.i,1,] <- Fb[z.i,1,]  # recruits from seedbank unaffected by immigration
   Fs[1,z.i,] <- (1-p$p_emig) * Fb[1,z.i,]  # local contribution to seedbank
   Fs[z.i,z.i,] <- (1-p$p_emig) * Fb[z.i,z.i,]  # local direct recruits
