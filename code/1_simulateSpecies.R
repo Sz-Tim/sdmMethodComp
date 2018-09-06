@@ -17,12 +17,13 @@ sp <- names(spp.virt)[1]
 overwrite <- TRUE
 env.f <- "data/ENF_3km.csv"  # file with environmental data
 clim_X <- paste0("bio10_", c(5, "prMay"))
+habitat <- 3
 max_z_pow <- 1
 n.cores <- 4
-x_min <- 500
+x_min <- 0#650
 x_max <- Inf
 y_min <- 0
-y_max <- 300
+y_max <- Inf#250
 
 # load workspace
 pkgs <- c("gbPopMod", "tidyverse", "magrittr", "here", "doSNOW", "foreach")
@@ -40,7 +41,7 @@ n.cell <- sum(L$env.rct$inbd)
 ########
 ## Set species traits
 ########
-p <- fit_PNAS_species(sp, env.f, nlcd.sp, clim_X, FALSE, max_z_pow, 
+p <- fit_PNAS_species(sp, env.f, nlcd.sp, clim_X, FALSE, max_z_pow, habitat,
                       x_min, x_max, y_min, y_max)
 p$n <- 30
 p$tmax <- 100
@@ -60,20 +61,23 @@ n_z <- list(s=length(p$s_z),  # n size covariates for each vital rate
 n_x <- list(s=length(p$s_x), # n env covariates for each vital rate
             g=length(p$g_x),
             fl=length(p$fl_x), 
-            seed=length(p$seed_x))
+            seed=length(p$seed_x),
+            germ=length(p$germ_x))
 X <- map(n_x, ~as.matrix(L$env.in[,1:.]))  # env covariates for each vital rate
-sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=L$env.rct.unscaled, 
-                        lc.col=tail(1:ncol(L$env.rct.unscaled), 
-                                    n_distinct(nlcd.sp$agg)),
-                        g.p=list(sdd.max=p$sdd_max, 
-                                 sdd.rate=p$sdd_rate, 
-                                 bird.hab=p$bird_hab))
-p.c <- makeCluster(n.cores); registerDoSNOW(p.c)
-sdd.j <- foreach(x=1:n.cell) %dopar% {
-  which(sdd.pr$i[,,2,]==L$env.in$id[x], arr.ind=T)
-}
-p.ij <- foreach(x=1:n.cell) %dopar% { sdd.pr$i[,,1,][sdd.j[[x]]] }
-stopCluster(p.c)
+if(!is.null(X$germ)) X$germ <- cbind(1, X$germ[,-n_x$germ])
+p$p_emig <- 0
+# sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=L$env.rct.unscaled, 
+#                         lc.col=tail(1:ncol(L$env.rct.unscaled), 
+#                                     n_distinct(nlcd.sp$agg)),
+#                         g.p=list(sdd.max=p$sdd_max, 
+#                                  sdd.rate=p$sdd_rate, 
+#                                  bird.hab=p$bird_hab))
+# p.c <- makeCluster(n.cores); registerDoSNOW(p.c)
+# sdd.j <- foreach(x=1:n.cell) %dopar% {
+#   which(sdd.pr$i[,,2,]==L$env.in$id[x], arr.ind=T)
+# }
+# p.ij <- foreach(x=1:n.cell) %dopar% { sdd.pr$i[,,1,][sdd.j[[x]]] }
+# stopCluster(p.c)
 # NOTE: sdd.pr[,,2,] indexes based on `id` (id for each cell in grid) instead  
 # of `id.inbd` (id for inbound cells only), but sdd.pr[,,,i] includes only
 # inbound cells, so the layer index aligns with `id.inbd`. This makes 
@@ -92,6 +96,13 @@ N_init[sample(filter(L$env.in, x>75 & y>75)$id.inbd,#x>35 & y<20)$id.inbd,
 # Use assigned slopes to fill IPM matrix
 U <- fill_IPM_matrices(n.cell, buffer=0.75, discrete=1, p, n_z, n_x, 
                        X, sdd.j, p.ij, N_init, verbose=T)
+lam.df <- L$env.in %>%
+  mutate(lambda=apply(U$IPMs, 3, function(x) Re(eigen(x)$values[1])))
+ggplot(lam.df) + geom_tile(aes(x=lon, y=lat, fill=lambda)) + 
+  scale_fill_viridis(option="B") + ggtitle(paste0("habitat:", habitat))
+ggplot(lam.df) + geom_tile(aes(x=lon, y=lat, fill=lambda>1)) + 
+  scale_fill_manual(values=c("gray30", "dodgerblue")) + 
+  ggtitle(paste0("habitat:", habitat))
 
 # Ground Truth: generate simulated data
 S <- simulate_data(n.cell, U$lo, U$hi, p, X, n_z, sdd.pr$i, sdd.j, N_init, T)

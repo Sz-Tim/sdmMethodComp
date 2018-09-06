@@ -267,10 +267,12 @@ extract_SDM_details <- function(f) {
 #'  include
 #' @param clim_sq \code{TRUE} Include square of each clim_X?
 #' @param n_z \code{3} Maximum exponent to raise the size distribution to
+#' @param habitat \code{3} Local habitat conditions. Integer from 1-4, where
+#'   1 = poor, 2 = mean(unfavorable), 3 = mean(favorable), 4 = optimal
 #' @return List of parameters for all vital rate regressions, in addition to
 #' rcr_z, z.rng, rcr_dir, p_est, and s_SB
 fit_PNAS_species <- function(sp="barberry", f, nlcd_agg, clim_X="bio10_1", 
-                             clim_sq=TRUE, n_z=3, 
+                             clim_sq=TRUE, n_z=3, habitat=3,
                              x_min=0, x_max=Inf, y_min=0, y_max=Inf) {
   ##-- Set up
   library(tidyverse); library(magrittr); library(here); library(MuMIn)
@@ -326,10 +328,12 @@ fit_PNAS_species <- function(sp="barberry", f, nlcd_agg, clim_X="bio10_1",
     summarise(PAR=mean(PAR, na.rm=T), 
               pH=mean(Ph.ave, na.rm=T),
               N=mean(N, na.rm=T))
+  hab.opt <- sign(hab.mns) %>% mutate_at(2:4, ~.*1.95)
   ## 1. survival: logit(s) ~ size + env
   ## 2. growth: sizeNext ~ size + env
   ## 3. flowering: logit(fl) ~ size (+ env for mustards)
   ## 4. seeds: log(seeds) ~ size (+ env for mustards)
+  ## 5. germination: logit(p.germ) ~ env
   vital.reg[[1]] <- glm(as.formula(paste0("surv", covariates, 
                                           " + PAR + Ph.ave + N")), 
                         data=filter(plot.df, !is.na(surv)), family="binomial")
@@ -362,10 +366,13 @@ fit_PNAS_species <- function(sp="barberry", f, nlcd_agg, clim_X="bio10_1",
   
   # store parameter estimates
   vital.coef <- map(vital.reg, coef)
+  if(habitat==1) hab_eff <- hab.opt[ifelse(grepl("mustard", sp), 2, 1),-1]
+  if(habitat==2) hab_eff <- hab.mns[ifelse(grepl("mustard", sp), 2, 1),-1]
+  if(habitat==3) hab_eff <- hab.mns[ifelse(grepl("mustard", sp), 1, 2),-1]
+  if(habitat==4) hab_eff <- hab.opt[ifelse(grepl("mustard", sp), 1, 2),-1]
   for(i in seq_along(vital.reg)) {
     vital.coef[[i]][1] <- vital.coef[[i]][1] + 
-      sum(vital.coef[[i]][c("PAR", "Ph.ave", "N")]*
-            hab.mns[ifelse(grepl("mustard", sp), 2, 1),-1], na.rm=T)
+      sum(vital.coef[[i]][c("PAR", "Ph.ave", "N")]*hab_eff, na.rm=T)
     vital.coef[[i]] <- vital.coef[[i]][!names(vital.coef[[i]]) %in% 
                                                 c("PAR", "Ph.ave", "N")]
     vital.par[[i]][names(vital.coef[[i]])] <- vital.coef[[i]]
@@ -381,6 +388,7 @@ fit_PNAS_species <- function(sp="barberry", f, nlcd_agg, clim_X="bio10_1",
   params$fl_x <- vital.par[[3]][(n_z+2):length(vital.par[[3]])]
   params$seed_z <- vital.par[[4]][1:(n_z+1)]
   params$seed_x <- vital.par[[4]][(n_z+2):length(vital.par[[4]])]
+  params$germ_x <- vital.par[[5]][-(1+(1:n_z))]
   ## recruit size distribution
   rcr_dist <- filter(all.df, Year.planted==Year.size & is.na(flowering))$size
   params$rcr_z <- c(mean(rcr_dist, na.rm=T), sd(rcr_dist, na.rm=T))
