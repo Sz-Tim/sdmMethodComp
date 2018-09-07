@@ -328,8 +328,9 @@ fit_PNAS_species <- function(sp="barberry", f, nlcd_agg, clim_X="bio10_1",
   hab.mns <- all.df %>% group_by(habitat) %>% 
     summarise(PAR=mean(PAR, na.rm=T), 
               pH=mean(Ph.ave, na.rm=T),
-              N=mean(N, na.rm=T))
-  hab.opt <- sign(hab.mns) %>% mutate_at(2:4, ~.*1.95)
+              N=mean(N, na.rm=T),
+              light=mean(light, na.rm=T))
+  hab.opt <- sign(hab.mns) %>% mutate_at(-1, ~.*1.95)
   ## 1. survival: logit(s) ~ size + env
   ## 2. growth: sizeNext ~ size + env
   ## 3. flowering: logit(fl) ~ size (+ env for mustards)
@@ -362,7 +363,7 @@ fit_PNAS_species <- function(sp="barberry", f, nlcd_agg, clim_X="bio10_1",
   }
   vital.reg[[5]] <- glm(as.formula(paste0("cbind(n.germ.1, n.germ.0)",
                                           str_remove(covariates, "size.+\\+"), 
-                                          " + Ph.ave")),
+                                          " + Ph.ave + light")),
                         data=filter(all.df, !is.na(fec2)), family="binomial")
   
   # store parameter estimates
@@ -373,9 +374,9 @@ fit_PNAS_species <- function(sp="barberry", f, nlcd_agg, clim_X="bio10_1",
   if(habitat==4) hab_eff <- hab.opt[ifelse(grepl("mustard", sp), 1, 2),-1]
   for(i in seq_along(vital.reg)) {
     vital.coef[[i]][1] <- vital.coef[[i]][1] + 
-      sum(vital.coef[[i]][c("PAR", "Ph.ave", "N")]*hab_eff, na.rm=T)
+      sum(vital.coef[[i]][c("PAR", "Ph.ave", "N", "light")]*hab_eff, na.rm=T)
     vital.coef[[i]] <- vital.coef[[i]][!names(vital.coef[[i]]) %in% 
-                                                c("PAR", "Ph.ave", "N")]
+                                                c("PAR", "Ph.ave", "N", "light")]
     vital.par[[i]][names(vital.coef[[i]])] <- vital.coef[[i]]
     vital.par[[i]][is.na(vital.par[[i]])] <- 0
   }
