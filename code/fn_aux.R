@@ -267,13 +267,13 @@ extract_SDM_details <- function(f) {
 #' @param clim_X \code{"bio10_1"} Column names for bioclimatic variables to
 #'  include
 #' @param clim_sq \code{TRUE} Include square of each clim_X?
-#' @param n_z \code{3} Maximum exponent to raise the size distribution to
+#' @param n_z \code{1} Maximum exponent to raise the size distribution to
 #' @param habitat \code{3} Local habitat conditions. Integer from 1-4, where
 #'   1 = poor, 2 = mean(unfavorable), 3 = mean(favorable), 4 = optimal
 #' @return List of parameters for all vital rate regressions, in addition to
 #' rcr_z, z.rng, rcr_dir, p_est, and s_SB
 fit_PNAS_species <- function(sp="barberry", f, nlcd_agg, clim_X="bio10_1", 
-                             clim_sq=TRUE, n_z=3, habitat=3,
+                             clim_sq=TRUE, n_z=1, habitat=3,
                              x_min=0, x_max=Inf, y_min=0, y_max=Inf) {
   ##-- Set up
   library(tidyverse); library(magrittr); library(here); library(MuMIn)
