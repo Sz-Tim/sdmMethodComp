@@ -19,11 +19,11 @@ env.f <- "data/ENF_3km.csv"  # file with environmental data
 clim_X <- paste0("bio10_", c(5, "prMay"))
 habitat <- 3
 max_z_pow <- 1
-n.cores <- 4
-x_min <- 0#650
+n.cores <- 8
+x_min <- 675
 x_max <- Inf
 y_min <- 0
-y_max <- Inf#250
+y_max <- 250
 
 # load workspace
 pkgs <- c("gbPopMod", "tidyverse", "magrittr", "here", "doSNOW", "foreach")
@@ -43,16 +43,16 @@ n.cell <- sum(L$env.rct$inbd)
 ########
 p <- fit_PNAS_species(sp, env.f, nlcd.sp, clim_X, FALSE, max_z_pow, habitat,
                       x_min, x_max, y_min, y_max)
-p$n <- 30
-p$tmax <- 100
-p$n0 <- 100
+p$n <- 50
+p$tmax <- 50
+p$n0 <- 10
 p$prop_init <- 0.01
 p$NDD <- T
-p$sdd_max <- 4
+p$sdd_max <- 7
 p$sdd_rate <- 2
 p$ldd <- 1
-p$bird_hab <- c(1,1,1,1,1)
-p$NDD_n <- p$n0/3  # mean number of recruits if NDD
+p$bird_hab <- c(5,5,1,1,1)
+p$NDD_n <- p$n0/10  # mean number of recruits if NDD
 p$p_emig <- pexp(0.5, p$sdd_rate, lower.tail=F) # p(seed emigrants)
 n_z <- list(s=length(p$s_z),  # n size covariates for each vital rate
             g=length(p$g_z),
@@ -65,19 +65,19 @@ n_x <- list(s=length(p$s_x), # n env covariates for each vital rate
             germ=length(p$germ_x))
 X <- map(n_x, ~as.matrix(L$env.in[,1:.]))  # env covariates for each vital rate
 if(!is.null(X$germ)) X$germ <- cbind(1, X$germ[,-n_x$germ])
-p$p_emig <- 0
-# sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=L$env.rct.unscaled, 
-#                         lc.col=tail(1:ncol(L$env.rct.unscaled), 
-#                                     n_distinct(nlcd.sp$agg)),
-#                         g.p=list(sdd.max=p$sdd_max, 
-#                                  sdd.rate=p$sdd_rate, 
-#                                  bird.hab=p$bird_hab))
-# p.c <- makeCluster(n.cores); registerDoSNOW(p.c)
-# sdd.j <- foreach(x=1:n.cell) %dopar% {
-#   which(sdd.pr$i[,,2,]==L$env.in$id[x], arr.ind=T)
-# }
-# p.ij <- foreach(x=1:n.cell) %dopar% { sdd.pr$i[,,1,][sdd.j[[x]]] }
-# stopCluster(p.c)
+# p$p_emig <- 0
+sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=L$env.rct.unscaled,
+                        lc.col=tail(1:ncol(L$env.rct.unscaled),
+                                    n_distinct(nlcd.sp$agg)),
+                        g.p=list(sdd.max=p$sdd_max,
+                                 sdd.rate=p$sdd_rate,
+                                 bird.hab=p$bird_hab))
+p.c <- makeCluster(n.cores); registerDoSNOW(p.c)
+sdd.j <- foreach(x=1:n.cell) %dopar% {
+  which(sdd.pr$i[,,2,]==L$env.in$id[x], arr.ind=T)
+}
+p.ij <- foreach(x=1:n.cell) %dopar% { sdd.pr$i[,,1,][sdd.j[[x]]] }
+stopCluster(p.c)
 # NOTE: sdd.pr[,,2,] indexes based on `id` (id for each cell in grid) instead  
 # of `id.inbd` (id for inbound cells only), but sdd.pr[,,,i] includes only
 # inbound cells, so the layer index aligns with `id.inbd`. This makes 
@@ -90,19 +90,26 @@ p$p_emig <- 0
 # Initial populations
 N_init <- rep(0, n.cell)
 # N_init[sample.int(n.cell, p$prop_init*n.cell, replace=F)] <- p$n0
-N_init[sample(filter(L$env.in, x>75 & y>75)$id.inbd,#x>35 & y<20)$id.inbd, 
+N_init[sample(filter(L$env.in, x>750 & y>175)$id.inbd,#x>35 & y<20)$id.inbd, 
               p$prop_init*n.cell, replace=F)] <- p$n0
 
 # Use assigned slopes to fill IPM matrix
 U <- fill_IPM_matrices(n.cell, buffer=0.75, discrete=1, p, n_z, n_x, 
                        X, sdd.j, p.ij, N_init, verbose=T)
-lam.df <- L$env.in %>%
-  mutate(lambda=apply(U$IPMs, 3, function(x) Re(eigen(x)$values[1])))
-ggplot(lam.df) + geom_tile(aes(x=lon, y=lat, fill=lambda)) + 
-  scale_fill_viridis(option="B") + ggtitle(paste0("habitat:", habitat))
-ggplot(lam.df) + geom_tile(aes(x=lon, y=lat, fill=lambda>1)) + 
-  scale_fill_manual(values=c("gray30", "dodgerblue")) + 
-  ggtitle(paste0("habitat:", habitat))
+U <- list(IPMs=U$IPMs, lo=U$lo, hi=U$hi)
+# lam.df <- L$env.in %>%
+#   mutate(lambda=apply(U$IPMs, 3, function(x) Re(eigen(x)$values[1])))
+# library(viridis)
+# plot_sf <- read_csv("data/PNAS_2017/plot_coords.csv") %>% 
+#   sf::st_as_sf(coords=c("lon", "lat"))
+# ggplot(lam.df) + geom_tile(aes(x=lon, y=lat, fill=lambda)) + 
+#   scale_fill_viridis(option="B") + 
+#   ggtitle(paste0("habitat:", habitat)) +
+#   geom_sf(data=plot_sf, colour="white", shape=1)
+# ggplot(lam.df) + geom_tile(aes(x=lon, y=lat, fill=lambda>1)) + 
+#   scale_fill_manual(values=c("gray30", "dodgerblue")) + 
+#   ggtitle(paste0("habitat:", habitat)) +
+#   geom_sf(data=plot_sf, colour="white", shape=1)
 
 # Ground Truth: generate simulated data
 S <- simulate_data(n.cell, U$lo, U$hi, p, X, n_z, sdd.pr$i, sdd.j, N_init, T)
@@ -130,6 +137,15 @@ lam.df <- L$env.in %>%
          mn.age=map_dbl(S$d, ~mean(.$age[.$yr==p$tmax])),
          med.age=map_dbl(S$d, ~median(.$age[.$yr==p$tmax])),
          max.age=map_dbl(S$d, ~max(.$age)))
+
+# ggplot(lam.df) + geom_tile(aes(x=lon, y=lat, fill=log(Surv.S))) + 
+#   scale_fill_viridis(option="B") + 
+#   ggtitle(paste0("habitat:", habitat)) +
+#   geom_sf(data=plot_sf, colour="white", shape=1)
+# ggplot(lam.df) + geom_tile(aes(x=lon, y=lat, fill=Surv.S>1)) + 
+#   scale_fill_manual(values=c("gray30", "dodgerblue")) + 
+#   ggtitle(paste0("habitat:", habitat)) +
+#   geom_sf(data=plot_sf, colour="white", shape=1)
 
 
 ########
