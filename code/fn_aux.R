@@ -39,6 +39,7 @@ build_landscape <- function(f, nlcd_agg, clim_X=paste0("bio10_", 1:19),
   library(tidyverse)
   # load GIS data & create x-y columns for landscape grid
   f.df <- suppressMessages(read_csv(f)) %>% 
+    na.omit %>%
     mutate(x=as.integer(factor(.$long)),
            y=as.integer(factor(.$lat, levels=rev(levels(factor(.$lat))))),
            x_y=paste(x, y, sep="_"))
