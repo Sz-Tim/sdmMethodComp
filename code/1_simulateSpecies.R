@@ -95,20 +95,6 @@ N_init[sample(filter(L$env.in, x>725 & x<765 & y>200)$id.inbd,
 # Use assigned slopes to fill IPM matrix
 U <- fill_IPM_matrices(n.cell, buffer=0.75, discrete=1, p, n_z, n_x, 
                        X, sdd.j, p.ij, verbose=T)
-U <- list(IPMs=U$IPMs, lo=U$lo, hi=U$hi)
-lam.df <- L$env.in %>%
-  mutate(lambda=apply(U$IPMs, 3, function(x) Re(eigen(x)$values[1])))
-library(viridis)
-plot_sf <- read_csv("data/PNAS_2017/plot_coords.csv") %>%
-  sf::st_as_sf(coords=c("lon", "lat"))
-ggplot(lam.df) + geom_tile(aes(x=lon, y=lat, fill=lambda)) +
-  scale_fill_viridis(option="B") +
-  ggtitle(paste0("habitat:", habitat)) +
-  geom_sf(data=plot_sf, colour="white", shape=1)
-# ggplot(lam.df) + geom_tile(aes(x=lon, y=lat, fill=lambda>1)) +
-#   scale_fill_manual(values=c("gray30", "dodgerblue")) +
-#   ggtitle(paste0("habitat:", habitat)) +
-#   geom_sf(data=plot_sf, colour="white", shape=1)
 
 # Ground Truth: generate simulated data
 S <- simulate_data(n.cell, U$lo, U$hi, p, X, n_z, sdd.pr$i, sdd.j, N_init, 
@@ -136,13 +122,54 @@ lam.df <- L$env.in %>%
          mn.age=map_dbl(S$d, ~mean(.$age[.$yr==p$tmax])),
          med.age=map_dbl(S$d, ~median(.$age[.$yr==p$tmax])),
          max.age=map_dbl(S$d, ~max(.$age)),
-         pr_Immigrant=map_dbl(p.ij, sum))
+         pr_Immigrant=map_dbl(p.ij, sum),
+         s=antilogit(c(cbind(1, X$s) %*% c(p$s_z[1], p$s_x))),
+         g=c(cbind(1, X$g) %*% c(p$g_z[1], p$fl_x)),
+         germ=antilogit(c(X$germ %*% p$germ_x)))
 
-ggplot(lam.df) + geom_tile(aes(x=lon, y=lat, fill=log(Surv.S))) +
-  scale_fill_viridis(option="B") +
-  ggtitle(paste0("habitat:", habitat)) +
+library(viridis)
+ggplot(lam.df) + geom_tile(aes(x=lon, y=lat, fill=log(lambda))) +
+  scale_fill_viridis(name="log(lam)", option="B") +
   geom_point(data=lam.df[N_init>0,], aes(lon, lat), colour="white", shape=1) +
-  geom_sf(data=plot_sf, colour="white")
+  ggtitle(paste0(sp, ": 3km x 3km, favorable habitat"))
+ggplot(lam.df) + geom_tile(aes(x=lon, y=lat, fill=log(Surv.S))) +
+  scale_fill_viridis(name="log(N)", option="B") +
+  geom_point(data=lam.df[N_init>0,], aes(lon, lat), colour="white", shape=1) +
+  ggtitle(paste0(sp, ": 3km x 3km, favorable habitat"))
+ggplot(lam.df) + geom_tile(aes(lon, lat, fill=log(round(D)))) +
+  scale_fill_viridis(name="log(D)", option="B") +
+  geom_point(data=lam.df[N_init>0,], aes(lon, lat), colour="white", shape=1) +
+  ggtitle(paste0(sp, ": 3km x 3km, favorable habitat"))
+ggplot(lam.df) + geom_tile(aes(lon, lat, fill=log(nSeed))) + 
+  scale_fill_viridis(name="log(Sd)", option="B") +
+  geom_point(data=lam.df[N_init>0,], aes(lon, lat), colour="white", shape=1) +
+  ggtitle(paste0(sp, ": 3km x 3km, favorable habitat"))
+ggplot(lam.df) + geom_tile(aes(lon, lat, fill=log(B))) + 
+  scale_fill_viridis(name="log(B)", option="B") +
+  geom_point(data=lam.df[N_init>0,], aes(lon, lat), colour="white", shape=1) +
+  ggtitle(paste0(sp, ": 3km x 3km, favorable habitat"))
+ggplot(lam.df) + geom_tile(aes(x=lon, y=lat, fill=lambda>1)) +
+  scale_fill_manual("lam > 1", values=c("gray30", "dodgerblue")) +
+  geom_point(data=lam.df[N_init>0,], aes(lon, lat), colour="white", shape=1) +
+  ggtitle(paste0(sp, ": 3km x 3km, favorable habitat"))
+ggplot(lam.df) + geom_tile(aes(x=lon, y=lat, fill=Surv.S>1)) +
+  scale_fill_manual("N > 0", values=c("gray30", "dodgerblue")) +
+  geom_point(data=lam.df[N_init>0,], aes(lon, lat), colour="white", shape=1) +
+  ggtitle(paste0(sp, ": 3km x 3km, favorable habitat"))
+ggplot(lam.df) + geom_tile(aes(lon, lat, fill=s)) + 
+  scale_fill_viridis(name="s", option="B", limits=c(0,1)) +
+  geom_point(data=lam.df[N_init>0,], aes(lon, lat), colour="white", shape=1) +
+  ggtitle(paste0(sp, ": 3km x 3km, favorable habitat"))
+ggplot(lam.df) + geom_tile(aes(lon, lat, fill=g)) + 
+  scale_fill_viridis(name="mn(growth)", option="B") +
+  geom_point(data=lam.df[N_init>0,], aes(lon, lat), colour="white", shape=1) +
+  ggtitle(paste0(sp, ": 3km x 3km, favorable habitat"))
+ggplot(lam.df) + geom_tile(aes(lon, lat, fill=germ)) + 
+  scale_fill_viridis(name="germ", option="B", limits=c(0,1)) +
+  geom_point(data=lam.df[N_init>0,], aes(lon, lat), colour="white", shape=1) +
+  ggtitle(paste0(sp, ": 3km x 3km, favorable habitat"))
+  
+
 
 
 ########
