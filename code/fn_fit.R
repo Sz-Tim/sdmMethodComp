@@ -445,7 +445,7 @@ fit_IPM <- function(sp, sampling.issue, modeling.issue, p, env.rct.unsc,
     # use estimated slopes to fill IPM matrix
     cat("||-- Calculating IPM matrices\n")
     U.f[[i]] <- fill_IPM_matrices(n.cell, buffer=0.75, discrete=1, p.IPM, n_z,
-                                  n_x, X.IPM, sdd.j, p.ij, N_init)
+                                  n_x, X.IPM, sdd.j, p.ij)
     
     # use estimated slopes to generate simulated data
     sim.ls <- vector("list", n_sim)

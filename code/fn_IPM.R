@@ -255,8 +255,6 @@ fill_F <- function(h, y, z.i, p, n_z, n_x, X_fl, X_seed, X_germ=NULL) {
 #' @param X List of covariates, with elements \code{.$s, .$g, .$fl, .$seed}
 #' @param sdd.j Short distance dispersal immigrant neighborhoods TO each cell j
 #' @param p.ij Dispersal probabilities TO each target cell j
-#' @param N_init Vector of initial population sizes, length n.cell
-#' @param lam.final \code{TRUE} Only calculate lambda for final time step?
 #' @param verbose \code{FALSE} Give status updates?
 #' @return List of IPMs = IPM matrix for each cell, Ps = P matrix for each cell,
 #' Fs = F matrix for each cell, lo = minimum allowable size, hi = maximum 
@@ -264,7 +262,7 @@ fill_F <- function(h, y, z.i, p, n_z, n_x, X_fl, X_seed, X_germ=NULL) {
 #' matrix step size, sdd.j = Short distance dispersal immigrant neighborhoods to 
 #' each cell (perspective is the dispersal TO each target cell j)
 fill_IPM_matrices <- function(n.cell, buffer, discrete, p, n_z, n_x, 
-                              X, sdd.j, p.ij, N_init, lam.final=T, verbose=F) {
+                              X, sdd.j, p.ij, verbose=F) {
   library(tidyverse)
   i <- 1:n.cell
   
