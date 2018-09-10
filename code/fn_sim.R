@@ -171,14 +171,14 @@ simulate_data <- function(n.cell, lo, hi, p, X, n_z, sdd, sdd.j, N_init,
   
   # initial size distribution, seed bank, & covariates
   z.k <- map(i, ~runif(N_init[.], p$z.rng[1], p$z.rng[2]))
-  B0 <- rep(0, n.cell)
+  B1 <- rep(0, n.cell)
   X_map <- lapply(i, function(x) map(X, ~.[x,]))
   
   if(verbose) pb <- txtProgressBar(min=1, max=p$tmax, style=3)
   for(k in 1:p$tmax) {
     ## local growth
     if(k>1) {
-      z.k <- map(d0, ~.$sizeNext[!is.na(.$sizeNext)])
+      z.k <- map(d1, ~.$sizeNext[!is.na(.$sizeNext)])
       age.k <- map(d0, ~.$age[!is.na(.$sizeNext)] + 1)
     }
     E1 <- lapply(i, function(x) sim_expected(k, z.k[[x]], p, X_map[[x]], n_z))
@@ -195,17 +195,15 @@ simulate_data <- function(n.cell, lo, hi, p, X, n_z, sdd, sdd.j, N_init,
     D1 <- vapply(sdd.j, function(x) sum(sdd.D[x]), 1)
     if(p$NDD) p_est1 <- pmin(p$NDD_n/(nSd1+D1), p$p_est)
     d1 <- lapply(i, function(x) sim_recruits(k, d1[[x]], p_est1[x], nSd1[x], 
-                                            B0[x], D1[x], p, pr_germ[x], F))
+                                            B1[x], D1[x], p, pr_germ[x], F))
     ldd_k <- sample.int(n.cell, p$ldd)
     for(j in seq_along(ldd_k)) {
       d1[[ldd_k[j]]] <- sim_recruits(k, d1[[ldd_k[j]]], 1, 1, 0, 0, p, NULL, T)
     }
-    B1 <- vapply(i, function(x) sim_seedbank(nSd1[x], B0[x], D1[x], 
+    B1 <- vapply(i, function(x) sim_seedbank(nSd1[x], B1[x], D1[x], 
                                              p, pr_germ[x]), 1)
     
     # store as necessary
-    d0 <- d1
-    B0 <- B1
     if(any(k %in% names(yrs))) {
       yr_k <- which(names(yrs)==k)
       d <- map2(d, d1, ~mapply(append, .x, .y, SIMPLIFY=FALSE))
