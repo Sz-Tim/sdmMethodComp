@@ -14,8 +14,8 @@
 #' @param n_z List of maximum exponents to raise the size distribution to
 #' @return List E_ik of expected values
 sim_expected <- function(k, z.ik, p, X.i, n_z) {
-  E_ik <- setNames(map(1:7, ~numeric(0L)), 
-                   c("yr", "size", "surv", "sizeNext", "fl", "seed", "age"))
+  E_ik <- setNames(map(1:6, ~numeric(0L)), 
+                   c("yr", "size", "s", "g", "fl", "seed"))
   n.ik <- length(z.ik)
   if(n.ik > 0) {
     z.mx <- cbind(1, z.ik, z.ik^2, z.ik^3)
@@ -162,8 +162,10 @@ simulate_data <- function(n.cell, lo, hi, p, X, n_z, sdd, sdd.j, N_init,
   }
   
   # storage objects
-  E <- d <- map(i, ~map(1:7, ~numeric(0L)) %>% 
-                  setNames(c("yr","size","surv","sizeNext","fl","seed","age")))
+  d <- map(i, ~map(1:7, ~numeric(0L)) %>% 
+             setNames(c("yr", "size", "surv", "sizeNext", "fl", "seed", "age")))
+  E <- map(i, ~map(1:6, ~numeric(0L)) %>% 
+             setNames(c("yr", "size", "s", "g", "fl", "seed")))
   B <- nSd <- D <- matrix(0, nrow=n.cell, ncol=length(yrs))
   p_est.i <- matrix(p$p_est, nrow=n.cell, ncol=length(yrs))
   
