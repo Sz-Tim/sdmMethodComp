@@ -191,7 +191,7 @@ setup_IPM_matrix <- function(n=100, z.rng=c(1,10), buffer=0.25) {
 
 
 ##-- Fill P matrix: local 
-#' Fill local P matrix, defining size-dependent survival and growth
+#' Fill local P matrix, defining size-dependent survival/growth for one grid cell
 #' @param h Discretized IPM matrix step size
 #' @param y Discretized IPM matrix mesh points
 #' @param z.i Vector of sizes: discretized size range in approximated IPM matrix
@@ -218,8 +218,8 @@ fill_P <- function(h, y, z.i, p, n_z, n_x, X_s, X_g) {
 
 
 
-##-- Fill F matrix 
-#' Fill local F matrix, defining size-dependent fecundity
+##-- Fill F matrix: local
+#' Fill local F matrix, defining size-dependent fecundity for one grid cell
 #' @param h Discretized IPM matrix step size
 #' @param y Discretized IPM matrix mesh points
 #' @param z.i Vector of sizes: discretized size range in approximated IPM matrix
@@ -232,7 +232,7 @@ fill_P <- function(h, y, z.i, p, n_z, n_x, X_s, X_g) {
 #' @return F matrix with fecundity kernel
 fill_F <- function(h, y, z.i, p, n_z, n_x, X_fl, X_seed, X_germ=NULL) {
   F.mx <- matrix(0, nrow=p$n+1, ncol=p$n+1)
-  if(!is.null(X_germ)) p$rcr_dir <- p$rcr_SB <- antilogit(c(p$germ_x%*%X_germ))
+  if(!is.null(X_germ)) p$rcr_dir <- p$rcr_SB <- antilogit(c(X_germ %*% p$germ_x))
   F.mx[z.i,z.i] <- outer(y, y, calc_rcrDir, p=p, n_seedz=n_z$seed, n_flz=n_z$fl, 
                          X.seed=X_seed, X.fl=X_fl) * h * p$p_est
   F.mx[1,z.i] <- calc_addSB(y, p=p, n_seedz=n_z$seed, n_flz=n_z$fl, 
