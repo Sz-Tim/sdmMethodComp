@@ -283,13 +283,19 @@ fill_IPM_matrices <- function(n.cell, buffer, discrete, p, n_z, n_x,
   Fs[1,z.i,] <- (1-p$p_emig) * Fb[1,z.i,]  # local contribution to seedbank
   Fs[z.i,z.i,] <- (1-p$p_emig) * Fb[z.i,z.i,]  # local direct recruits
   
-  ## dispersal & density dependence
+  ## dispersal
   if(verbose) cat("Beginning dispersal \n")
   if(p$p_emig > 0) {
+    # seed bank: F[1,z,i]
+    #   local seeds = Fs[1,z,i]
+    #   immigrant seeds = Fb[1,z,j_to_i] * p_emig * pr(j_to_i)
     Fs[1,z.i,] <- vapply(i, function(x) Fs[1,z.i,x] + 
                            Fb[1,z.i,sdd.j[[x]][,3]] %*% 
                            as.matrix(p$p_emig*p.ij[[x]]),
                          Fs[1,z.i,1])
+    # direct recruits: F[z,z,i]
+    #   local seedlings = Fs[z,z,i]
+    #   immigrant seeds -> seedlings = Fb[z,z,j_to_i] * p_emig * pr(j_to_i)
     Fs[z.i,z.i,] <- vapply(i, function (x) Fs[z.i,z.i,x] + 
                              Reduce(`+`, map2(sdd.j[[x]][,3], p$p_emig*p.ij[[x]], 
                                               ~(Fb[z.i,z.i,.x] * .y))),
