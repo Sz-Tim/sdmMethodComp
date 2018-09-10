@@ -179,7 +179,7 @@ simulate_data <- function(n.cell, lo, hi, p, X, n_z, sdd, sdd.j, N_init,
     ## local growth
     if(k>1) {
       z.k <- map(d1, ~.$sizeNext[!is.na(.$sizeNext)])
-      age.k <- map(d0, ~.$age[!is.na(.$sizeNext)] + 1)
+      age.k <- map(d1, ~.$age[!is.na(.$sizeNext)] + 1)
     }
     E1 <- lapply(i, function(x) sim_expected(k, z.k[[x]], p, X_map[[x]], n_z))
     d1 <- lapply(i, function(x) sim_realized(k, z.k[[x]], E1[[x]], p, lo, hi))
