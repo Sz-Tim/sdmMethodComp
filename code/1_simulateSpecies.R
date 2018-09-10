@@ -123,8 +123,8 @@ lam.df <- L$env.in %>%
          med.age=map_dbl(S$d, ~median(.$age[.$yr==p$tmax])),
          max.age=map_dbl(S$d, ~max(.$age)),
          pr_Immigrant=map_dbl(p.ij, sum),
-         s=antilogit(c(cbind(1, X$s) %*% c(p$s_z[1], p$s_x))),
-         g=c(cbind(1, X$g) %*% c(p$g_z[1], p$fl_x)),
+         s=antilogit(c(cbind(1, mean(p$z.rng)/2, X$s) %*% c(p$s_z, p$s_x))),
+         g=c(cbind(1, mean(p$z.rng), X$g) %*% c(p$g_z, p$g_x)),
          germ=antilogit(c(X$germ %*% p$germ_x)))
 
 library(viridis)
@@ -159,11 +159,11 @@ ggplot(lam.df) + geom_tile(aes(x=lon, y=lat, fill=Surv.S>1)) +
 ggplot(lam.df) + geom_tile(aes(lon, lat, fill=s)) + 
   scale_fill_viridis(name="s", option="B", limits=c(0,1)) +
   geom_point(data=lam.df[N_init>0,], aes(lon, lat), colour="white", shape=1) +
-  ggtitle(paste0(sp, ": 3km x 3km, favorable habitat"))
+  ggtitle(paste0(sp, ": 3km x 3km, favorable habitat, mean(z.rng)/2"))
 ggplot(lam.df) + geom_tile(aes(lon, lat, fill=g)) + 
   scale_fill_viridis(name="mn(growth)", option="B") +
   geom_point(data=lam.df[N_init>0,], aes(lon, lat), colour="white", shape=1) +
-  ggtitle(paste0(sp, ": 3km x 3km, favorable habitat"))
+  ggtitle(paste0(sp, ": 3km x 3km, favorable habitat, mean(z.rng)"))
 ggplot(lam.df) + geom_tile(aes(lon, lat, fill=germ)) + 
   scale_fill_viridis(name="germ", option="B", limits=c(0,1)) +
   geom_point(data=lam.df[N_init>0,], aes(lon, lat), colour="white", shape=1) +
