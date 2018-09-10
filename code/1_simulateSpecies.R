@@ -136,11 +136,15 @@ ggplot(lam.df) + geom_tile(aes(x=lon, y=lat, fill=log(Surv.S))) +
   scale_fill_viridis(name="log(N)", option="B") +
   geom_point(data=lam.df[N_init>0,], aes(lon, lat), colour="white", shape=1) +
   ggtitle(paste0(sp, ": 3km x 3km, favorable habitat"))
+ggplot(lam.df) + geom_tile(aes(lon, lat, fill=log(nSeed))) + 
+  scale_fill_viridis(name="log(SdProd)", option="B") +
+  geom_point(data=lam.df[N_init>0,], aes(lon, lat), colour="white", shape=1) +
+  ggtitle(paste0(sp, ": 3km x 3km, favorable habitat"))
 ggplot(lam.df) + geom_tile(aes(lon, lat, fill=log(round(D)))) +
   scale_fill_viridis(name="log(D)", option="B") +
   geom_point(data=lam.df[N_init>0,], aes(lon, lat), colour="white", shape=1) +
   ggtitle(paste0(sp, ": 3km x 3km, favorable habitat"))
-ggplot(lam.df) + geom_tile(aes(lon, lat, fill=log(nSeed))) + 
+ggplot(lam.df) + geom_tile(aes(lon, lat, fill=log(nSdStay + round(D)))) + 
   scale_fill_viridis(name="log(Sd)", option="B") +
   geom_point(data=lam.df[N_init>0,], aes(lon, lat), colour="white", shape=1) +
   ggtitle(paste0(sp, ": 3km x 3km, favorable habitat"))
