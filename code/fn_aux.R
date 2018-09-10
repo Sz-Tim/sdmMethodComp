@@ -319,7 +319,7 @@ fit_PNAS_species <- function(sp="barberry", f, nlcd_agg, clim_X="bio10_1",
   plot.df <- sp.ls[[sp]] %>% 
     filter(habitat==ifelse(grepl("mustard", sp), 1, 0)) %>%
     select(wplot, size, sizeNext, surv, fec1, fec2, fec3, flowering,
-           n.germ.0, n.germ.1, Ph.ave, N, PAR) %>%
+           n.germ.0, n.germ.1, Ph.ave, N, PAR, light) %>%
     mutate(size2=size^2, size3=size^3) %>%
     left_join(., X.df, by="wplot")
   all.df <- read.csv(dir("data/PNAS_2017", sp, full.names=T)) %>%
@@ -337,10 +337,10 @@ fit_PNAS_species <- function(sp="barberry", f, nlcd_agg, clim_X="bio10_1",
   ## 4. seeds: log(seeds) ~ size (+ env for mustards)
   ## 5. germination: logit(p.germ) ~ env
   vital.reg[[1]] <- glm(as.formula(paste0("surv", covariates, 
-                                          " + PAR + Ph.ave + N")), 
+                                          "+ light + Ph.ave + N")), 
                         data=filter(plot.df, !is.na(surv)), family="binomial")
   vital.reg[[2]] <- lm(as.formula(paste0("sizeNext", covariates, 
-                                         " + PAR + Ph.ave + N")), 
+                                         "+ light + Ph.ave + N")), 
                        data=filter(plot.df, !is.na(size) & !is.na(sizeNext)))
   if(grepl("mustard", sp)) {
     ## these are bienniel species
