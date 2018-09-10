@@ -89,8 +89,7 @@ stopCluster(p.c)
 ########
 # Initial populations
 N_init <- rep(0, n.cell)
-# N_init[sample.int(n.cell, p$prop_init*n.cell, replace=F)] <- p$n0
-N_init[sample(filter(L$env.in, x>750 & y>175)$id.inbd,#x>35 & y<20)$id.inbd, 
+N_init[sample(filter(L$env.in, x>750 & y>175)$id.inbd,
               p$prop_init*n.cell, replace=F)] <- p$n0
 
 # Use assigned slopes to fill IPM matrix
@@ -100,29 +99,29 @@ U <- list(IPMs=U$IPMs, lo=U$lo, hi=U$hi)
 # lam.df <- L$env.in %>%
 #   mutate(lambda=apply(U$IPMs, 3, function(x) Re(eigen(x)$values[1])))
 # library(viridis)
-# plot_sf <- read_csv("data/PNAS_2017/plot_coords.csv") %>% 
+# plot_sf <- read_csv("data/PNAS_2017/plot_coords.csv") %>%
 #   sf::st_as_sf(coords=c("lon", "lat"))
-# ggplot(lam.df) + geom_tile(aes(x=lon, y=lat, fill=lambda)) + 
-#   scale_fill_viridis(option="B") + 
+# ggplot(lam.df) + geom_tile(aes(x=lon, y=lat, fill=lambda)) +
+#   scale_fill_viridis(option="B") +
 #   ggtitle(paste0("habitat:", habitat)) +
 #   geom_sf(data=plot_sf, colour="white", shape=1)
-# ggplot(lam.df) + geom_tile(aes(x=lon, y=lat, fill=lambda>1)) + 
-#   scale_fill_manual(values=c("gray30", "dodgerblue")) + 
+# ggplot(lam.df) + geom_tile(aes(x=lon, y=lat, fill=lambda>1)) +
+#   scale_fill_manual(values=c("gray30", "dodgerblue")) +
 #   ggtitle(paste0("habitat:", habitat)) +
 #   geom_sf(data=plot_sf, colour="white", shape=1)
 
 # Ground Truth: generate simulated data
-S <- simulate_data(n.cell, U$lo, U$hi, p, X, n_z, sdd.pr$i, sdd.j, N_init, T)
+S <- simulate_data(n.cell, U$lo, U$hi, p, X, n_z, sdd.pr$i, sdd.j, N_init, 
+                   save_yrs=(-1:0)+p$tmax, T)
 
 # Aggregate results
 lam.df <- L$env.in %>%
   mutate(lambda=apply(U$IPMs, 3, function(x) Re(eigen(x)$values[1])),
          lam.S=map_dbl(S$d, ~sum(.$surv[.$yr==p$tmax], na.rm=T))/
            (map_dbl(S$d, ~sum(.$surv[.$yr==(p$tmax-1)], na.rm=T))+.01),
-         nSeed=S$nSd[,p$tmax], 
-         D=S$D[,p$tmax], 
-         B0=S$B[,1], 
-         Btmax=S$B[,p$tmax+1], 
+         nSeed=S$nSd[,dim(S$nSd)[2]], 
+         D=S$D[,dim(S$D)[2]], 
+         B=S$B[,dim(S$B)[2]], 
          N.S=map_dbl(S$d, ~sum(!is.na(.$sizeNext[.$yr==p$tmax]))),
          Surv.S=map_dbl(S$d, ~sum(.$surv[.$yr==p$tmax], na.rm=T)),
          Rcr.S=map_dbl(S$d, ~sum(is.na(.$size[.$yr==p$tmax]))),
@@ -136,14 +135,15 @@ lam.df <- L$env.in %>%
                                               !is.na(.$size)])),
          mn.age=map_dbl(S$d, ~mean(.$age[.$yr==p$tmax])),
          med.age=map_dbl(S$d, ~median(.$age[.$yr==p$tmax])),
-         max.age=map_dbl(S$d, ~max(.$age)))
+         max.age=map_dbl(S$d, ~max(.$age)),
+         pr_Immigrant=map_dbl(p.ij, sum))
 
-# ggplot(lam.df) + geom_tile(aes(x=lon, y=lat, fill=log(Surv.S))) + 
-#   scale_fill_viridis(option="B") + 
+# ggplot(lam.df) + geom_tile(aes(x=lon, y=lat, fill=log(Surv.S))) +
+#   scale_fill_viridis(option="B") +
 #   ggtitle(paste0("habitat:", habitat)) +
 #   geom_sf(data=plot_sf, colour="white", shape=1)
-# ggplot(lam.df) + geom_tile(aes(x=lon, y=lat, fill=Surv.S>1)) + 
-#   scale_fill_manual(values=c("gray30", "dodgerblue")) + 
+# ggplot(lam.df) + geom_tile(aes(x=lon, y=lat, fill=Surv.S>0)) +
+#   scale_fill_manual(values=c("gray30", "dodgerblue")) +
 #   ggtitle(paste0("habitat:", habitat)) +
 #   geom_sf(data=plot_sf, colour="white", shape=1)
 

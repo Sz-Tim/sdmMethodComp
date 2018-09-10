@@ -455,13 +455,14 @@ fit_IPM <- function(sp, sampling.issue, modeling.issue, p, env.rct.unsc,
       sim.ls <- foreach(s=1:n_sim, .packages=c("purrr", "here")) %dopar% {
         walk(paste0("code/fn_", c("aux", "sim", "IPM", "fit"), ".R"), ~source(here(.)))
         simulate_data(n.cell, U.f[[i]]$lo, U.f[[i]]$hi, p.IPM, X.IPM, n_z, 
-                      sdd.pr$i, sdd.j, N_init)
+                      sdd.pr$i, sdd.j, N_init, save_yrs=p$tmax)
       }
       stopCluster(p.c)
     } else {
       for(s in 1:n_sim) {
-        sim.ls[[s]] <- simulate_data(n.cell, U.f[[i]]$lo, U.f[[i]]$hi, p.IPM, X.IPM, n_z, 
-                                     sdd.pr$i, sdd.j, N_init)
+        sim.ls[[s]] <- simulate_data(n.cell, U.f[[i]]$lo, U.f[[i]]$hi, p.IPM, 
+                                     X.IPM, n_z, sdd.pr$i, sdd.j, N_init, 
+                                     save_yrs=p$tmax)
         cat("||-- Finished simulation", s, "\n")
       }
     }
