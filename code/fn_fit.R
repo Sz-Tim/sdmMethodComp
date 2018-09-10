@@ -40,8 +40,8 @@ sample_for_CA <- function(S, Mech.sample, O_n, O_yr, n_samp, prop.sampled) {
         mutate(lambda=N/lag(N,1)) %>%
         add_column(id.inbd=i) %>%
         full_join(env.in[i,], by="id.inbd")
-      CA.B[[j]] <- S$B[i,O_yr$CA]
-      CA.D[[j]] <- S$D[i,O_yr$CA]
+      CA.B[[j]] <- S$B[i,tail(1:dim(S$B)[2], length(O_yr$CA))]
+      CA.D[[j]] <- S$D[i,tail(1:dim(S$B)[2], length(O_yr$CA))]
     }
     O_CA[[s]] <- list(d=do.call(rbind, CA.d),
                       B=do.call(rbind, CA.B),
