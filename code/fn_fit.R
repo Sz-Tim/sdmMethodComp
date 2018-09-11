@@ -282,7 +282,7 @@ fit_CA <- function(sp, sampling.issue, modeling.issue, p, env.rct, env.rct.unsc,
       if(is.null(full.m[[j]])) {
         vars.opt[[j]] <- c("(Intercept)"=logit(0.9999))
       } else {
-        opt.m[[j]] <- get.models(dredge(full.m[[j]]), subset=1)[[1]]
+        opt.m[[j]] <- get.models(dredge(full.m[[j]], m.max=6), subset=1)[[1]]
         vars.opt[[j]] <- colMeans(coef(opt.m[[j]])$yr)
       }
       vars.ls[[j]][names(vars.opt[[j]])] <- vars.opt[[j]]
@@ -331,12 +331,14 @@ fit_CA <- function(sp, sampling.issue, modeling.issue, p, env.rct, env.rct.unsc,
     if(n_cores > 1) {
       p.c <- makeCluster(n_cores); registerDoSNOW(p.c)
       sim.ls <- foreach(s=1:n_sim) %dopar% {
-        gbPopMod::run_sim(n.grid, n.cell, p.CA, X.CA, sdd.pr, N.init, NULL, F)
+        gbPopMod::run_sim(n.grid, n.cell, p.CA, X.CA, sdd.pr, N.init, 
+                          NULL, F, (-1:0)+p.CA$tmax)
       }
       stopCluster(p.c)
     } else {
       for(s in 1:n_sim) {
-        sim.ls[[s]] <- run_sim(n.grid, n.cell, p.CA, X.CA, sdd.pr, N.init, NULL)
+        sim.ls[[s]] <- run_sim(n.grid, n.cell, p.CA, X.CA, sdd.pr, N.init, 
+                               NULL, T, (-1:0)+p.CA$tmax)
       }
     }
     CA.f[[i]] <- aggregate_CAd_simulations(sim.ls, max(p.CA$m))
@@ -347,19 +349,18 @@ fit_CA <- function(sp, sampling.issue, modeling.issue, p, env.rct, env.rct.unsc,
   out <- summarize_CAd_samples(CA.f, lam.df$id)
   P_CAd <- lam.df %>% 
     dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
-    mutate(prP=out$prP[,p.CA$tmax+1],
-           lam.S.f=rowMeans(out$N_ad.mn[,(-3:0)+p.CA$tmax]/
-                              (out$N_ad.mn[,(-4:-1)+p.CA$tmax]), na.rm=T),
-           nSeed.f=out$nSd.mn[,p.CA$tmax], 
-           D.f=out$D.mn[,p.CA$tmax],
-           B0.f=out$B.mn[,1], 
-           Btmax.f=out$B.mn[,p.CA$tmax+1],
-           N.S.f=out$N_tot.mn[,p.CA$tmax+1], 
-           Surv.S.f=out$N_ad.mn[,p.CA$tmax+1], 
-           Rcr.S.f=out$N_rcr.mn[,p.CA$tmax+1],
+    mutate(prP=out$prP[,dim(out$prP)[2]],
+           # lam.S.f=rowMeans(out$N_ad.mn[,(-3:0)+dim(out$N_ad.mn)[2]]/
+           #                    (out$N_ad.mn[,(-4:-1)+dim(out$N_ad.mn)[2]]), na.rm=T),
+           nSeed.f=out$nSd.mn[,dim(out$nSd.mn)[2]], 
+           D.f=out$D.mn[,dim(out$D.mn)[2]],
+           B.f=out$B.mn[,dim(out$B.mn)[2]],
+           N.S.f=out$N_tot.mn[,dim(out$N_tot.mn)[2]], 
+           Surv.S.f=out$N_ad.mn[,dim(out$N_ad.mn)[2]], 
+           Rcr.S.f=out$N_rcr.mn[,dim(out$N_rcr.mn)[2]],
            nSdStay.f=nSeed.f*(1-p.CA$p_emig), 
            nSdLeave.f=nSeed.f*p.CA$p_emig)
-  P_CAd$lam.S.f[is.nan(P_CAd$lam.S.f)] <- NA
+  # P_CAd$lam.S.f[is.nan(P_CAd$lam.S.f)] <- NA
   
   return(list(P_CAd=P_CAd,  diag=diagnostics))
 }
@@ -400,7 +401,7 @@ fit_IPM <- function(sp, sampling.issue, modeling.issue, p, env.rct.unsc,
                             data=O_IPM.i.seed, family="poisson"))
     
     # store coefficients from optimal models
-    opt.m <- map(full.m, ~get.models(dredge(., m.lim=c(1,NA)), subset=1)[[1]])
+    opt.m <- map(full.m, ~get.models(dredge(., m.lim=c(1,6)), subset=1)[[1]])
     vars.opt <- map(opt.m, coef)
     vars.ls <- rep(list(v), 4); names(vars.ls) <- names(opt.m)
     for(j in seq_along(vars.ls)) {
@@ -446,7 +447,7 @@ fit_IPM <- function(sp, sampling.issue, modeling.issue, p, env.rct.unsc,
     
     # use estimated slopes to fill IPM matrix
     cat("||-- Calculating IPM matrices\n")
-    U.f[[i]] <- fill_IPM_matrices(n.cell, buffer=0.75, discrete=1, p.IPM, n_z,
+    U.f[[i]] <- fill_IPM_matrices(n.cell, buffer=0, discrete=1, p.IPM, n_z,
                                   n_x, X.IPM, sdd.j, p.ij)
     
     # use estimated slopes to generate simulated data
@@ -464,7 +465,7 @@ fit_IPM <- function(sp, sampling.issue, modeling.issue, p, env.rct.unsc,
       for(s in 1:n_sim) {
         sim.ls[[s]] <- simulate_data(n.cell, U.f[[i]]$lo, U.f[[i]]$hi, p.IPM, 
                                      X.IPM, n_z, sdd.pr$i, sdd.j, N_init, 
-                                     save_yrs=p$tmax)
+                                     save_yrs=p$tmax, TRUE)
         cat("||-- Finished simulation", s, "\n")
       }
     }
