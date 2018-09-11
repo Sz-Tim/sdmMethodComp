@@ -179,7 +179,7 @@ calc_staySB <- function(p) {
 #' @param buffer Proportion beyond z.rng to allow in individual growth
 #' @return List with lo = minimum allowable size, hi = maximum allowable size, 
 #' b = matrix boundary points, y = matrix mesh points, h = matrix step size
-setup_IPM_matrix <- function(n=100, z.rng=c(1,10), buffer=0.25) {
+setup_IPM_matrix <- function(n=100, z.rng=c(1,10), buffer=0) {
   lo <- z.rng[1]*(1-buffer)  # IPM matrix lower limit
   hi <- z.rng[2]*(1+buffer)  # IPM matrix upper limit
   b <- lo + c(0:n)*(hi - lo)/n  # boundary points
@@ -302,7 +302,7 @@ fill_IPM_matrices <- function(n.cell, buffer, discrete, p, n_z, n_x,
                            Fs[z.i,z.i,1])
   }
   
-  return(list(IPMs=Ps+Fs, Ps=Ps, Fb=Fb, Fs=Fs, 
+  return(list(IPMs=Ps+Fs,# Ps=Ps, Fb=Fb, Fs=Fs, 
               lo=Mx$lo, hi=Mx$hi, b=Mx$b, y=Mx$y, h=Mx$h))
 }
 
