@@ -22,11 +22,9 @@ suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
 walk(paste0("code/fn_", c("aux", "sim", "IPM", "fit"), ".R"), ~source(here(.)))
 p <- readRDS(here("vs", sp, "p.rds"))
 N_init <- readRDS(here("vs", sp, "N_init.rds"))
-S <- readRDS(here("vs", sp, "S.rds"))
-U <- readRDS(here("vs", sp, "U.rds"))
 sdd.pr <- readRDS(here("vs", sp, "sdd.rds"))
 sdd.j <- readRDS(here("vs", sp, "sdd_j.rds"))
-p.ij <- readRDS(here("vs", sp, "p_ij,rds"))
+p.ij <- readRDS(here("vs", sp, "p_ij.rds"))
 lam.df <- readRDS(here("vs", sp, "lam_df.rds"))
 env.in <- readRDS(here("vs", sp, "env_in.rds"))
 env.rct <- readRDS(here("vs", sp, "env_rct.rds"))
@@ -83,8 +81,8 @@ foreach(i=seq_along(issue_i$Issue), .packages=pkgs) %dopar% {
   }
   # fit IPM, CA-individual
   P_IPM <- fit_IPM(sp, samp_iss, mod_iss, p, env.rct.unsc, lam.df, vars, v.i,
-                   v$IPM, m$IPM, n$IPM$x, n$IPM$z, N_init, sdd.pr, n.cell,
-                   n_sim, n_core_sim)
+                   v$IPM, m$IPM, n$IPM$x, n$IPM$z, N_init, sdd.pr, sdd.j, p.ij,
+                   n.cell, n_sim, n_core_sim)
   if(overwrite) {
     saveRDS(P_IPM$diag, here("out", sp, paste0("Diag_IPM_", issue, ".rds")))
     saveRDS(P_IPM$P_CAi, here("out", sp, paste0("P_CAi_", issue, ".rds")))
