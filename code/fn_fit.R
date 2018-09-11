@@ -260,9 +260,11 @@ fit_CA <- function(sp, sampling.issue, modeling.issue, p, env.rct, env.rct.unsc,
     
     full.m$K <- glmer(as.formula(paste("N ~", m, collapse="")),
                       data=O_CA.K, family="poisson")
-    full.m$s.M <- glmer(as.formula(paste("cbind(s.M.1, s.M.0) ~", m, 
-                                          collapse="")), 
-                         data=O_CA.i, family="binomial")
+    if(sum(O_CA.i$s.M.0==0)/nrow(O_CA.i) < 0.9) {
+      full.m$s.M <- glmer(as.formula(paste("cbind(s.M.1, s.M.0) ~", m, 
+                                           collapse="")), 
+                          data=O_CA.i, family="binomial")
+    }
     if(n_distinct(O_CA.i$s.N.0)>1) { # in case no mortality
       full.m$s.N <- glmer(as.formula(paste("cbind(s.N.1, s.N.0) ~", m,
                                             collapse="")), 
