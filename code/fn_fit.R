@@ -466,7 +466,7 @@ fit_IPM <- function(sp, sampling.issue, modeling.issue, p, env.rct.unsc,
         sim.ls[[s]] <- simulate_data(n.cell, U.f[[i]]$lo, U.f[[i]]$hi, p.IPM, 
                                      X.IPM, n_z, sdd.pr$i, sdd.j, N_init, 
                                      save_yrs=p$tmax, TRUE)
-        cat("||-- Finished simulation", s, "\n")
+        cat("\n||-- Finished simulation", s, "\n")
       }
     }
     S.f[[i]] <- aggregate_CAi_simulations(sim.ls, p.IPM$tmax)
