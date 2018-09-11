@@ -395,7 +395,7 @@ fit_PNAS_species <- function(sp="barberry", f, nlcd_agg, clim_X="bio10_1",
   rcr_dist <- filter(all.df, Year.planted==Year.size & is.na(flowering))$size
   params$rcr_z <- c(mean(rcr_dist, na.rm=T), sd(rcr_dist, na.rm=T))
   ## allowable size range
-  params$z.rng <- with(all.df, range(c(size, sizeNext), na.rm=TRUE))*c(.75,1.25)
+  params$z.rng <- with(all.df, range(c(size, sizeNext), na.rm=TRUE))
   ## probability of direct recruitment (i.e., germination)
   params$rcr_dir <- params$rcr_SB <- mean(all.df$fec2, na.rm=T)
   ## probability of establishment given germination
