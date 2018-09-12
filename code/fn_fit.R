@@ -474,7 +474,7 @@ fit_CA <- function(sp, samp.issue, mod.issue, p, env.rct, env.rct.unsc, lam.df,
 #'   respectively, and diagnostics containing the vital rate regressions
 fit_IPM <- function(sp, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v, m, 
                     n_z, n_x, N_init, sdd.ji, p.ji, n_sim, n_cores) {
-  library(here); library(tidyverse); library(magrittr); 
+  library(here); library(tidyverse); library(magrittr); library(gbPopMod);
   library(MuMIn); library(doSNOW)
   walk(paste0("code/fn_", c("aux", "sim", "IPM", "fit"), ".R"), ~source(here(.)))
   n.cell <- nrow(lam.df)
@@ -529,21 +529,21 @@ fit_IPM <- function(sp, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v, m,
     if(mod.issue=="noSB") p.IPM$s_SB <- 0
     if(mod.issue=="underDisp") {
       p.IPM <- add_misDisperse(p.IPM, p, sdd_max_adj=-2, sdd_rate_adj=10, ldd=1)
-      sdd.df <- sdd_set_probs(ncell=n.cell, lc.df=env.rct.unsc, lc.col=8:12,
+      sp.df <- sdd_set_probs(ncell=n.cell, lc.df=env.rct.unsc, lc.col=8:12,
                               g.p=list(sdd.max=p.IPM$sdd.max, 
                                        sdd.rate=p.IPM$sdd.rate, 
                                        bird.hab=p$bird_hab))$sp.df
-      sdd.ji.rows <- lapply(x=1:n.cell, function(x) which(sp.df$j.idin==x))
+      sdd.ji.rows <- lapply(1:n.cell, function(x) which(sp.df$j.idin==x))
       sdd.ji <- lapply(sdd.ji.rows, function(x) sp.df$i.idin[x]) 
       p.ji <- lapply(sdd.ji.rows, function(x) sp.df$pr[x]) 
     }
     if(mod.issue=="overDisp") {
       p.IPM <- add_misDisperse(p.IPM, p, sdd_max_adj=2, sdd_rate_adj=.1, ldd=5)
-      sdd.df <- sdd_set_probs(ncell=n.cell, lc.df=env.rct.unsc, lc.col=8:12,
+      sp.df <- sdd_set_probs(ncell=n.cell, lc.df=env.rct.unsc, lc.col=8:12,
                               g.p=list(sdd.max=p.IPM$sdd.max, 
                                        sdd.rate=p.IPM$sdd.rate, 
                                        bird.hab=p$bird_hab))$sp.df
-      sdd.ji.rows <- lapply(x=1:n.cell, function(x) which(sp.df$j.idin==x))
+      sdd.ji.rows <- lapply(1:n.cell, function(x) which(sp.df$j.idin==x))
       sdd.ji <- lapply(sdd.ji.rows, function(x) sp.df$i.idin[x]) 
       p.ji <- lapply(sdd.ji.rows, function(x) sp.df$pr[x]) 
     }
