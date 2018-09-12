@@ -62,17 +62,17 @@ Corr.sample <- map(1:n_samp, ~sample(P.i, O_n$Corr, replace=F, prob=P.pr))
 Mech.sample <- map(1:n_samp, ~sample(P.i, O_n$Mech, replace=F, prob=P.pr))
 
 O_Mx <- map(Corr.sample, ~(1:n.cell %in% .))
-O_CA <- sample_for_CA(S, Mech.sample, O_n, O_yr, n_samp, prop.sampled)
-O_IPM <- sample_for_IPM(S, Mech.sample, O_n, O_yr, n_samp, prop.sampled)
+O_CA <- sample_for_CA(S, Mech.sample, O_yr, prop.sampled)
+O_IPM <- sample_for_IPM(S, Mech.sample, O_yr, prop.sampled)
 
 
 ########
 ## Impose sampling error
 ########
 if(sampling.issue=="noise") {
-  O_Mx <- add_noise_Mx(O_Mx, noise$Mx, O_n, n_samp, Corr.sample, n.cell, P.i)
-  O_CA <- add_noise_CA(O_CA, noise$CA, n_samp)
-  O_IPM <- add_noise_IPM(O_IPM, U$lo, U$hi, noise$IPM, n_samp)
+  O_Mx <- add_noise_Mx(noise$Mx, Corr.sample, n.cell, P.i)
+  O_CA <- add_noise_CA(O_CA, noise$CA)
+  O_IPM <- add_noise_IPM(O_IPM, U$lo, U$hi, noise$IPM)
 }
 
 
