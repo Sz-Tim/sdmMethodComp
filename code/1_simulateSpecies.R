@@ -175,6 +175,7 @@ if(overwrite) {
   saveRDS(p, here("vs", spp.virt[[sp]], "p.rds"))
   saveRDS(N_init, here("vs", spp.virt[[sp]], "N_init.rds"))
   saveRDS(sdd.pr, here("vs", spp.virt[[sp]], "sdd.rds"))
+  saveRDS(sdd.df, here("vs", spp.virt[[sp]], "sdd_df.rds"))
   saveRDS(sdd.j, here("vs", spp.virt[[sp]], "sdd_j.rds"))
   saveRDS(p.ij, here("vs", spp.virt[[sp]], "p_ij.rds"))
   saveRDS(U, here("vs", spp.virt[[sp]], "U.rds"))
