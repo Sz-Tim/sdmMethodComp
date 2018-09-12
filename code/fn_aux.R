@@ -212,16 +212,12 @@ summarize_CAd_samples <- function(CA.f, in.id) {
 #' mean establishment probability, N_tot.mn = mean total abundance, N_surv.mn = 
 #' mean abundance of individuals >1 year, N_rcr.mn = mean seedling abundance
 summarize_IPM_CAi_samples <- function(U.f, S.f) {
-  Ua <- list(IPMs=map(U.f, ~.$IPMs),
-             Ps=map(U.f, ~.$Ps),
-             Fs=map(U.f, ~.$Fs)) %>% 
+  Ua <- list(IPMs=map(U.f, ~.$IPMs)) %>% 
     map(simplify2array)
   Ua_lam <- apply(Ua$IPMs, 3:4, function(x) Re(eigen(x)$values[1]))
   Uf <- list(prP=apply(Ua_lam>=1, 1, mean),
              lam.mn=apply(Ua_lam, 1, mean),
-             IPM.mn=apply(Ua$IPMs, 1:3, mean),
-             P.mn=apply(Ua$Ps, 1:3, mean),
-             F.mn=apply(Ua$Fs, 1:3, mean))
+             IPM.mn=apply(Ua$IPMs, 1:3, mean))
   Sa <- list(P=map(S.f, ~.$P),
              B=map(S.f, ~.$B),
              nSd=map(S.f, ~.$nSd),
