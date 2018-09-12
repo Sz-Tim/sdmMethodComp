@@ -325,6 +325,9 @@ fit_MxL <- function(sp, issue, samp.issue, lam.df, v, m) {
 #'   1_simulateSpecies.R
 #' @param n_sim Number of simulations to run per observed dataset
 #' @param n_cores Number of cores to use for running simulations in parallel
+#' @return List with dataframe P_CAi with overall summaries across datasets for
+#'   the demographic CA distribution and diagnostics containing the vital rate
+#'   regressions
 fit_CA <- function(sp, samp.issue, mod.issue, p, env.rct, env.rct.unsc, lam.df, 
                    v, m, N_init, sdd.pr, n_sim, n_cores) {
   library(here); library(tidyverse); library(gbPopMod); 
@@ -462,15 +465,15 @@ fit_CA <- function(sp, samp.issue, mod.issue, p, env.rct, env.rct.unsc, lam.df,
 #' @param n_x List of number of environmental covariates for each vital rate 
 #' regression
 #' @param N_init Vector with initial population size in each cell
-#' @param sdd.df Sparse representation of short distance dispersal neighborhoods
-#'   generated in 1_simulateSpecies.R
-#' @param sdd.j
-#' @param p.ij
+#' @param sdd.ji
+#' @param p.ji
 #' @param n_sim Number of simulations to run per observed dataset
 #' @param n_cores Number of cores to use for running simulations in parallel
-fit_IPM <- function(sp, samp.issue, mod.issue, p, env.rct.unsc, 
-                   lam.df, v, m, n_z, n_x, N_init, sdd.df, sdd.j, 
-                   p.ij, n_sim, n_cores) {
+#' @return List with dataframes P_IPM and P_CAi with overall summaries across
+#'   datasets for the IPM distribution and individual-based CA distribution
+#'   respectively, and diagnostics containing the vital rate regressions
+fit_IPM <- function(sp, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v, m, 
+                    n_z, n_x, N_init, sdd.ji, p.ji, n_sim, n_cores) {
   library(here); library(tidyverse); library(magrittr); 
   library(MuMIn); library(doSNOW)
   walk(paste0("code/fn_", c("aux", "sim", "IPM", "fit"), ".R"), ~source(here(.)))
@@ -526,44 +529,38 @@ fit_IPM <- function(sp, samp.issue, mod.issue, p, env.rct.unsc,
     if(mod.issue=="noSB") p.IPM$s_SB <- 0
     if(mod.issue=="underDisp") {
       p.IPM <- add_misDisperse(p.IPM, p, sdd_max_adj=-2, sdd_rate_adj=10, ldd=1)
-      sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=env.rct.unsc, lc.col=8:12,
+      sdd.df <- sdd_set_probs(ncell=n.cell, lc.df=env.rct.unsc, lc.col=8:12,
                               g.p=list(sdd.max=p.IPM$sdd.max, 
                                        sdd.rate=p.IPM$sdd.rate, 
-                                       bird.hab=p$bird_hab))
-      sdd.df <- data.frame(i=rep(1:n.cell, times=map_int(sdd.pr$sp, length)),
-                           j=unlist(map(sdd.pr$sp, ~as.numeric(names(.)))),
-                           pr=unlist(sdd.pr$sp))
-      sdd.j <- map(lam.df$id, ~sdd.df$i[sdd.df$j==.])
-      p.ij <- map(lam.df$id, ~sdd.df$pr[sdd.df$j==.])
-      sdd.df$j_in <- unlist(sdd.j)
+                                       bird.hab=p$bird_hab))$sp.df
+      sdd.ji.rows <- lapply(x=1:n.cell, function(x) which(sp.df$j.idin==x))
+      sdd.ji <- lapply(sdd.ji.rows, function(x) sp.df$i.idin[x]) 
+      p.ji <- lapply(sdd.ji.rows, function(x) sp.df$pr[x]) 
     }
     if(mod.issue=="overDisp") {
       p.IPM <- add_misDisperse(p.IPM, p, sdd_max_adj=2, sdd_rate_adj=.1, ldd=5)
-      sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=env.rct.unsc, lc.col=8:12,
+      sdd.df <- sdd_set_probs(ncell=n.cell, lc.df=env.rct.unsc, lc.col=8:12,
                               g.p=list(sdd.max=p.IPM$sdd.max, 
                                        sdd.rate=p.IPM$sdd.rate, 
-                                       bird.hab=p$bird_hab))
-      sdd.df <- data.frame(i=rep(1:n.cell, times=map_int(sdd.pr$sp, length)),
-                           j=unlist(map(sdd.pr$sp, ~as.numeric(names(.)))),
-                           pr=unlist(sdd.pr$sp))
-      sdd.j <- map(lam.df$id, ~sdd.df$i[sdd.df$j==.])
-      p.ij <- map(lam.df$id, ~sdd.df$pr[sdd.df$j==.])
-      sdd.df$j_in <- unlist(sdd.j)
+                                       bird.hab=p$bird_hab))$sp.df
+      sdd.ji.rows <- lapply(x=1:n.cell, function(x) which(sp.df$j.idin==x))
+      sdd.ji <- lapply(sdd.ji.rows, function(x) sp.df$i.idin[x]) 
+      p.ji <- lapply(sdd.ji.rows, function(x) sp.df$pr[x]) 
     }
     
     # use estimated slopes to fill IPM matrix
     cat("||-- Calculating IPM matrices\n")
     U.f[[i]] <- fill_IPM_matrices(n.cell, buffer=0, discrete=1, p.IPM, n_z,
-                                  n_x, X.IPM, sdd.j, p.ij)
+                                  n_x, X.IPM, sdd.ji, p.ji)
     
     # use estimated slopes to generate simulated data
     sim.ls <- vector("list", n_sim)
     cat("||-- Starting simulations\n")
     p.c <- makeCluster(n_cores); registerDoSNOW(p.c)
-    sim.ls <- foreach(s=1:n_sim, .packages=c("purrr", "here")) %dopar% {
+    sim.ls <- foreach(s=1:n_sim, .packages="here") %dopar% {
       walk(paste0("code/fn_", c("aux", "sim", "IPM", "fit"), ".R"), ~source(here(.)))
       simulate_data(n.cell, U.f[[i]]$lo, U.f[[i]]$hi, p.IPM, X.IPM, n_z, 
-                    sdd.df, p.ij, N_init, save_yrs=p.IPM$tmax)
+                    sdd.ji, p.ji, N_init, save_yrs=p.IPM$tmax)
     }
     stopCluster(p.c)
     S.f[[i]] <- aggregate_CAi_simulations(sim.ls, p.IPM$tmax)

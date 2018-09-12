@@ -72,12 +72,13 @@ sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=L$env.rct.unscaled,
                         g.p=list(sdd.max=p$sdd_max,
                                  sdd.rate=p$sdd_rate,
                                  bird.hab=p$bird_hab))
-sdd.df <- data.frame(i=rep(1:n.cell, times=map_int(sdd.pr$sp, length)),
-                     j=unlist(map(sdd.pr$sp, ~as.numeric(names(.)))),
-                     pr=unlist(sdd.pr$sp))
-sdd.j <- map(L$env.in$id, ~sdd.df$i[sdd.df$j==.])
-p.ij <- map(L$env.in$id, ~sdd.df$pr[sdd.df$j==.])
-sdd.df$j_in <- unlist(sdd.j)
+# df row indexes for all cells dispersing to each [[j]]
+p.c <- makeCluster(n.cores); registerDoSNOW(p.c)
+sdd.ji.rows <- foreach(x=1:n.cell) %dopar% { which(sdd.pr$sp.df$j.idin==x) }
+stopCluster(p.c)
+# id.in indexes & probabilities for all cells dispersing INTO [[j]]
+sdd.ji <- lapply(sdd.ji.rows, function(x) sdd.pr$sp.df$i.idin[x]) 
+p.ji <- lapply(sdd.ji.rows, function(x) sdd.pr$sp.df$pr[x]) 
 # NOTE: sdd.pr[,,2,] indexes based on `id` (id for each cell in grid) instead  
 # of `id.inbd` (id for inbound cells only), but sdd.pr[,,,i] includes only
 # inbound cells, so the layer index aligns with `id.inbd`. This makes 
@@ -94,10 +95,10 @@ N_init[sample(filter(L$env.in, x>725 & x<765 & y>200)$id.inbd,
 
 # Use assigned slopes to fill IPM matrix
 U <- fill_IPM_matrices(n.cell, buffer=0.1, discrete=1, p, n_z, n_x, 
-                       X, sdd.j, p.ij, verbose=T)
+                       X, sdd.ji, p.ji, verbose=T)
 
 # Ground Truth: generate simulated data
-S <- simulate_data(n.cell, U$lo, U$hi, p, X, n_z, sdd.df, p.ij, N_init, 
+S <- simulate_data(n.cell, U$lo, U$hi, p, X, n_z, sdd.ji, p.ji, N_init, 
                    save_yrs=(-2:0)+p$tmax, T)
 
 # Aggregate results
@@ -122,7 +123,7 @@ lam.df <- L$env.in %>%
          mn.age=map_dbl(S$d, ~mean(.$age[.$yr==p$tmax])),
          med.age=map_dbl(S$d, ~median(.$age[.$yr==p$tmax])),
          max.age=map_dbl(S$d, ~max(.$age)),
-         pr_Immigrant=map_dbl(p.ij, sum),
+         pr_Immigrant=map_dbl(p.ji, sum),
          s=antilogit(c(cbind(1, mean(p$z.rng)/2, X$s) %*% c(p$s_z, p$s_x))),
          g=c(cbind(1, mean(p$z.rng), X$g) %*% c(p$g_z, p$g_x)),
          germ=antilogit(c(X$germ %*% p$germ_x)))
@@ -175,9 +176,8 @@ if(overwrite) {
   saveRDS(p, here("vs", spp.virt[[sp]], "p.rds"))
   saveRDS(N_init, here("vs", spp.virt[[sp]], "N_init.rds"))
   saveRDS(sdd.pr, here("vs", spp.virt[[sp]], "sdd.rds"))
-  saveRDS(sdd.df, here("vs", spp.virt[[sp]], "sdd_df.rds"))
-  saveRDS(sdd.j, here("vs", spp.virt[[sp]], "sdd_j.rds"))
-  saveRDS(p.ij, here("vs", spp.virt[[sp]], "p_ij.rds"))
+  saveRDS(sdd.ji, here("vs", spp.virt[[sp]], "sdd_ji.rds"))
+  saveRDS(p.ji, here("vs", spp.virt[[sp]], "p_ji.rds"))
   saveRDS(U, here("vs", spp.virt[[sp]], "U.rds"))
   saveRDS(S, here("vs", spp.virt[[sp]], "S.rds"))
   saveRDS(lam.df, here("vs", spp.virt[[sp]], "lam_df.rds"))
