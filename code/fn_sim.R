@@ -172,7 +172,7 @@ simulate_data <- function(n.cell, lo, hi, p, X, n_z, sdd.ji, p.ji, N_init,
   B1 <- rep(0, n.cell)
   X_map <- lapply(i, function(x) map(X, ~.[x,]))
   
-  if(verbose) pb <- txtProgressBar(min=1, max=p$tmax, style=3)
+  if(verbose) pb <- txtProgressBar(min=1, max=p$tmax, width=80, style=3)
   for(k in 1:p$tmax) {
     ## local growth
     if(k>1) {
