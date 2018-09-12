@@ -37,12 +37,15 @@ hist(log(lam.df$lambda))
 theme_set(theme_bw())
 ggplot(out, aes(x=lon, y=lat, fill=lambda>1)) + geom_tile() + ggtitle(sp)
 ggplot(out, aes(x=lon, y=lat, fill=lambda)) + geom_tile() + ggtitle(sp) +
-  scale_fill_gradient(low="white", high="red")
+  scale_fill_viridis(option="B")
 ggplot(out, aes(x=lon, y=lat, fill=Surv.S>0)) + geom_tile() + ggtitle(sp)
 ggplot(out, aes(x=lon, y=lat, fill=Surv.S)) + geom_tile() + ggtitle(sp) +
-  scale_fill_gradient(low="white", high="red")
+  scale_fill_viridis(option="B")
 
 ggplot(out, aes(fill=fate_lam, x=SDM)) + geom_bar(position="fill") + 
+  facet_wrap(~issue) + scale_fill_brewer(name="", type="div") + 
+  ylab("Proportion of cells") + ggtitle(sp)
+ggplot(out, aes(fill=fate_S, x=SDM)) + geom_bar(position="fill") + 
   facet_wrap(~issue) + scale_fill_brewer(name="", type="div") + 
   ylab("Proportion of cells") + ggtitle(sp)
 ggplot(out, aes(fill=fate_lam, x=issue)) + geom_bar(position="fill") + 
@@ -56,7 +59,7 @@ ggplot(out, aes(x=lon, y=lat, fill=fate_S)) +
   theme(axis.text=element_blank()) + ggtitle(sp)
 ggplot(out, aes(x=lon, y=lat, fill=prP)) +
   geom_tile() + facet_grid(SDM~issue) + 
-  scale_fill_gradient(low="white", high="red") +
+  scale_fill_viridis(option="B") +
   theme(axis.text=element_blank()) + ggtitle(sp)
 ggplot(out, aes(x=lon, y=lat, fill=prP>0.5)) +
   geom_tile() + facet_grid(SDM~issue) + 
@@ -64,13 +67,17 @@ ggplot(out, aes(x=lon, y=lat, fill=prP>0.5)) +
 ggplot(out, aes(x=lon, y=lat, fill=lambda.f>=1)) +
   geom_tile() + facet_grid(SDM~issue) + 
   theme(axis.text=element_blank())
+ggplot(out, aes(x=lon, y=lat, fill=log(Surv.S.f))) +
+  geom_tile() + facet_grid(SDM~issue) + 
+  scale_fill_viridis(option="B") +
+  theme(axis.text=element_blank())
 ggplot(out, aes(x=lon, y=lat, fill=log(B.f))) +
   geom_tile() + facet_grid(SDM~issue) + 
-  scale_fill_gradient(low="white", high="red") +
+  scale_fill_viridis(option="B") +
   theme(axis.text=element_blank())
 ggplot(out, aes(x=lon, y=lat, fill=log(D.f))) +
   geom_tile() + facet_grid(SDM~issue) + 
-  scale_fill_gradient(low="white", high="red") +
+  scale_fill_viridis(option="B") +
   theme(axis.text=element_blank())
 
 lam.sum <- out %>% group_by(SDM, issue, fate_lam) %>%
