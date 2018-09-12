@@ -23,8 +23,8 @@ walk(paste0("code/fn_", c("aux", "sim", "IPM", "fit"), ".R"), ~source(here(.)))
 p <- readRDS(here("vs", sp, "p.rds"))
 N_init <- readRDS(here("vs", sp, "N_init.rds"))
 sdd.pr <- readRDS(here("vs", sp, "sdd.rds"))
-sdd.ji <- readRDS(here("vs", sp, "sdd_j.rds"))
-p.ji <- readRDS(here("vs", sp, "p_ij.rds"))
+sdd.ji <- readRDS(here("vs", sp, "sdd_ji.rds"))
+p.ji <- readRDS(here("vs", sp, "p_ji.rds"))
 lam.df <- readRDS(here("vs", sp, "lam_df.rds"))
 env.in <- readRDS(here("vs", sp, "env_in.rds"))
 env.rct <- readRDS(here("vs", sp, "env_rct.rds"))
@@ -35,7 +35,7 @@ vars <- rep(0, ncol(env.in)-9+4)
 names(vars) <- c("(Intercept)", "size", "size2", "size2",
                  names(env.in)[1:(ncol(env.in)-9)])
 vars <- vars[-c(4, 11:12, 16:17)]
-if(!dir.exists(here("out", sp))) dir.create(here("out", sp))
+if(!dir.exists(here("out", sp))) dir.create(here("out", sp), recursive=T)
 
 
 p.c <- makeCluster(n_core_iss); registerDoSNOW(p.c)
