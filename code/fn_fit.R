@@ -462,14 +462,14 @@ fit_CA <- function(sp, samp.issue, mod.issue, p, env.rct, env.rct.unsc, lam.df,
 #' @param n_x List of number of environmental covariates for each vital rate 
 #' regression
 #' @param N_init Vector with initial population size in each cell
-#' @param sdd.pr List with short distance dispersal neighborhoods generated in
-#'   1_simulateSpecies.R
+#' @param sdd.df Sparse representation of short distance dispersal neighborhoods
+#'   generated in 1_simulateSpecies.R
 #' @param sdd.j
 #' @param p.ij
 #' @param n_sim Number of simulations to run per observed dataset
 #' @param n_cores Number of cores to use for running simulations in parallel
 fit_IPM <- function(sp, samp.issue, mod.issue, p, env.rct.unsc, 
-                   lam.df, v, m, n_z, n_x, N_init, sdd.pr, sdd.j, 
+                   lam.df, v, m, n_z, n_x, N_init, sdd.df, sdd.j, 
                    p.ij, n_sim, n_cores) {
   library(here); library(tidyverse); library(magrittr); 
   library(MuMIn); library(doSNOW)
@@ -559,22 +559,13 @@ fit_IPM <- function(sp, samp.issue, mod.issue, p, env.rct.unsc,
     # use estimated slopes to generate simulated data
     sim.ls <- vector("list", n_sim)
     cat("||-- Starting simulations\n")
-    if(n_cores > 1) {
-      p.c <- makeCluster(n_cores); registerDoSNOW(p.c)
-      sim.ls <- foreach(s=1:n_sim, .packages=c("purrr", "here")) %dopar% {
-        walk(paste0("code/fn_", c("aux", "sim", "IPM", "fit"), ".R"), ~source(here(.)))
-        simulate_data(n.cell, U.f[[i]]$lo, U.f[[i]]$hi, p.IPM, X.IPM, n_z, 
-                      sdd.pr$i, sdd.j, N_init, save_yrs=p.IPM$tmax)
-      }
-      stopCluster(p.c)
-    } else {
-      for(s in 1:n_sim) {
-        sim.ls[[s]] <- simulate_data(n.cell, U.f[[i]]$lo, U.f[[i]]$hi, p.IPM, 
-                                     X.IPM, n_z, sdd.pr$i, sdd.j, N_init, 
-                                     save_yrs=p.IPM$tmax, TRUE)
-        cat("\n||-- Finished simulation", s, "\n")
-      }
+    p.c <- makeCluster(n_cores); registerDoSNOW(p.c)
+    sim.ls <- foreach(s=1:n_sim, .packages=c("purrr", "here")) %dopar% {
+      walk(paste0("code/fn_", c("aux", "sim", "IPM", "fit"), ".R"), ~source(here(.)))
+      simulate_data(n.cell, U.f[[i]]$lo, U.f[[i]]$hi, p.IPM, X.IPM, n_z, 
+                    sdd.df, p.ij, N_init, save_yrs=p.IPM$tmax)
     }
+    stopCluster(p.c)
     S.f[[i]] <- aggregate_CAi_simulations(sim.ls, p.IPM$tmax)
     diagnostics[[i]] <- vars.ls
     rm(sim.ls)
