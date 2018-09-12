@@ -208,7 +208,6 @@ add_misDisperse <- function(p.mod, p, sdd_max_adj=2, sdd_rate_adj=.1, ldd=5) {
 fit_MxE <- function(sp, issue, samp.issue, lam.df, v) {
   library(dismo); library(here); library(tidyverse); library(raster)
   path_iss <- paste0("out/maxent/", sp, "/", issue, "/")
-  if(!dir.exists(path_iss)) dir.create(path_iss, recursive=T)
   # load observations
   O_Mx <- readRDS(here("vs", sp, paste0("O_Mx_", samp.issue, ".rds")))
   X.Mx <- lam.df[,names(lam.df) %in% v]
@@ -226,7 +225,7 @@ fit_MxE <- function(sp, issue, samp.issue, lam.df, v) {
                 "noautofeature", "noprefixes", "writeplotdata",
                 "outputformat=logistic")
   for(i in seq_along(O_Mx)) {
-    if(!dir.exists(paste0(path_iss, i))) dir.create(paste0(path_iss, i))
+    if(!dir.exists(paste0(path_iss, i))) dir.create(paste0(path_iss, i), recursive=T)
     MxE.f[[i]] <- maxent(x=rast.Mx, p=as.matrix(lam.df[O_Mx[[i]], c("lon", "lat")]),
                         args=fit.args, path=paste0(path_iss, i))
     MxE.p[[i]] <- mean(predict(MxE.f[[i]], rast.Mx, args="outputformat=logistic"))
@@ -246,8 +245,7 @@ fit_MxE <- function(sp, issue, samp.issue, lam.df, v) {
                                train_n=nrow(dt))
     }
     thresh <- mean(do.call("rbind", d_j)$thresh_Obs)
-    MxE.p[[i]]@data@values[MxE.p[[i]]@data@values >= thresh] <- 1
-    MxE.p[[i]]@data@values[MxE.p[[i]]@data@values < thresh] <- 0
+    MxE.p[[i]]@data@values <- MxE.p[[i]]@data@values >= thresh
     gc()
   }
   # munge output
@@ -255,8 +253,8 @@ fit_MxE <- function(sp, issue, samp.issue, lam.df, v) {
   MxE.p.data <- map_dfr(MxE.p, ~.@data@values) %>% as.matrix
   P_MxE <- lam.df %>% 
     dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>%
-    mutate(prP=apply(MxE.p.data[lam.df$id,], 1, mean),
-           prP.sd=apply(MxE.p.data[lam.df$id,], 1, sd))
+    mutate(prP=apply(na.omit(MxE.p.data), 1, mean),
+           prP.sd=apply(na.omit(MxE.p.data), 1, sd))
   diagnostics <- NULL
   # diagnostics <- map(MxE.f, ~evaluate(p=S_p, a=S_a, model=., x=rast.Mx))
   return(list(P_MxE=P_MxE, diag=diagnostics))
