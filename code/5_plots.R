@@ -51,6 +51,9 @@ ggplot(out, aes(fill=fate_lam, x=issue)) + geom_bar(position="fill") +
 ggplot(out, aes(x=lon, y=lat, fill=fate_lam)) +
   geom_tile() + facet_grid(SDM~issue) + scale_fill_brewer(name="", type="div") +
   theme(axis.text=element_blank()) + ggtitle(sp)
+ggplot(out, aes(x=lon, y=lat, fill=fate_S)) +
+  geom_tile() + facet_grid(SDM~issue) + scale_fill_brewer(name="", type="div") +
+  theme(axis.text=element_blank()) + ggtitle(sp)
 ggplot(out, aes(x=lon, y=lat, fill=prP)) +
   geom_tile() + facet_grid(SDM~issue) + 
   scale_fill_gradient(low="white", high="red") +
@@ -61,10 +64,7 @@ ggplot(out, aes(x=lon, y=lat, fill=prP>0.5)) +
 ggplot(out, aes(x=lon, y=lat, fill=lambda.f>=1)) +
   geom_tile() + facet_grid(SDM~issue) + 
   theme(axis.text=element_blank())
-ggplot(out, aes(x=lon, y=lat, fill=lam.S.f>=1)) +
-  geom_tile() + facet_grid(SDM~issue) + 
-  theme(axis.text=element_blank())
-ggplot(out, aes(x=lon, y=lat, fill=log(Btmax.f))) +
+ggplot(out, aes(x=lon, y=lat, fill=log(B.f))) +
   geom_tile() + facet_grid(SDM~issue) + 
   scale_fill_gradient(low="white", high="red") +
   theme(axis.text=element_blank())
@@ -73,21 +73,28 @@ ggplot(out, aes(x=lon, y=lat, fill=log(D.f))) +
   scale_fill_gradient(low="white", high="red") +
   theme(axis.text=element_blank())
 
-out.sum <- out %>% group_by(SDM, issue, fate_lam, boundary) %>%
+lam.sum <- out %>% group_by(SDM, issue, fate_lam) %>%
   summarise(ct=n()) %>%
-  mutate(rate=case_when(fate_lam=="S:0 P:0" & boundary=="Surv" ~ ct/sum(lam.df$Surv.S==0),
-                        fate_lam=="S:0 P:1" & boundary=="Surv" ~ ct/sum(lam.df$Surv.S==0),
-                        fate_lam=="S:1 P:0" & boundary=="Surv" ~ ct/sum(lam.df$Surv.S > 0),
-                        fate_lam=="S:1 P:1" & boundary=="Surv" ~ ct/sum(lam.df$Surv.S > 0),
-                        fate_lam=="S:0 P:0" & boundary=="lam" ~ ct/sum(lam.df$lambda<1),
-                        fate_lam=="S:0 P:1" & boundary=="lam" ~ ct/sum(lam.df$lambda<1),
-                        fate_lam=="S:1 P:0" & boundary=="lam" ~ ct/sum(lam.df$lambda>=1),
-                        fate_lam=="S:1 P:1" & boundary=="lam" ~ ct/sum(lam.df$lambda>=1)))
-tss.df <- out.sum %>% ungroup %>% group_by(SDM, issue) %>%
+  mutate(rate=case_when(fate_lam=="S:0 P:0" ~ ct/sum(lam.df$lambda<1),
+                            fate_lam=="S:0 P:1" ~ ct/sum(lam.df$lambda<1),
+                            fate_lam=="S:1 P:0" ~ ct/sum(lam.df$lambda>=1),
+                            fate_lam=="S:1 P:1" ~ ct/sum(lam.df$lambda>=1)))
+S.sum <- out %>% group_by(SDM, issue, fate_S) %>%
+  summarise(ct=n()) %>%
+  mutate(rate=case_when(fate_S=="S:0 P:0" ~ ct/sum(lam.df$lambda<1),
+                            fate_S=="S:0 P:1" ~ ct/sum(lam.df$lambda<1),
+                            fate_S=="S:1 P:0" ~ ct/sum(lam.df$lambda>=1),
+                            fate_S=="S:1 P:1" ~ ct/sum(lam.df$lambda>=1)))
+tss.lam <- lam.sum %>% ungroup %>% group_by(SDM, issue) %>%
   summarise(TSS=sum(rate[fate_lam %in% c("S:0 P:0", "S:1 P:1")])-1) %>%
-  ungroup %>% mutate(issue=fct_rev(issue))
-ggplot(tss.df, aes(x=TSS, y=issue, colour=SDM)) + ggtitle(sp) +
-  geom_point(size=5, alpha=0.7) + 
+  ungroup %>% mutate(issue=fct_rev(issue), metric="lambda")
+tss.S <- S.sum %>% ungroup %>% group_by(SDM, issue) %>%
+  summarise(TSS=sum(rate[fate_S %in% c("S:0 P:0", "S:1 P:1")])-1) %>%
+  ungroup %>% mutate(issue=fct_rev(issue), metric="S")
+tss.df <- rbind(tss.lam, tss.S)
+ggplot(tss.df, aes(x=TSS, y=metric, colour=SDM)) + facet_wrap(~issue) +
+  ggtitle(sp) +
+  geom_point(size=5, alpha=0.9) + 
   geom_vline(xintercept=c(-1,1), colour="gray") + 
   geom_vline(xintercept=0, colour="gray", linetype=2) +
   theme(panel.grid.major.y=element_line(colour="gray")) +
