@@ -129,10 +129,10 @@ sim_seedbank <- function(nSd_ik, B_ik, D_ik, p, pr_germ) {
 #' @param p List of parameters
 #' @param X List of covariates, with elements \code{.$s, .$g, .$fl, .$seed}
 #' @param n_z Maximum exponent to raise the size distribution to
-#' @param sdd Short distance dispersal array of neighborhoods and probabilities;
-#' generated with \link{gbPopMod::set_sdd_probs()$i}; perspective is the 
-#' dispersal FROM each source cell i
-#' @param sdd.j Short distance dispersal immigrant neighborhoods TO each cell j
+#' @param sdd.df Sparse representation of short distance dispersal array of
+#'   neighborhoods and probabilities; generated with
+#'   \link{gbPopMod::set_sdd_probs()$sp}
+#' @param p.ij Dispersal probabilities TO each target cell j
 #' @param N_init Vector of initial population sizes, length n.cell
 #' @param save_yrs \code{"all"} Vector of years to store, or "all" to store all
 #' @param verbose \code{FALSE} Show progress bar?
@@ -142,7 +142,7 @@ sim_seedbank <- function(nSd_ik, B_ik, D_ik, p, pr_germ) {
 #' matrix with number of seeds produced in each cell in each year, D = matrix
 #' with number of immigrant seeds in each cell in each year, and p_est.i = 
 #' density dependent establishment probabilities in each cell in each year
-simulate_data <- function(n.cell, lo, hi, p, X, n_z, sdd, sdd.j, N_init, 
+simulate_data <- function(n.cell, lo, hi, p, X, n_z, sdd.df, p.ij, N_init, 
                           save_yrs="all", verbose=F) {
   library(tidyverse)
   i <- 1:n.cell
@@ -191,8 +191,9 @@ simulate_data <- function(n.cell, lo, hi, p, X, n_z, sdd, sdd.j, N_init,
     nSd1 <- vapply(i, function(x) sum(d1[[x]]$seed, na.rm=TRUE), 1)
     
     ## dispersal & density dependence
-    sdd.D <- vapply(i, function(x) nSd1[x]*p$p_emig*sdd[,,1,x], sdd[,,1,1])
-    D1 <- vapply(sdd.j, function(x) sum(sdd.D[x]), 1)
+    #### change to sparse SDD version ###
+    sdd.df$D <- unlist(sapply(i, function(x) nSd1[x]*p$p_emig*p.ij[[x]]))
+    D1 <- summarise(group_by(sdd.df, j_in), D=sum(D))$D
     if(p$NDD) p_est1 <- pmin(p$NDD_n/(nSd1+D1), p$p_est)
     d1 <- lapply(i, function(x) sim_recruits(k, d1[[x]], p_est1[x], nSd1[x], 
                                             B1[x], D1[x], p, pr_germ[x], F))

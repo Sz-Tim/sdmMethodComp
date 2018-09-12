@@ -77,6 +77,7 @@ sdd.df <- data.frame(i=rep(1:n.cell, times=map_int(sdd.pr$sp, length)),
                      pr=unlist(sdd.pr$sp))
 sdd.j <- map(L$env.in$id, ~sdd.df$i[sdd.df$j==.])
 p.ij <- map(L$env.in$id, ~sdd.df$pr[sdd.df$j==.])
+sdd.df$j_in <- unlist(sdd.j)
 # NOTE: sdd.pr[,,2,] indexes based on `id` (id for each cell in grid) instead  
 # of `id.inbd` (id for inbound cells only), but sdd.pr[,,,i] includes only
 # inbound cells, so the layer index aligns with `id.inbd`. This makes 
@@ -96,7 +97,7 @@ U <- fill_IPM_matrices(n.cell, buffer=0.1, discrete=1, p, n_z, n_x,
                        X, sdd.j, p.ij, verbose=T)
 
 # Ground Truth: generate simulated data
-S <- simulate_data(n.cell, U$lo, U$hi, p, X, n_z, sdd.pr$i, sdd.j, N_init, 
+S <- simulate_data(n.cell, U$lo, U$hi, p, X, n_z, sdd.df, p.ij, N_init, 
                    save_yrs=(-2:0)+p$tmax, T)
 
 # Aggregate results

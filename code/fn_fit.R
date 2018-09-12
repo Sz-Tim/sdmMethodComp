@@ -534,6 +534,7 @@ fit_IPM <- function(sp, samp.issue, mod.issue, p, env.rct.unsc,
                            pr=unlist(sdd.pr$sp))
       sdd.j <- map(lam.df$id, ~sdd.df$i[sdd.df$j==.])
       p.ij <- map(lam.df$id, ~sdd.df$pr[sdd.df$j==.])
+      sdd.df$j_in <- unlist(sdd.j)
     }
     if(mod.issue=="overDisp") {
       p.IPM <- add_misDisperse(p.IPM, p, sdd_max_adj=2, sdd_rate_adj=.1, ldd=5)
@@ -546,6 +547,7 @@ fit_IPM <- function(sp, samp.issue, mod.issue, p, env.rct.unsc,
                            pr=unlist(sdd.pr$sp))
       sdd.j <- map(lam.df$id, ~sdd.df$i[sdd.df$j==.])
       p.ij <- map(lam.df$id, ~sdd.df$pr[sdd.df$j==.])
+      sdd.df$j_in <- unlist(sdd.j)
     }
     
     # use estimated slopes to fill IPM matrix
