@@ -8,12 +8,22 @@
 ## Sampling functions
 ########
 
-##-- CA sampling
-##   For each sampled cell, arrange observed data for CA analysis
-sample_for_CA <- function(S, Mech.sample, O_n, O_yr, n_samp, prop.sampled) {
-  O_CA <- vector("list", n_samp)
-  for(s in 1:n_samp) {
-    CA.d <- CA.B <- CA.D <- vector("list", O_n$Mech)
+##-- sample for demographic CA model
+#' Sample from S and summarise to population-level statistics for the specified
+#' cells and years within each observed dataset
+#' @param S True individual-level data produced in 1_simulateSpecies.R
+#' @param Mech.sample List of cell indices for each set of samples
+#' @param O_yr List with [["CA"]] containing the years to sample
+#' @param prop.sampled Proportion of individuals (per cell) to sample
+#' @return List with an element for each dataset, where each dataset is a list
+#'   containing a dataframe "d" with population-level statistics for each cell
+#'   and year, matrix "B" (dim=[n.cell, length(O_yr$CA)] with the size of the
+#'   seedbank, and matrix "D" (dim=dim(B)) with the number of immigrant seeds to
+#'   each cell
+sample_for_CA <- function(S, Mech.sample, O_yr, prop.sampled) {
+  O_CA <- vector("list", length(Mech.sample))
+  for(s in seq_along(O_CA)) {
+    CA.d <- CA.B <- CA.D <- vector("list", length(Mech.sample[[1]]))
     for(j in seq_along(Mech.sample[[s]])) {
       i <- Mech.sample[[s]][j]
       CA.d[[j]] <- data.frame(S$d[[i]]) %>% filter(yr %in% O_yr$CA)
@@ -56,12 +66,18 @@ sample_for_CA <- function(S, Mech.sample, O_n, O_yr, n_samp, prop.sampled) {
 
 
 
-##-- IPM sampling
-##   For each sampled cell, arrange observed data for IPM analysis
-sample_for_IPM <- function(S, Mech.sample, O_n, O_yr, n_samp, prop.sampled) {
-  O_IPM <- vector("list", n_samp)
-  for(s in 1:n_samp) {
-    IPM.d <- vector("list", O_n$Mech)
+##-- sample for IPM and individual-based CA model
+#' Sample from S for the specified cells and years within each observed dataset
+#' @param S True individual-level data produced in 1_simulateSpecies.R
+#' @param Mech.sample List of cell indices for each set of samples
+#' @param O_yr List with [["IPM"]] containing the years to sample
+#' @param prop.sampled Proportion of individuals (per cell) to sample
+#' @return List with an element for each dataset, where each dataset is a
+#'   dataframe with individual-level statistics for each cell and year
+sample_for_IPM <- function(S, Mech.sample, O_yr, prop.sampled) {
+  O_IPM <- vector("list", length(Mech.sample))
+  for(s in seq_along(O_IPM)) {
+    IPM.d <- vector("list", length(Mech.sample[[1]]))
     for(j in seq_along(Mech.sample[[s]])) {
       i <- Mech.sample[[s]][j]
       IPM.d[[j]] <- data.frame(S$d[[i]]) %>% filter(yr %in% O_yr$IPM) %>%
@@ -77,20 +93,43 @@ sample_for_IPM <- function(S, Mech.sample, O_n, O_yr, n_samp, prop.sampled) {
 
 
 
-##-- ISSUE::Noise
-##   Add sampling error to observed datasets in the form of random noise
-add_noise_Mx <- function(O_Mx, err, O_n, n_samp, Corr.sample, n.cell, P.i) {
-  # Substitute false presences
-  n.err <- err*O_n$Corr
-  for(s in 1:n_samp) {
+
+
+
+################################################################################
+## Issue imposition functions
+########
+
+##-- NOISE: MaxEnt
+#' Add sampling error to observed presence-absence datasets for MaxEnt, taking
+#' the form of false presences
+#' @param err Proportion of observations to make erroneous
+#' @param Corr.sample List where each element is a vector of cell indexes
+#' @param n.cell Number of inbound cells
+#' @param P.i Cell indexes for true presences
+#' @return List where each element is a logical vector (length n.cell)
+#'   indicating observed presences and assumed absences after adding
+#'   observation error
+add_noise_Mx <- function(err, Corr.sample, n.cell, P.i) {
+  n.err <- err*length(Corr.sample[[1]])
+  for(s in seq_along(Corr.sample)) {
     Corr.sample[[s]][1:n.err] <- sample((1:n.cell)[-P.i], n.err, F)
   }
   return(map(Corr.sample, ~(1:n.cell %in% .)))
 }
-add_noise_CA <- function(O_CA, err, n_samp) {
-  # N.obs = rnorm(N.true, N.true*N) | (N.obs ≥ 0)
-  # mu.obs = rnorm(mu.true, mu.true*mu) | (mu.obs ≥ 0)
-  for(s in 1:n_samp) {
+
+
+
+##-- NOISE: Demographic CA
+#' Add sampling error to population-level metrics 
+#' @param O_CA Output from \link{sample_for_CA()}
+#' @param err List with elements [["N"]], describing the amount of error to add
+#'   to observed abundance as N.obs = rnorm(N.true, N.true*N) subject to (N.obs
+#'   ≥ 0), and [["mu"]], describing the amount of error to add to observed seed
+#'   counts as mu.obs = rnorm(mu.true, mu.true*mu) subject to (mu.obs ≥ 0)
+#' @return List of the same form as the output from \link{sample_for_CA()}
+add_noise_CA <- function(O_CA, err) {
+  for(s in seq_along(O_CA)) {
     n_obs <- nrow(O_CA[[s]]$d)
     O_CA[[s]]$d <- O_CA[[s]]$d %>% 
       mutate(N=pmax(round(rnorm(n_obs, N, N*err$N)), 0),
@@ -99,11 +138,23 @@ add_noise_CA <- function(O_CA, err, n_samp) {
   }
   return(O_CA)
 }
-add_noise_IPM <- function(O_IPM, z_l, z_h, err, n_samp) {
-  # sizeNext.obs = rnorm(SizeNext.true, g) | (z_l ≤ sizeNext.obs ≤ z_h)
-  # seed.obs = rnorm(seed.true, seed.true*seed) | (seed.obs ≥ 0)
+
+
+
+##-- NOISE: Individual-based CA and IPM
+#' Add sampling error to individual-level data
+#' @param O_IPM Output from \link{sample_for_IPM()}
+#' @param z_l Minimum allowable size
+#' @param z_h Maximum allowable size
+#' @param err List with elements [["g"]], describing the amount of error to add
+#'   to observed growth as sizeNext.obs = rnorm(SizeNext.true, g) subject to
+#'   (z_l ≤ sizeNext.obs ≤ z_h), and [["seed"]], describing the amount of error
+#'   to add to observed seed counts as seed.obs = rnorm(seed.true,
+#'   seed.true*seed) subject to (seed.obs ≥ 0)
+#' @return List of the same form as the output from \link{sample_for_IPM()}
+add_noise_IPM <- function(O_IPM, z_l, z_h, err) {
   options(warn=-1)
-  for(s in 1:n_samp) {
+  for(s in seq_along(O_IPM)) {
     n_obs <- nrow(O_IPM[[s]])
     O_IPM[[s]] <- O_IPM[[s]] %>%
       mutate(sizeNext=pmin(rnorm(n_obs, sizeNext, err$g), z_h),
@@ -116,9 +167,17 @@ add_noise_IPM <- function(O_IPM, z_l, z_h, err, n_samp) {
 
 
 
-
-##-- ISSUE::Misspecified Dispersal
-##   Adjust dispersal parameters to over- or under-disperse
+##-- MISSPECIFIED DISPERSAL: Mechanistic models
+#' Adjust dispersal parameters to over- or under-disperse
+#' @param p.mod List of parameters fitted with data
+#' @param p List of true parameters
+#' @param sdd_max_adj Number of cells to adjust maximum distance for short
+#'   distance dispersal; positive increases neighborhood size, negative reduces
+#'   neighborhood size. Corrects to "1" when sdd_max is adjusted to < 1.
+#' @param sdd_rate_adj Proportional adjustment to rate for short distance
+#'   dispersal exponential kernel
+#' @param ldd Number of annual long distance dispersal events
+#' @return List with modified model parameters \code{p.mod}
 add_misDisperse <- function(p.mod, p, sdd_max_adj=2, sdd_rate_adj=.1, ldd=5) {
   p.mod$sdd.max <- p.mod$sdd_max <- max(p$sdd_max + sdd_max_adj, 1)
   p.mod$sdd.rate <- p.mod$sdd_rate <- p$sdd_rate * sdd_rate_adj
@@ -129,20 +188,29 @@ add_misDisperse <- function(p.mod, p, sdd_max_adj=2, sdd_rate_adj=.1, ldd=5) {
 
 
 
+
+
+
 ################################################################################
 ## Fitting functions
 ########
 
-##-- Fit MaxEnt
-##
-fit_MxE <- function(sp, issue, sampling.issue, lam.df, v) {
+##-- fit MaxEnt
+#' Generate predicted distribution using MaxEnt
+#' @param sp Virtual species
+#' @param issue Issue name
+#' @param samp.issue Issue with observed dataset
+#' @param lam.df Dataframe with covariates, generated in 1_simulateSpecies.R
+#' @param v Variables to include in model
+#' @return List with dataframe [["P_MxE"]] containing a row for each cell and
+#'   columns for cell information, mean(probability of presence), and
+#'   sd(probability of presence); and [["diag"]] containing diagnostics
+fit_MxE <- function(sp, issue, samp.issue, lam.df, v) {
   library(dismo); library(here); library(tidyverse); library(raster)
-  path_sp <- paste0("out/maxent/", sp, "/")
-  if(!dir.exists(path_sp)) dir.create(path_sp, recursive=T)
-  path_iss <- paste0(path_sp, issue, "/")
+  path_iss <- paste0("out/maxent/", sp, "/", issue, "/")
   if(!dir.exists(path_iss)) dir.create(path_iss, recursive=T)
   # load observations
-  O_Mx <- readRDS(here("vs", sp, paste0("O_Mx_", sampling.issue, ".rds")))
+  O_Mx <- readRDS(here("vs", sp, paste0("O_Mx_", samp.issue, ".rds")))
   X.Mx <- lam.df[,names(lam.df) %in% v]
   temp.rast <- vector("list", ncol(X.Mx))
   for(vi in 1:ncol(X.Mx)) {
@@ -158,7 +226,7 @@ fit_MxE <- function(sp, issue, sampling.issue, lam.df, v) {
                 "noautofeature", "noprefixes", "writeplotdata",
                 "outputformat=logistic")
   for(i in seq_along(O_Mx)) {
-    if(!dir.exists(paste0(path_iss, i))) dir.create(paste0(path_iss, i), recursive=T)
+    if(!dir.exists(paste0(path_iss, i))) dir.create(paste0(path_iss, i))
     MxE.f[[i]] <- maxent(x=rast.Mx, p=as.matrix(lam.df[O_Mx[[i]], c("lon", "lat")]),
                         args=fit.args, path=paste0(path_iss, i))
     MxE.p[[i]] <- mean(predict(MxE.f[[i]], rast.Mx, args="outputformat=logistic"))
@@ -196,12 +264,22 @@ fit_MxE <- function(sp, issue, sampling.issue, lam.df, v) {
 
 
 
-##--- Fit MaxLike
-##
-fit_MxL <- function(sp, issue, sampling.issue, lam.df, v, m) {
+##-- fit MaxLike
+#' Generate predicted distribution using MaxLike
+#' @param sp Virtual species
+#' @param issue Issue name
+#' @param samp.issue Issue with observed dataset
+#' @param lam.df Dataframe with covariates, generated in 1_simulateSpecies.R
+#' @param v Variables to include in model
+#' @param m Model formula
+#' @return List with dataframe [["P_MxL"]] containing a row for each cell and
+#'   columns for cell information, thresholded mean(probability of presence),
+#'   raw mean(probability of presence), and sd(probability of presence); and
+#'   [["diag"]] containing diagnostics
+fit_MxL <- function(sp, issue, samp.issue, lam.df, v, m) {
   library(here); library(tidyverse); library(raster); library(maxlike)
   
-  O_Mx <- readRDS(here("vs/", sp, paste0("O_Mx_", sampling.issue, ".rds")))
+  O_Mx <- readRDS(here("vs/", sp, paste0("O_Mx_", samp.issue, ".rds")))
   X.Mx <- lam.df[,names(lam.df) %in% v]
   temp.rast <- vector("list", ncol(X.Mx))
   for(vi in 1:ncol(X.Mx)) {
@@ -231,19 +309,36 @@ fit_MxL <- function(sp, issue, sampling.issue, lam.df, v, m) {
 
 
 
-##--- Fit CA
-##
-fit_CA <- function(sp, sampling.issue, modeling.issue, p, env.rct, env.rct.unsc, 
-                   lam.df, vars, v.i, v, m, N_init, sdd.pr, n.cell, n.grid, 
-                   n_sim, n_cores) {
+##-- fit demographic CA model
+#' Generate predicted distribution using a demographic CA model
+#' @param sp Virtual species
+#' @param samp.issue Issue with observed dataset
+#' @param mod.issue Issue to impose on model
+#' @param p List of true parameters
+#' @param env.rct Dataframe with scaled covariates for full rectangular grid
+#' @param env.rct.unsc Dataframe with raw covariates for full rectangular grid
+#' @param lam.df Dataframe with covariates, generated in 1_simulateSpecies.R
+#' @param v Variables to include in full model
+#' @param m Model formula for full model in each population-level regression
+#' @param N_init Vector with initial population size in each cell
+#' @param sdd.pr List with short distance dispersal neighborhoods generated in
+#'   1_simulateSpecies.R
+#' @param n_sim Number of simulations to run per observed dataset
+#' @param n_cores Number of cores to use for running simulations in parallel
+fit_CA <- function(sp, samp.issue, mod.issue, p, env.rct, env.rct.unsc, lam.df, 
+                   v, m, N_init, sdd.pr, n_sim, n_cores) {
   library(here); library(tidyverse); library(gbPopMod); 
   library(MuMIn); library(lme4); library(doSNOW)
+  n.cell <- nrow(lam.df)
+  n.grid <- nrow(env.rct)
   
   # load observations
-  O_CA <- readRDS(here("vs", sp, paste0("O_CA_", sampling.issue, ".rds")))
+  O_CA <- readRDS(here("vs", sp, paste0("O_CA_", samp.issue, ".rds")))
   X.CA <- env.rct %>% rename(id.in=id.inbd) %>%
-    dplyr::select(one_of("x", "y", "x_y", "inbd", "id", "id.in", names(vars)[v.i]))
-  n_LC <- n_distinct(read_csv(here("vs", sp, "aggLC.csv"))$agg)
+    dplyr::select(one_of("x", "y", "x_y", "inbd", "id", "id.in", names(v)[-1]))
+  n_LC <- n_distinct(read.csv(paste0("data/PNAS_2017/aggLC_", 
+                                     ifelse(grepl("mustard", sp), 
+                                            "mustard.csv", "woody.csv")))$agg)
   
   # Fit CA models
   CA.f <- diagnostics <- vector("list", length(O_CA))
@@ -254,26 +349,22 @@ fit_CA <- function(sp, sampling.issue, modeling.issue, p, env.rct, env.rct.unsc,
     
     # global models
     options(na.action="na.fail")
-    full.m <- opt.m <- vars.opt <- vector("list", 5)
-    names(full.m) <- c("K", "s.M", "s.N", "p.f", "mu")
-    names(opt.m) <- names(vars.opt) <- names(full.m)
+    full.m <- opt.m <- vars.opt <- setNames(vector("list", 5), 
+                                            c("K", "s.M", "s.N", "p.f", "mu"))
     
-    full.m$K <- glmer(as.formula(paste("N ~", m, collapse="")),
+    full.m$K <- glmer(paste("N ~", m, collapse=""),
                       data=O_CA.K, family="poisson")
-    if(sum(O_CA.i$s.M.0==0)/nrow(O_CA.i) < 0.9) {
-      full.m$s.M <- glmer(as.formula(paste("cbind(s.M.1, s.M.0) ~", m, 
-                                           collapse="")), 
+    if(sum(O_CA.i$s.M.0==0)/nrow(O_CA.i) < 0.9) { # in case very low mortality
+      full.m$s.M <- glmer(paste("cbind(s.M.1, s.M.0) ~", m, collapse=""), 
                           data=O_CA.i, family="binomial")
     }
-    if(n_distinct(O_CA.i$s.N.0)>1) { # in case no mortality
-      full.m$s.N <- glmer(as.formula(paste("cbind(s.N.1, s.N.0) ~", m,
-                                            collapse="")), 
+    if(sum(O_CA.i$s.N.0==0)/nrow(O_CA.i) < 0.9) { # in case very low mortality
+      full.m$s.N <- glmer(paste("cbind(s.N.1, s.N.0) ~", m, collapse=""), 
                           data=O_CA.i, family="binomial")
     } 
-    full.m$p.f <- glmer(as.formula(paste("cbind(f.1, f.0) ~", m,
-                                         collapse="")), 
+    full.m$p.f <- glmer(paste("cbind(f.1, f.0) ~", m, collapse=""), 
                         data=O_CA.i, family="binomial")
-    full.m$mu <- glmer(as.formula(paste("mu ~", m, collapse="")), 
+    full.m$mu <- glmer(paste("mu ~", m, collapse=""), 
                        data=O_CA.i, family="poisson")
     
     # store coefficients from optimal models
@@ -305,19 +396,19 @@ fit_CA <- function(sp, sampling.issue, modeling.issue, p, env.rct, env.rct.unsc,
     p.CA$p_emig <- p$p_emig
     
     # impose issues
-    if(modeling.issue=="noSB") p.CA$s.sb <- 0
-    if(modeling.issue=="underDisp") {
+    if(mod.issue=="noSB") p.CA$s.sb <- 0
+    if(mod.issue=="underDisp") {
       p.CA <- add_misDisperse(p.CA, p, sdd_max_adj=-2, sdd_rate_adj=10, ldd=1)
       sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=env.rct.unsc, 
-                              lc.col=tail(1:ncol(env.rct.unscaled), n_LC),
+                              lc.col=tail(1:ncol(env.rct.unsc), n_LC),
                               g.p=list(sdd.max=p.CA$sdd.max, 
                                        sdd.rate=p.CA$sdd.rate, 
                                        bird.hab=p.CA$bird.hab))
     }
-    if(modeling.issue=="overDisp") {
+    if(mod.issue=="overDisp") {
       p.CA <- add_misDisperse(p.CA, p, sdd_max_adj=2, sdd_rate_adj=.1, ldd=3)
       sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=env.rct.unsc, 
-                              lc.col=tail(1:ncol(env.rct.unscaled), n_LC),
+                              lc.col=tail(1:ncol(env.rct.unsc), n_LC),
                               g.p=list(sdd.max=p.CA$sdd.max, 
                                        sdd.rate=p.CA$sdd.rate, 
                                        bird.hab=p.CA$bird.hab))
@@ -328,19 +419,12 @@ fit_CA <- function(sp, sampling.issue, modeling.issue, p, env.rct, env.rct.unsc,
     N.init[X.CA$id[X.CA$inbd], p.CA$m] <- N_init
     N.init[X.CA$id[X.CA$inbd], -p.CA$m] <- round(N_init/5)
     cat("||-- Starting simulations\n")
-    if(n_cores > 1) {
-      p.c <- makeCluster(n_cores); registerDoSNOW(p.c)
-      sim.ls <- foreach(s=1:n_sim) %dopar% {
-        gbPopMod::run_sim(n.grid, n.cell, p.CA, X.CA, sdd.pr, N.init, 
-                          NULL, F, (-1:0)+p.CA$tmax)
-      }
-      stopCluster(p.c)
-    } else {
-      for(s in 1:n_sim) {
-        sim.ls[[s]] <- run_sim(n.grid, n.cell, p.CA, X.CA, sdd.pr, N.init, 
-                               NULL, T, (-1:0)+p.CA$tmax)
-      }
+    p.c <- makeCluster(n_cores); registerDoSNOW(p.c)
+    sim.ls <- foreach(s=1:n_sim) %dopar% {
+      gbPopMod::run_sim(n.grid, n.cell, p.CA, X.CA, sdd.pr, N.init, 
+                        NULL, F, (-1:0)+p.CA$tmax)
     }
+    stopCluster(p.c)
     CA.f[[i]] <- aggregate_CAd_simulations(sim.ls, max(p.CA$m))
     diagnostics[[i]] <- list(p.CA, vars.ls)
     rm(sim.ls)
@@ -350,8 +434,6 @@ fit_CA <- function(sp, sampling.issue, modeling.issue, p, env.rct, env.rct.unsc,
   P_CAd <- lam.df %>% 
     dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
     mutate(prP=out$prP[,dim(out$prP)[2]],
-           # lam.S.f=rowMeans(out$N_ad.mn[,(-3:0)+dim(out$N_ad.mn)[2]]/
-           #                    (out$N_ad.mn[,(-4:-1)+dim(out$N_ad.mn)[2]]), na.rm=T),
            nSeed.f=out$nSd.mn[,dim(out$nSd.mn)[2]], 
            D.f=out$D.mn[,dim(out$D.mn)[2]],
            B.f=out$B.mn[,dim(out$B.mn)[2]],
@@ -360,25 +442,43 @@ fit_CA <- function(sp, sampling.issue, modeling.issue, p, env.rct, env.rct.unsc,
            Rcr.S.f=out$N_rcr.mn[,dim(out$N_rcr.mn)[2]],
            nSdStay.f=nSeed.f*(1-p.CA$p_emig), 
            nSdLeave.f=nSeed.f*p.CA$p_emig)
-  # P_CAd$lam.S.f[is.nan(P_CAd$lam.S.f)] <- NA
   
   return(list(P_CAd=P_CAd,  diag=diagnostics))
 }
 
 
 
-##-- fit IPM
-##
-fit_IPM <- function(sp, sampling.issue, modeling.issue, p, env.rct.unsc, 
-                   lam.df, vars, v.i, v, m, n_x, n_z, N_init, sdd.pr, sdd.j, 
-                   p.ij, n.cell, n_sim, n_cores) {
+##-- fit IPM & individual-based CA model
+#' Generate predicted distribution using an IPM and an individual-based CA model
+#' @param sp Virtual species
+#' @param samp.issue Issue with observed dataset
+#' @param mod.issue Issue to impose on model
+#' @param p List of true parameters
+#' @param env.rct.unsc Dataframe with raw covariates for full rectangular grid
+#' @param lam.df Dataframe with covariates, generated in 1_simulateSpecies.R
+#' @param v Variables to include in full model
+#' @param m Model formula for full model in each population-level regression
+#' @param n_z List of number of size covariates for each vital rate regression
+#' @param n_x List of number of environmental covariates for each vital rate 
+#' regression
+#' @param N_init Vector with initial population size in each cell
+#' @param sdd.pr List with short distance dispersal neighborhoods generated in
+#'   1_simulateSpecies.R
+#' @param sdd.j
+#' @param p.ij
+#' @param n_sim Number of simulations to run per observed dataset
+#' @param n_cores Number of cores to use for running simulations in parallel
+fit_IPM <- function(sp, samp.issue, mod.issue, p, env.rct.unsc, 
+                   lam.df, v, m, n_z, n_x, N_init, sdd.pr, sdd.j, 
+                   p.ij, n_sim, n_cores) {
   library(here); library(tidyverse); library(magrittr); 
   library(MuMIn); library(doSNOW)
   walk(paste0("code/fn_", c("aux", "sim", "IPM", "fit"), ".R"), ~source(here(.)))
+  n.cell <- nrow(lam.df)
   
   # load observations
-  O_IPM <- readRDS(here("vs", sp, paste0("O_IPM_", sampling.issue, ".rds")))
-  X.IPM <- map(n_x, ~as.matrix(lam.df[,names(lam.df) %in% names(vars)[v.i]]))
+  O_IPM <- readRDS(here("vs", sp, paste0("O_IPM_", samp.issue, ".rds")))
+  X.IPM <- map(n_x, ~as.matrix(lam.df[,names(lam.df) %in% names(v)[-(1:n_z$s)]]))
   
   # Fit IPM models
   S.f <- U.f <- diagnostics <- vector("list", length(O_IPM))
@@ -391,14 +491,13 @@ fit_IPM <- function(sp, sampling.issue, modeling.issue, p, env.rct.unsc,
     
     # full models
     options(na.action="na.fail")
-    full.m <- list(s=glm(as.formula(paste("surv ~", m, collapse="")), 
-                         data=O_IPM.i.s, family="binomial"),
-                   g=lm(as.formula(paste("sizeNext ~", m, collapse="")), 
-                        data=O_IPM.i.g),
-                   fl=glm(as.formula(paste("fl ~", m, collapse="")), 
-                          data=O_IPM.i.fl, family="binomial"),
-                   seed=glm(as.formula(paste("seed ~", m, collapse="")), 
-                            data=O_IPM.i.seed, family="poisson"))
+    full.m <- list(s=glm(paste("surv ~", m, collapse=""), data=O_IPM.i.s, 
+                         family="binomial"),
+                   g=lm(paste("sizeNext ~", m, collapse=""), data=O_IPM.i.g),
+                   fl=glm(paste("fl ~", m, collapse=""), data=O_IPM.i.fl, 
+                          family="binomial"),
+                   seed=glm(paste("seed ~", m, collapse=""), data=O_IPM.i.seed, 
+                            family="poisson"))
     
     # store coefficients from optimal models
     opt.m <- map(full.m, ~get.models(dredge(., m.lim=c(1,6)), subset=1)[[1]])
@@ -423,26 +522,30 @@ fit_IPM <- function(sp, sampling.issue, modeling.issue, p, env.rct.unsc,
       summarise(mn=mean(sizeNext), sd=sd(sizeNext)) %>% unlist
     
     # impose issues
-    if(modeling.issue=="noSB") p.IPM$s_SB <- 0
-    if(modeling.issue=="underDisp") {
+    if(mod.issue=="noSB") p.IPM$s_SB <- 0
+    if(mod.issue=="underDisp") {
       p.IPM <- add_misDisperse(p.IPM, p, sdd_max_adj=-2, sdd_rate_adj=10, ldd=1)
       sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=env.rct.unsc, lc.col=8:12,
                               g.p=list(sdd.max=p.IPM$sdd.max, 
                                        sdd.rate=p.IPM$sdd.rate, 
                                        bird.hab=p$bird_hab))
-      sdd.j <- lapply(1:n.cell, function(x) which(sdd.pr$i[,,2,]==lam.df$id[x], 
-                                                  arr.ind=T)) 
-      p.ij <- lapply(1:n.cell, function(x) sdd.pr$i[,,1,][sdd.j[[x]]]) 
+      sdd.df <- data.frame(i=rep(1:n.cell, times=map_int(sdd.pr$sp, length)),
+                           j=unlist(map(sdd.pr$sp, ~as.numeric(names(.)))),
+                           pr=unlist(sdd.pr$sp))
+      sdd.j <- map(lam.df$id, ~sdd.df$i[sdd.df$j==.])
+      p.ij <- map(lam.df$id, ~sdd.df$pr[sdd.df$j==.])
     }
-    if(modeling.issue=="overDisp") {
+    if(mod.issue=="overDisp") {
       p.IPM <- add_misDisperse(p.IPM, p, sdd_max_adj=2, sdd_rate_adj=.1, ldd=5)
       sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=env.rct.unsc, lc.col=8:12,
                               g.p=list(sdd.max=p.IPM$sdd.max, 
                                        sdd.rate=p.IPM$sdd.rate, 
                                        bird.hab=p$bird_hab))
-      sdd.j <- lapply(1:n.cell, function(x) which(sdd.pr$i[,,2,]==lam.df$id[x], 
-                                                  arr.ind=T)) 
-      p.ij <- lapply(1:n.cell, function(x) sdd.pr$i[,,1,][sdd.j[[x]]]) 
+      sdd.df <- data.frame(i=rep(1:n.cell, times=map_int(sdd.pr$sp, length)),
+                           j=unlist(map(sdd.pr$sp, ~as.numeric(names(.)))),
+                           pr=unlist(sdd.pr$sp))
+      sdd.j <- map(lam.df$id, ~sdd.df$i[sdd.df$j==.])
+      p.ij <- map(lam.df$id, ~sdd.df$pr[sdd.df$j==.])
     }
     
     # use estimated slopes to fill IPM matrix
@@ -458,14 +561,14 @@ fit_IPM <- function(sp, sampling.issue, modeling.issue, p, env.rct.unsc,
       sim.ls <- foreach(s=1:n_sim, .packages=c("purrr", "here")) %dopar% {
         walk(paste0("code/fn_", c("aux", "sim", "IPM", "fit"), ".R"), ~source(here(.)))
         simulate_data(n.cell, U.f[[i]]$lo, U.f[[i]]$hi, p.IPM, X.IPM, n_z, 
-                      sdd.pr$i, sdd.j, N_init, save_yrs=p$tmax)
+                      sdd.pr$i, sdd.j, N_init, save_yrs=p.IPM$tmax)
       }
       stopCluster(p.c)
     } else {
       for(s in 1:n_sim) {
         sim.ls[[s]] <- simulate_data(n.cell, U.f[[i]]$lo, U.f[[i]]$hi, p.IPM, 
                                      X.IPM, n_z, sdd.pr$i, sdd.j, N_init, 
-                                     save_yrs=p$tmax, TRUE)
+                                     save_yrs=p.IPM$tmax, TRUE)
         cat("\n||-- Finished simulation", s, "\n")
       }
     }
@@ -479,12 +582,11 @@ fit_IPM <- function(sp, sampling.issue, modeling.issue, p, env.rct.unsc,
   P_CAi <- lam.df %>% 
     dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
     mutate(prP=out$Sf$prP,
-           lam.S.f=rowMeans(out$Sf$N_surv.mn[,(-3:0)+p.IPM$tmax]/
-                              (out$Sf$N_surv.mn[,(-4:-1)+p.IPM$tmax]+0.0001)),
-           nSeed.f=out$Sf$nSd.mn[,p.IPM$tmax], 
-           D.f=out$Sf$D.mn[,p.IPM$tmax],
-           B0.f=out$Sf$B.mn[,1], 
-           Btmax.f=out$Sf$B.mn[,p.IPM$tmax+1],
+           # lam.S.f=rowMeans(out$Sf$N_surv.mn[,(-3:0)+p.IPM$tmax]/
+           #                    (out$Sf$N_surv.mn[,(-4:-1)+p.IPM$tmax]+0.0001)),
+           nSeed.f=out$Sf$nSd.mn[,dim(out$Sf$nSd.mn)[2]], 
+           D.f=out$Sf$D.mn[,dim(out$Sf$D.mn)[2]],
+           B.f=out$Sf$B.mn[,dim(out$Sf$B.mn)[2]],
            N.S.f=out$Sf$N_tot.mn, 
            Surv.S.f=out$Sf$N_surv.mn, 
            Rcr.S.f=out$Sf$N_rcr.mn,
