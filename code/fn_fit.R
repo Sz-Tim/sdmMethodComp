@@ -557,7 +557,7 @@ fit_IPM <- function(sp, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v, m,
     sim.ls <- vector("list", n_sim)
     cat("||-- Starting simulations\n")
     p.c <- makeCluster(n_cores); registerDoSNOW(p.c)
-    sim.ls <- foreach(s=1:n_sim, .packages="here") %dopar% {
+    sim.ls <- foreach(s=1:n_sim, .packages=c("here", "tidyverse")) %dopar% {
       walk(paste0("code/fn_", c("aux", "sim", "IPM", "fit"), ".R"), ~source(here(.)))
       simulate_data(n.cell, U.f[[i]]$lo, U.f[[i]]$hi, p.IPM, X.IPM, n_z, 
                     sdd.ji, p.ji, N_init, save_yrs=p.IPM$tmax)
