@@ -46,7 +46,7 @@ foreach(i=seq_along(issue_i$Issue), .packages=pkgs) %dopar% {
   mod_iss <- issue_i$Modeling[i]
   
   # set model details
-  v <- m <- n <- list(CA=NULL, IPM=NULL)
+  v <- m <- list(CA=NULL, IPM=NULL)
   v.size <- grep("size", names(vars))
   if(mod_iss=="clim") {
     v.i <- grep("bio10", names(vars))
@@ -60,29 +60,28 @@ foreach(i=seq_along(issue_i$Issue), .packages=pkgs) %dopar% {
   m$CA <- paste(c(names(v$CA)[-1], "(1|yr)"), collapse=" + ")
   v$IPM <- vars[c(1, v.size, v.i)]
   m$IPM <- paste(names(v$IPM)[-1], collapse=" + ")
-  n$IPM$z <- rep(list(1+length(v.size)), 4)  # adds intercept
-  n$IPM$x <- rep(list(length(v.i)), 4)
-  names(n$IPM$z) <- names(n$IPM$x) <- c("s", "g", "fl", "seed")
+  n_z <- rep(list(1+length(v.size)), 4)  # adds intercept
+  n_x <- rep(list(length(v.i)), 4)
+  names(n_z) <- names(n_x) <- c("s", "g", "fl", "seed")
   
   # fit MaxEnt
-  if(issue %in% issue_i$Issue[c(1:4,8:9)]) {
-    P_MxE <- fit_MxE(sp, issue, samp_iss, lam.df, v$Mx)
-    if(overwrite) {
-      saveRDS(P_MxE$diag, here("out", sp, paste0("Diag_MxE_", issue, ".rds")))
-      saveRDS(P_MxE$P_MxE, here("out", sp, paste0("P_MxE_", issue, ".rds")))
-    }
-  }
+  # if(issue %in% issue_i$Issue[c(1:4,8:9)]) {
+  #   P_MxE <- fit_MxE(sp, issue, samp_iss, lam.df, v$Mx)
+  #   if(overwrite) {
+  #     saveRDS(P_MxE$diag, here("out", sp, paste0("Diag_MxE_", issue, ".rds")))
+  #     saveRDS(P_MxE$P_MxE, here("out", sp, paste0("P_MxE_", issue, ".rds")))
+  #   }
+  # }
   # fit CA-demographic
-  P_CA <- fit_CA(sp, samp_iss, mod_iss, p, env.rct, env.rct.unsc, lam.df, vars,
-                 v.i, v$CA, m$CA, N_init, sdd.pr, n.cell, n.grid, n_sim, n_core_sim)
+  P_CA <- fit_CA(sp, samp_iss, mod_iss, p, env.rct, env.rct.unsc, lam.df, 
+                 v$CA, m$CA, N_init, sdd.pr, n_sim, n_core_sim)
   if(overwrite) {
     saveRDS(P_CA$diag_CAd, here("out", sp, paste0("Diag_CAd_", issue, ".rds")))
     saveRDS(P_CA$P_CAd, here("out", sp, paste0("P_CAd_", issue, ".rds")))
   }
   # fit IPM, CA-individual
-  P_IPM <- fit_IPM(sp, samp_iss, mod_iss, p, env.rct.unsc, lam.df, vars, v.i,
-                   v$IPM, m$IPM, n$IPM$x, n$IPM$z, N_init, sdd.pr, sdd.j, p.ij,
-                   n.cell, n_sim, n_core_sim)
+  P_IPM <- fit_IPM(sp, samp_iss, mod_iss, p, env.rct.unsc, lam.df, v$IPM, m$IPM, 
+                   n_z, n_x, N_init, sdd.pr, sdd.j, p.ij, n_sim, n_core_sim)
   if(overwrite) {
     saveRDS(P_IPM$diag, here("out", sp, paste0("Diag_IPM_", issue, ".rds")))
     saveRDS(P_IPM$P_CAi, here("out", sp, paste0("P_CAi_", issue, ".rds")))
