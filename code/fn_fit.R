@@ -352,19 +352,19 @@ fit_CA <- function(sp, samp.issue, mod.issue, p, env.rct, env.rct.unsc, lam.df,
     full.m <- opt.m <- vars.opt <- setNames(vector("list", 5), 
                                             c("K", "s.M", "s.N", "p.f", "mu"))
     
-    full.m$K <- glmer(paste("N ~", m, collapse=""),
+    full.m$K <- glmer(as.formula(paste("N ~", m, collapse="")),
                       data=O_CA.K, family="poisson")
     if(sum(O_CA.i$s.M.0==0)/nrow(O_CA.i) < 0.9) { # in case very low mortality
-      full.m$s.M <- glmer(paste("cbind(s.M.1, s.M.0) ~", m, collapse=""), 
+      full.m$s.M <- glmer(as.formula(paste("cbind(s.M.1, s.M.0) ~", m, collapse="")), 
                           data=O_CA.i, family="binomial")
     }
     if(sum(O_CA.i$s.N.0==0)/nrow(O_CA.i) < 0.9) { # in case very low mortality
-      full.m$s.N <- glmer(paste("cbind(s.N.1, s.N.0) ~", m, collapse=""), 
+      full.m$s.N <- glmer(as.formula(paste("cbind(s.N.1, s.N.0) ~", m, collapse="")), 
                           data=O_CA.i, family="binomial")
     } 
-    full.m$p.f <- glmer(paste("cbind(f.1, f.0) ~", m, collapse=""), 
+    full.m$p.f <- glmer(as.formula(paste("cbind(f.1, f.0) ~", m, collapse="")), 
                         data=O_CA.i, family="binomial")
-    full.m$mu <- glmer(paste("mu ~", m, collapse=""), 
+    full.m$mu <- glmer(as.formula(paste("mu ~", m, collapse="")), 
                        data=O_CA.i, family="poisson")
     
     # store coefficients from optimal models
@@ -491,13 +491,14 @@ fit_IPM <- function(sp, samp.issue, mod.issue, p, env.rct.unsc,
     
     # full models
     options(na.action="na.fail")
-    full.m <- list(s=glm(paste("surv ~", m, collapse=""), data=O_IPM.i.s, 
-                         family="binomial"),
-                   g=lm(paste("sizeNext ~", m, collapse=""), data=O_IPM.i.g),
-                   fl=glm(paste("fl ~", m, collapse=""), data=O_IPM.i.fl, 
-                          family="binomial"),
-                   seed=glm(paste("seed ~", m, collapse=""), data=O_IPM.i.seed, 
-                            family="poisson"))
+    full.m <- list(s=glm(as.formula(paste("surv ~", m, collapse="")), 
+                         data=O_IPM.i.s, family="binomial"),
+                   g=lm(as.formula(paste("sizeNext ~", m, collapse="")), 
+                        data=O_IPM.i.g),
+                   fl=glm(as.formula(paste("fl ~", m, collapse="")), 
+                          data=O_IPM.i.fl, family="binomial"),
+                   seed=glm(as.formula(paste("seed ~", m, collapse="")), 
+                            data=O_IPM.i.seed, family="poisson"))
     
     # store coefficients from optimal models
     opt.m <- map(full.m, ~get.models(dredge(., m.lim=c(1,6)), subset=1)[[1]])
