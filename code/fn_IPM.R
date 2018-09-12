@@ -136,7 +136,7 @@ calc_rcrSB <- function(z1, p) {
 
 
 ##-- Add to seedbank
-##   B(z) ~ P(fl) * nSeeds * (1-P(rcrDir)) * P(s.SB)
+##   B(z) ~ P(fl) * nSeeds * (1-P(rcrDir)) 
 #' Calculate addition to seed bank based on size & environment
 #' @param z.v Vector of current population sizes
 #' @param p List of parameters
@@ -149,8 +149,7 @@ calc_addSB <- function(z.v, p, n_seedz, n_flz, X.seed, X.fl) {
   z <- z_pow(z.v, n_seedz)
   calc_flwr(z.v, p, n_flz, X.fl) *
     calc_seeds(z.v, p, n_seedz, X.seed) *
-    (1 - p$rcr_dir) *
-    p$s_SB
+    (1 - p$rcr_dir)
 }
 
 
