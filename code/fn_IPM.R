@@ -253,8 +253,8 @@ fill_F <- function(h, y, z.i, p, n_z, n_x, X_fl, X_seed, X_germ=NULL) {
 #' @param n_z List of number of size covariates for each vital rate regression
 #' @param n_x List of number of environmental covariates for each vital rate regression
 #' @param X List of covariates, with elements \code{.$s, .$g, .$fl, .$seed}
-#' @param sdd.j Short distance dispersal immigrant neighborhoods TO each cell j
-#' @param p.ij Dispersal probabilities TO each target cell j
+#' @param sdd.ji Short distance dispersal immigrant neighborhoods TO each cell j
+#' @param p.ji Dispersal probabilities TO each target cell j
 #' @param verbose \code{FALSE} Give status updates?
 #' @return List of IPMs = IPM matrix for each cell, Ps = P matrix for each cell,
 #' Fs = F matrix for each cell, lo = minimum allowable size, hi = maximum 
@@ -262,7 +262,7 @@ fill_F <- function(h, y, z.i, p, n_z, n_x, X_fl, X_seed, X_germ=NULL) {
 #' matrix step size, sdd.j = Short distance dispersal immigrant neighborhoods to 
 #' each cell (perspective is the dispersal TO each target cell j)
 fill_IPM_matrices <- function(n.cell, buffer, discrete, p, n_z, n_x, 
-                              X, sdd.j, p.ij, verbose=F) {
+                              X, sdd.ji, p.ji, verbose=F) {
   library(tidyverse)
   i <- 1:n.cell
   
@@ -290,14 +290,14 @@ fill_IPM_matrices <- function(n.cell, buffer, discrete, p, n_z, n_x,
     #   local seeds = Fs[1,z,i]
     #   immigrant seeds = Fb[1,z,j_to_i] * p_emig * pr(j_to_i)
     Fs[1,z.i,] <- vapply(i, function(x) Fs[1,z.i,x] + 
-                           Fb[1,z.i,sdd.j[[x]]] %*% 
-                           as.matrix(p$p_emig*p.ij[[x]]),
+                           Fb[1,z.i,sdd.ji[[x]]] %*% 
+                           as.matrix(p$p_emig*p.ji[[x]]),
                          Fs[1,z.i,1])
     # direct recruits: F[z,z,i]
     #   local seedlings = Fs[z,z,i]
     #   immigrant seeds -> seedlings = Fb[z,z,j_to_i] * p_emig * pr(j_to_i)
     Fs[z.i,z.i,] <- vapply(i, function (x) Fs[z.i,z.i,x] + 
-                             Reduce(`+`, map2(sdd.j[[x]], p$p_emig*p.ij[[x]], 
+                             Reduce(`+`, map2(sdd.ji[[x]], p$p_emig*p.ji[[x]], 
                                               ~(Fb[z.i,z.i,.x] * .y))),
                            Fs[z.i,z.i,1])
   }
