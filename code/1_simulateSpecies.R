@@ -72,12 +72,11 @@ sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=L$env.rct.unscaled,
                         g.p=list(sdd.max=p$sdd_max,
                                  sdd.rate=p$sdd_rate,
                                  bird.hab=p$bird_hab))
-p.c <- makeCluster(n.cores); registerDoSNOW(p.c)
-sdd.j <- foreach(x=1:n.cell) %dopar% {
-  which(sdd.pr$i[,,2,]==L$env.in$id[x], arr.ind=T)
-}
-p.ij <- foreach(x=1:n.cell) %dopar% { sdd.pr$i[,,1,][sdd.j[[x]]] }
-stopCluster(p.c)
+sdd.df <- data.frame(i=rep(1:n.cell, times=map_int(sdd.pr$sp, length)),
+                     j=unlist(map(sdd.pr$sp, ~as.numeric(names(.)))),
+                     pr=unlist(sdd.pr$sp))
+sdd.j <- map(L$env.in$id, ~sdd.df$i[sdd.df$j==.])
+p.ij <- map(L$env.in$id, ~sdd.df$pr[sdd.df$j==.])
 # NOTE: sdd.pr[,,2,] indexes based on `id` (id for each cell in grid) instead  
 # of `id.inbd` (id for inbound cells only), but sdd.pr[,,,i] includes only
 # inbound cells, so the layer index aligns with `id.inbd`. This makes 
@@ -146,10 +145,10 @@ lam.gg + geom_tile(aes(fill=log(nSdStay+round(D)))) + labs(subtitle="log(Propagu
 lam.gg + geom_tile(aes(fill=log(B))) + labs(subtitle="log(Seed bank)") +
   geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
 lam.gg + geom_tile(aes(fill=lambda>1)) +  labs(subtitle="lambda > 1") +
-  scale_fill_manual("lam > 1", values=c("gray30", "dodgerblue")) +
+  scale_fill_manual("", values=c("gray30", "dodgerblue")) +
   geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
 lam.gg + geom_tile(aes(fill=Surv.S>0)) + labs(subtitle="N > 0") +
-  scale_fill_manual("lam > 1", values=c("gray30", "dodgerblue")) +
+  scale_fill_manual("", values=c("gray30", "dodgerblue")) +
   geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
 lam.gg + geom_tile(aes(fill=s)) + labs(subtitle="s: mean(z.rng)/2") +
   geom_point(data=lam.df[N_init>0,], colour="white", shape=1)

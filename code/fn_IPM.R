@@ -290,14 +290,14 @@ fill_IPM_matrices <- function(n.cell, buffer, discrete, p, n_z, n_x,
     #   local seeds = Fs[1,z,i]
     #   immigrant seeds = Fb[1,z,j_to_i] * p_emig * pr(j_to_i)
     Fs[1,z.i,] <- vapply(i, function(x) Fs[1,z.i,x] + 
-                           Fb[1,z.i,sdd.j[[x]][,3]] %*% 
+                           Fb[1,z.i,sdd.j[[x]]] %*% 
                            as.matrix(p$p_emig*p.ij[[x]]),
                          Fs[1,z.i,1])
     # direct recruits: F[z,z,i]
     #   local seedlings = Fs[z,z,i]
     #   immigrant seeds -> seedlings = Fb[z,z,j_to_i] * p_emig * pr(j_to_i)
     Fs[z.i,z.i,] <- vapply(i, function (x) Fs[z.i,z.i,x] + 
-                             Reduce(`+`, map2(sdd.j[[x]][,3], p$p_emig*p.ij[[x]], 
+                             Reduce(`+`, map2(sdd.j[[x]], p$p_emig*p.ij[[x]], 
                                               ~(Fb[z.i,z.i,.x] * .y))),
                            Fs[z.i,z.i,1])
   }
