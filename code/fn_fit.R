@@ -399,7 +399,7 @@ fit_CA <- function(sp, samp.issue, mod.issue, p, env.rct, env.rct.unsc, lam.df,
     # impose issues
     if(mod.issue=="noSB") p.CA$s.sb <- 0
     if(mod.issue=="underDisp") {
-      p.CA <- add_misDisperse(p.CA, p, sdd_max_adj=-2, sdd_rate_adj=10, ldd=1)
+      p.CA <- add_misDisperse(p.CA, p, sdd_max_adj=-2, sdd_rate_adj=2, ldd=0)
       sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=env.rct.unsc, 
                               lc.col=tail(1:ncol(env.rct.unsc), n_LC),
                               g.p=list(sdd.max=p.CA$sdd.max, 
@@ -407,7 +407,7 @@ fit_CA <- function(sp, samp.issue, mod.issue, p, env.rct, env.rct.unsc, lam.df,
                                        bird.hab=p.CA$bird.hab))
     }
     if(mod.issue=="overDisp") {
-      p.CA <- add_misDisperse(p.CA, p, sdd_max_adj=2, sdd_rate_adj=.1, ldd=3)
+      p.CA <- add_misDisperse(p.CA, p, sdd_max_adj=2, sdd_rate_adj=.5, ldd=5)
       sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=env.rct.unsc, 
                               lc.col=tail(1:ncol(env.rct.unsc), n_LC),
                               g.p=list(sdd.max=p.CA$sdd.max, 
@@ -526,7 +526,7 @@ fit_IPM <- function(sp, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v, m,
     # impose issues
     if(mod.issue=="noSB") p.IPM$s_SB <- 0
     if(mod.issue=="underDisp") {
-      p.IPM <- add_misDisperse(p.IPM, p, sdd_max_adj=-2, sdd_rate_adj=10, ldd=1)
+      p.IPM <- add_misDisperse(p.IPM, p, sdd_max_adj=-2, sdd_rate_adj=2, ldd=0)
       sp.df <- sdd_set_probs(ncell=n.cell, lc.df=env.rct.unsc, lc.col=8:12,
                               g.p=list(sdd.max=p.IPM$sdd.max, 
                                        sdd.rate=p.IPM$sdd.rate, 
@@ -536,7 +536,7 @@ fit_IPM <- function(sp, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v, m,
       p.ji <- lapply(sdd.ji.rows, function(x) sp.df$pr[x]) 
     }
     if(mod.issue=="overDisp") {
-      p.IPM <- add_misDisperse(p.IPM, p, sdd_max_adj=2, sdd_rate_adj=.1, ldd=5)
+      p.IPM <- add_misDisperse(p.IPM, p, sdd_max_adj=2, sdd_rate_adj=.5, ldd=5)
       sp.df <- sdd_set_probs(ncell=n.cell, lc.df=env.rct.unsc, lc.col=8:12,
                               g.p=list(sdd.max=p.IPM$sdd.max, 
                                        sdd.rate=p.IPM$sdd.rate, 
@@ -552,7 +552,6 @@ fit_IPM <- function(sp, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v, m,
                                   n_x, X.IPM, sdd.ji, p.ji)
     
     # use estimated slopes to generate simulated data
-    sim.ls <- vector("list", n_sim)
     cat("||-- Starting simulations\n")
     p.c <- makeCluster(n_cores); registerDoSNOW(p.c)
     sim.ls <- foreach(s=1:n_sim, .packages=c("here", "tidyverse")) %dopar% {
