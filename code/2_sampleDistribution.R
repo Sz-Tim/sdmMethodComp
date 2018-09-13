@@ -30,13 +30,13 @@ n.cell <- nrow(env.in)
 ########
 ## Set sampling details
 ########
-n_samp <- 5  # number of unique samples to average across
-O_n <- list(Corr=50, Mech=25)  # number of cells in sample
+n_samp <- 25  # number of unique samples to average across
+O_n <- list(Corr=50, Mech=20)  # number of cells in sample
 O_yr <- list(Mx=p$tmax, CA=(-2:0)+p$tmax, IPM=p$tmax)  # years to sample
 P.i <- which(lam.df$Surv.S > 5)  # presences: survival past recruit stage
 P.pr <- rep(1, length(P.i))  # pr(sample cell | presence)
 prop.sampled <- 1  # proportion of individuals sampled per sampled cell 
-geog.excl <- which(env.in$x < 20)
+geog.excl <- which(env.in$y < (max(env.in$y)-diff(range(env.in$y)*0.2)))
 noise <- list(Mx=0.2, # proportion of observed presences that are false
               CA=list(N=0.02,  # N.obs = rnorm(N.true, N.true*N)
                       mu=0.05),  # fec.obs = rnorm(fec.true, fec.true*fec)
