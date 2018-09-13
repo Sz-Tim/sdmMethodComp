@@ -22,7 +22,7 @@ i_P <- extract_SDM_details(f_P)
 out <- map2(f_P, i_P, ~readRDS(.x) %>% mutate(SDM=.y[1], issue=.y[2])) %>%
   do.call(bind_rows, .) %>%
   full_join(dplyr::select(lam.df, -one_of("x", "y", "x_y", "inbd", "lat", "lon", "id")), 
-            ., by="id.inbd") %>%
+            ., by="id.in") %>%
   mutate(fate_S=case_when(Surv.S>0 & prP>=0.5 ~ "S:1 P:1",
                           Surv.S==0 & prP>=0.5 ~ "S:0 P:1",
                           Surv.S>0 & prP<0.5 ~ "S:1 P:0",

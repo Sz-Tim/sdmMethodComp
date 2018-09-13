@@ -37,7 +37,7 @@ P.i <- which(lam.df$Surv.S > 5)  # presences: survival past recruit stage
 P.pr <- rep(1, length(P.i))  # pr(sample cell | presence)
 prop.sampled <- 1  # proportion of individuals sampled per sampled cell 
 geog.excl <- which(env.in$y < (max(env.in$y)-diff(range(env.in$y)*0.2)))
-noise <- list(Mx=0.2, # proportion of observed presences that are false
+noise <- list(Mx=0.05, # proportion of observed presences that are false
               CA=list(N=0.02,  # N.obs = rnorm(N.true, N.true*N)
                       mu=0.05),  # fec.obs = rnorm(fec.true, fec.true*fec)
               IPM=list(g=0.1,  # sizeNext.obs = rnorm(SizeNext.true, g) 

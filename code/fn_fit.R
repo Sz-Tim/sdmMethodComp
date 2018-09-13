@@ -48,8 +48,8 @@ sample_for_CA <- function(S, Mech.sample, O_yr, prop.sampled) {
         mutate(mu=ifelse(is.nan(mu), 0, mu)) %>%
         ungroup() %>%
         mutate(lambda=N/lag(N,1)) %>%
-        add_column(id.inbd=i) %>%
-        full_join(env.in[i,], by="id.inbd")
+        add_column(id.in=i) %>%
+        full_join(env.in[i,], by="id.in")
       CA.B[[j]] <- S$B[i,tail(1:dim(S$B)[2], length(O_yr$CA))]
       CA.D[[j]] <- S$D[i,tail(1:dim(S$B)[2], length(O_yr$CA))]
     }
@@ -82,8 +82,8 @@ sample_for_IPM <- function(S, Mech.sample, O_yr, prop.sampled) {
       i <- Mech.sample[[s]][j]
       IPM.d[[j]] <- data.frame(S$d[[i]]) %>% filter(yr %in% O_yr$IPM) %>%
         mutate(size2=size^2, size3=size^3) %>%
-        add_column(id.inbd=i) %>%
-        full_join(env.in[i,], by="id.inbd")
+        add_column(id.in=i) %>%
+        full_join(env.in[i,], by="id.in")
       IPM.d[[j]] <- sample_frac(IPM.d[[j]], prop.sampled)
     }
     O_IPM[[s]] <- do.call(rbind, IPM.d)
@@ -252,7 +252,7 @@ fit_MxE <- function(sp, issue, samp.issue, lam.df, v) {
   names(MxE.p) <- 1:length(MxE.p)
   MxE.p.data <- map_dfr(MxE.p, ~.@data@values) %>% as.matrix
   P_MxE <- lam.df %>% 
-    dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>%
+    dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.in") %>%
     mutate(prP=apply(na.omit(MxE.p.data), 1, mean),
            prP.sd=apply(na.omit(MxE.p.data), 1, sd))
   diagnostics <- NULL
@@ -297,7 +297,7 @@ fit_MxL <- function(sp, issue, samp.issue, lam.df, v, m) {
   MxL.p.data <- map_dfr(MxL.p, ~.@data@values) %>% as.matrix
   MxL.PA <- do.call("cbind", MxL.PA)
   P_MxL <- lam.df %>% 
-    dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>%
+    dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.in") %>%
     mutate(prP=apply(MxL.PA[lam.df$id,], 1, mean),
            prP_raw=apply(MxL.p.data[lam.df$id,], 1, mean),
            prP.sd=apply(MxL.p.data[lam.df$id,], 1, sd))
@@ -335,7 +335,7 @@ fit_CA <- function(sp, samp.issue, mod.issue, p, env.rct, env.rct.unsc, lam.df,
   
   # load observations
   O_CA <- readRDS(here("vs", sp, paste0("O_CA_", samp.issue, ".rds")))
-  X.CA <- env.rct %>% rename(id.in=id.inbd) %>%
+  X.CA <- env.rct %>% rename(id.in=id.in) %>%
     dplyr::select(one_of("x", "y", "x_y", "inbd", "id", "id.in", names(v)[-1]))
   n_LC <- n_distinct(read.csv(paste0("data/PNAS_2017/aggLC_", 
                                      ifelse(grepl("mustard", sp), 
@@ -433,7 +433,7 @@ fit_CA <- function(sp, samp.issue, mod.issue, p, env.rct, env.rct.unsc, lam.df,
   }
   out <- summarize_CAd_samples(CA.f, lam.df$id)
   P_CAd <- lam.df %>% 
-    dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
+    dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.in") %>% 
     mutate(prP=out$prP[,dim(out$prP)[2]],
            nSeed.f=out$nSd.mn[,dim(out$nSd.mn)[2]], 
            D.f=out$D.mn[,dim(out$D.mn)[2]],
@@ -568,7 +568,7 @@ fit_IPM <- function(sp, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v, m,
   out <- summarize_IPM_CAi_samples(U.f, S.f)
   
   P_CAi <- lam.df %>% 
-    dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
+    dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.in") %>% 
     mutate(prP=out$Sf$prP,
            # lam.S.f=rowMeans(out$Sf$N_surv.mn[,(-3:0)+p.IPM$tmax]/
            #                    (out$Sf$N_surv.mn[,(-4:-1)+p.IPM$tmax]+0.0001)),
@@ -581,7 +581,7 @@ fit_IPM <- function(sp, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v, m,
            nSdStay.f=nSeed.f*(1-p.IPM$p_emig), 
            nSdLeave.f=nSeed.f*p.IPM$p_emig)
   P_IPM <- lam.df %>% 
-    dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.inbd") %>% 
+    dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.in") %>% 
     mutate(prP=out$Uf$prP,
            lambda.f=out$Uf$lam.mn)
   
