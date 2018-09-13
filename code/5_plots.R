@@ -14,6 +14,7 @@ sp <- "sp1"
 pkgs <- c("tidyverse", "magrittr", "stringr", "here", "viridis")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
 walk(paste0("code/fn_", c("IPM", "aux", "sim"), ".R"), ~source(here(.)))
+theme_set(theme_bw())
 lam.df <- readRDS(here("vs", sp, "lam_df.rds"))
 out <- read.csv(here("out", sp, "out.csv"))
 out$issue <- factor(out$issue, 
@@ -34,7 +35,6 @@ plot(lam.df$Evg, log(lam.df$lambda), col=rgb(0,0,0,0.75))
 plot(lam.df$Mxd, log(lam.df$lambda), col=rgb(0,0,0,0.75))
 hist(log(lam.df$lambda))
 
-theme_set(theme_bw())
 ggplot(out, aes(x=lon, y=lat, fill=lambda>1)) + geom_tile() + ggtitle(sp)
 ggplot(out, aes(x=lon, y=lat, fill=lambda)) + geom_tile() + ggtitle(sp) +
   scale_fill_viridis(option="B")
@@ -52,14 +52,16 @@ ggplot(out, aes(fill=fate_lam, x=issue)) + geom_bar(position="fill") +
   facet_wrap(~SDM) + scale_fill_brewer(name="", type="div") + 
   ylab("Proportion of cells") + coord_flip() + ggtitle(sp)
 ggplot(out, aes(x=lon, y=lat, fill=fate_lam)) +
-  geom_tile() + facet_grid(SDM~issue) + scale_fill_brewer(name="", type="div") +
+  geom_tile() + facet_grid(SDM~issue) + 
+  scale_fill_brewer(name="Boundary:\nlambda ≥ 1", type="div") +
   theme(axis.text=element_blank()) + ggtitle(sp)
 ggplot(out, aes(x=lon, y=lat, fill=fate_S)) +
-  geom_tile() + facet_grid(SDM~issue) + scale_fill_brewer(name="", type="div") +
+  geom_tile() + facet_grid(SDM~issue) + 
+  scale_fill_brewer(name="Boundary:\nN > 0", type="div") +
   theme(axis.text=element_blank()) + ggtitle(sp)
 ggplot(out, aes(x=lon, y=lat, fill=prP)) +
   geom_tile() + facet_grid(SDM~issue) + 
-  scale_fill_viridis(option="B") +
+  scale_fill_viridis("prob(P)", option="B") +
   theme(axis.text=element_blank()) + ggtitle(sp)
 ggplot(out, aes(x=lon, y=lat, fill=prP>0.5)) +
   geom_tile() + facet_grid(SDM~issue) + 
@@ -69,15 +71,19 @@ ggplot(out, aes(x=lon, y=lat, fill=lambda.f>=1)) +
   theme(axis.text=element_blank())
 ggplot(out, aes(x=lon, y=lat, fill=log(Surv.S.f))) +
   geom_tile() + facet_grid(SDM~issue) + 
-  scale_fill_viridis(option="B") +
+  scale_fill_viridis("log(N)", option="B") +
   theme(axis.text=element_blank())
 ggplot(out, aes(x=lon, y=lat, fill=log(B.f))) +
   geom_tile() + facet_grid(SDM~issue) + 
-  scale_fill_viridis(option="B") +
+  scale_fill_viridis("log(B)", option="B") +
   theme(axis.text=element_blank())
 ggplot(out, aes(x=lon, y=lat, fill=log(D.f))) +
   geom_tile() + facet_grid(SDM~issue) + 
-  scale_fill_viridis(option="B") +
+  scale_fill_viridis("log(D)", option="B") +
+  theme(axis.text=element_blank())
+ggplot(out, aes(x=lon, y=lat, fill=log(nSdStay.f + nSdLeave.f))) +
+  geom_tile() + facet_grid(SDM~issue) + 
+  scale_fill_viridis("log(Sd)", option="B") +
   theme(axis.text=element_blank())
 
 lam.sum <- out %>% group_by(SDM, issue, fate_lam) %>%
@@ -88,24 +94,24 @@ lam.sum <- out %>% group_by(SDM, issue, fate_lam) %>%
                             fate_lam=="S:1 P:1" ~ ct/sum(lam.df$lambda>=1)))
 S.sum <- out %>% group_by(SDM, issue, fate_S) %>%
   summarise(ct=n()) %>%
-  mutate(rate=case_when(fate_S=="S:0 P:0" ~ ct/sum(lam.df$lambda<1),
-                            fate_S=="S:0 P:1" ~ ct/sum(lam.df$lambda<1),
-                            fate_S=="S:1 P:0" ~ ct/sum(lam.df$lambda>=1),
-                            fate_S=="S:1 P:1" ~ ct/sum(lam.df$lambda>=1)))
+  mutate(rate=case_when(fate_S=="S:0 P:0" ~ ct/sum(lam.df$Surv.S==0),
+                            fate_S=="S:0 P:1" ~ ct/sum(lam.df$Surv.S==0),
+                            fate_S=="S:1 P:0" ~ ct/sum(lam.df$Surv.S>0),
+                            fate_S=="S:1 P:1" ~ ct/sum(lam.df$Surv.S>0)))
 tss.lam <- lam.sum %>% ungroup %>% group_by(SDM, issue) %>%
   summarise(TSS=sum(rate[fate_lam %in% c("S:0 P:0", "S:1 P:1")])-1) %>%
-  ungroup %>% mutate(issue=fct_rev(issue), metric="lambda")
+  ungroup %>% mutate(issue=fct_rev(issue), metric="lambda > 1")
 tss.S <- S.sum %>% ungroup %>% group_by(SDM, issue) %>%
   summarise(TSS=sum(rate[fate_S %in% c("S:0 P:0", "S:1 P:1")])-1) %>%
-  ungroup %>% mutate(issue=fct_rev(issue), metric="S")
+  ungroup %>% mutate(issue=fct_rev(issue), metric="N > 0")
 tss.df <- rbind(tss.lam, tss.S)
 ggplot(tss.df, aes(x=TSS, y=metric, colour=SDM)) + facet_wrap(~issue) +
-  ggtitle(sp) +
+  labs(title=sp, y="Boundary definition") +
   geom_point(size=5, alpha=0.9) + 
   geom_vline(xintercept=c(-1,1), colour="gray") + 
   geom_vline(xintercept=0, colour="gray", linetype=2) +
   theme(panel.grid.major.y=element_line(colour="gray")) +
-  xlim(-1,1) + scale_colour_manual(values=SDM_col)
+  xlim(0,1) + scale_colour_manual(values=SDM_col)
 
 
 par(mfrow=c(5,6))

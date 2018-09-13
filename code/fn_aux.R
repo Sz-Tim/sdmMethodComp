@@ -75,7 +75,7 @@ build_landscape <- function(f, nlcd_agg, clim_X=paste0("bio10_", 1:19),
            lon=l.df$long[match_id],
            rdLen=f.df$rd_len[match_id]) %>%
     mutate(id=row_number(), 
-           id.inbd=min_rank(na_if(inbd*id, 0)))
+           id.in=min_rank(na_if(inbd*id, 0)))
   # env.rct[is.na(env.rct)] <- 0
   # pair unscaled environmental variables (required for dispersal probabilities)
   env.rct.unscaled <- cbind(env.rct[,-(1:(n_lc+n_clim*2))], 
@@ -283,12 +283,12 @@ fit_PNAS_species <- function(sp="barberry", f, nlcd_agg, clim_X="bio10_1",
   
   # extract covariates for cells containing PNAS plots
   radius <- mean(diff(sort(unique(env.in$lat))))/2
-  plot_i$id.inbd <- NA
+  plot_i$id.in <- NA
   for(i in 1:nrow(plot_i)) {
-    plot_i$id.inbd[i] <- env.in$id.inbd[abs(env.in$lon-plot_i$lon[i]) < radius & 
+    plot_i$id.in[i] <- env.in$id.in[abs(env.in$lon-plot_i$lon[i]) < radius & 
                                           abs(env.in$lat-plot_i$lat[i]) < radius]
   }
-  X.df <- right_join(env.in, plot_i, by="id.inbd")
+  X.df <- right_join(env.in, plot_i, by="id.in")
   vars <- rep(0, 1+n_z+sum(grepl("bio", names(env.in))))
   if(n_z>1) {
     names(vars) <- c("(Intercept)", "size", paste0("size", 2:n_z),
