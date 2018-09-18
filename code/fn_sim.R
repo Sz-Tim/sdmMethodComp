@@ -160,10 +160,10 @@ simulate_data <- function(n.cell, lo, hi, p, X, n_z, sdd.ji, p.ji, N_init,
   }
   
   # storage objects
-  d <- map(i, ~map(1:7, ~numeric(0L)) %>% 
-             setNames(c("yr", "size", "surv", "sizeNext", "fl", "seed", "age")))
-  E <- map(i, ~map(1:6, ~numeric(0L)) %>% 
-             setNames(c("yr", "size", "s", "g", "fl", "seed")))
+  E <- E_null <- map(i, ~map(1:6, ~numeric(0L)) %>% 
+                       setNames(c("yr", "size", "s", "g", "fl", "seed")))
+  d <- d_null <- map(i, ~map(1:7, ~numeric(0L)) %>% 
+                       setNames(c("yr", "size", "surv", "sizeNext", "fl", "seed", "age")))
   B <- nSd <- D <- matrix(0, nrow=n.cell, ncol=length(yrs))
   p_est.i <- matrix(p$p_est, nrow=n.cell, ncol=length(yrs))
   
@@ -179,8 +179,11 @@ simulate_data <- function(n.cell, lo, hi, p, X, n_z, sdd.ji, p.ji, N_init,
       z.k <- map(d1, ~.$sizeNext[!is.na(.$sizeNext)])
       age.k <- map(d1, ~.$age[!is.na(.$sizeNext)] + 1)
     }
-    E1 <- lapply(i, function(x) sim_expected(k, z.k[[x]], p, X_map[[x]], n_z))
-    d1 <- lapply(i, function(x) sim_realized(k, z.k[[x]], E1[[x]], p, lo, hi))
+    occ <- which(map_int(z.k, length)>0)
+    E1 <- E_null
+    d1 <- d_null
+    E1[occ] <- lapply(occ, function(x) sim_expected(k, z.k[[x]], p, X_map[[x]], n_z))
+    d1[occ] <- lapply(occ, function(x) sim_realized(k, z.k[[x]], E1[[x]], p, lo, hi))
     if(k==1) { 
       invisible(lapply(i, function(x) d1[[x]]$age <<- rep(1, length(z.k[[x]]))))
     } else { 
