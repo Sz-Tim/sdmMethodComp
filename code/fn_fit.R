@@ -342,7 +342,7 @@ fit_CA <- function(sp, samp.issue, mod.issue, p, env.rct, env.rct.unsc, lam.df,
                                             "mustard.csv", "woody.csv")))$agg)
   
   # Fit CA models
-  CA.f <- diagnostics <- vector("list", length(O_CA))
+  CA.f <- CA.lam <- diagnostics <- vector("list", length(O_CA))
   for(i in 1:length(O_CA)) {
     O_CA.i <- O_CA[[i]]$d 
     O_CA.K <- O_CA.i %>% filter(id %in% O_CA.i$id[abs(O_CA.i$lambda-1)<0.05])
@@ -427,11 +427,13 @@ fit_CA <- function(sp, samp.issue, mod.issue, p, env.rct, env.rct.unsc, lam.df,
     }
     stopCluster(p.c)
     CA.f[[i]] <- aggregate_CAd_simulations(sim.ls, max(p.CA$m))
+    CA.lam[[i]] <- calc_lambda(p.CA, X.CA, sdd.ji, p.ji, method="lm")$lambda
     diagnostics[[i]] <- list(p.CA, vars.ls)
     rm(sim.ls)
     cat("  Finished dataset", i, "\n\n")
   }
   out <- summarize_CAd_samples(CA.f, lam.df$id)
+  lambdas <- do.call("cbind", CA.lam)
   P_CAd <- lam.df %>% 
     dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.in") %>% 
     mutate(prP=out$prP[,dim(out$prP)[2]],
@@ -443,8 +445,12 @@ fit_CA <- function(sp, samp.issue, mod.issue, p, env.rct, env.rct.unsc, lam.df,
            Rcr.S.f=out$N_rcr.mn[,dim(out$N_rcr.mn)[2]],
            nSdStay.f=nSeed.f*(1-p.CA$p_emig), 
            nSdLeave.f=nSeed.f*p.CA$p_emig)
+  P_CAl <- lam.df %>%
+    dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.in") %>% 
+    mutate(lambda.f=rowMeans(lambdas)[lam.df$id.in],
+           prP=rowMeans(lambdas>1)[lam.df$id.in])
   
-  return(list(P_CAd=P_CAd,  diag=diagnostics))
+  return(list(P_CAd=P_CAd,  P_CAl=P_CAl, diag=diagnostics))
 }
 
 
@@ -570,8 +576,6 @@ fit_IPM <- function(sp, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v, m,
   P_CAi <- lam.df %>% 
     dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.in") %>% 
     mutate(prP=out$Sf$prP,
-           # lam.S.f=rowMeans(out$Sf$N_surv.mn[,(-3:0)+p.IPM$tmax]/
-           #                    (out$Sf$N_surv.mn[,(-4:-1)+p.IPM$tmax]+0.0001)),
            nSeed.f=out$Sf$nSd.mn[,dim(out$Sf$nSd.mn)[2]], 
            D.f=out$Sf$D.mn[,dim(out$Sf$D.mn)[2]],
            B.f=out$Sf$B.mn[,dim(out$Sf$B.mn)[2]],

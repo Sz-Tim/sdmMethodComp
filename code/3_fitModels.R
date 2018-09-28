@@ -78,6 +78,7 @@ foreach(i=seq_along(issue_i$Issue), .packages=pkgs) %dopar% {
   if(overwrite) {
     saveRDS(P_CA$diag_CAd, here("out", sp, paste0("Diag_CAd_", issue, ".rds")))
     saveRDS(P_CA$P_CAd, here("out", sp, paste0("P_CAd_", issue, ".rds")))
+    saveRDS(P_CA$P_CAl, here("out", sp, paste0("P_CAl_", issue, ".rds")))
   }
   # fit IPM, CA-individual
   P_IPM <- fit_IPM(sp, samp_iss, mod_iss, p, env.rct.unsc, lam.df, v$IPM, m$IPM, 

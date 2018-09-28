@@ -132,7 +132,7 @@ sim_seedbank <- function(nSd_ik, B_ik, D_ik, p, pr_germ) {
 #' @param sdd.ji Dispersing cells TO each target cell j
 #' @param p.ji Dispersal probabilities TO each target cell j
 #' @param N_init Vector of initial population sizes, length n.cell
-#' @param save_yrs \code{"all"} Vector of years to store, or "all" to store all
+#' @param save_yrs \code{NULL} Vector of years to store, or NULL to store all
 #' @param verbose \code{FALSE} Show progress bar?
 #' @return List with elements E = list with element for each cell with expected 
 #' values for each individual in each year, d = list with element for each cell 
@@ -141,12 +141,12 @@ sim_seedbank <- function(nSd_ik, B_ik, D_ik, p, pr_germ) {
 #' with number of immigrant seeds in each cell in each year, and p_est.i = 
 #' density dependent establishment probabilities in each cell in each year
 simulate_data <- function(n.cell, lo, hi, p, X, n_z, sdd.ji, p.ji, N_init, 
-                          save_yrs="all", verbose=F) {
+                          save_yrs=NULL, verbose=F) {
   library(tidyverse)
   i <- 1:n.cell
   
   # identify which years to store data
-  if(save_yrs[1]=="all") {
+  if(is.null(save_yrs)) {
     yrs <- setNames(1:p$tmax, 1:p$tmax)
   } else {
     yrs <- setNames(1:length(save_yrs), save_yrs)
