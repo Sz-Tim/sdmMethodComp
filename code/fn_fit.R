@@ -332,7 +332,7 @@ fit_CA <- function(sp, samp.issue, mod.issue, p, env.rct, env.rct.unsc, lam.df,
                    v, m, N_init, sdd.pr, sdd.ji, p.ji, n_sim, n_cores) {
   library(here); library(tidyverse); library(gbPopMod); 
   library(MuMIn); library(lme4); library(doSNOW)
-  out.dir <- paste0("out/", sp, "/", samp.issue, "/", mod.issue, "/temp/")
+  out.dir <- paste0("out/", sp, "/", samp.issue, "/", mod.issue, "/")
   if(!dir.exists(out.dir)) dir.create(out.dir, recursive=TRUE)
   n.cell <- nrow(lam.df)
   n.grid <- nrow(env.rct)
@@ -493,7 +493,7 @@ fit_IPM <- function(sp, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v, m,
   library(here); library(tidyverse); library(magrittr); library(gbPopMod);
   library(MuMIn); library(doSNOW)
   walk(paste0("code/fn_", c("aux", "sim", "IPM", "fit"), ".R"), source)
-  out.dir <- paste0("out/", sp, "/", samp.issue, "/", mod.issue, "/temp/")
+  out.dir <- paste0("out/", sp, "/", samp.issue, "/", mod.issue, "/")
   if(!dir.exists(out.dir)) dir.create(out.dir, recursive=TRUE)
   n.cell <- nrow(lam.df)
   
