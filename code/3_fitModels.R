@@ -74,7 +74,7 @@ foreach(i=seq_along(issue_i$Issue), .packages=pkgs) %dopar% {
   # }
   # fit CA-demographic
   P_CA <- fit_CA(sp, samp_iss, mod_iss, p, env.rct, env.rct.unsc, lam.df, 
-                 v$CA, m$CA, N_init, sdd.pr, n_sim, n_core_sim)
+                 v$CA, m$CA, N_init, sdd.pr, sdd.ji, p.ji, n_sim, n_core_obs)
   if(overwrite) {
     saveRDS(P_CA$diag_CAd, here("out", sp, paste0("Diag_CAd_", issue, ".rds")))
     saveRDS(P_CA$P_CAd, here("out", sp, paste0("P_CAd_", issue, ".rds")))
@@ -82,7 +82,7 @@ foreach(i=seq_along(issue_i$Issue), .packages=pkgs) %dopar% {
   }
   # fit IPM, CA-individual
   P_IPM <- fit_IPM(sp, samp_iss, mod_iss, p, env.rct.unsc, lam.df, v$IPM, m$IPM, 
-                   n_z, n_x, N_init, sdd.ji, p.ji, n_sim, n_core_sim)
+                   n_z, n_x, N_init, sdd.ji, p.ji, n_sim, n_core_obs)
   if(overwrite) {
     saveRDS(P_IPM$diag, here("out", sp, paste0("Diag_IPM_", issue, ".rds")))
     saveRDS(P_IPM$P_CAi, here("out", sp, paste0("P_CAi_", issue, ".rds")))

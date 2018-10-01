@@ -321,15 +321,19 @@ fit_MxL <- function(sp, issue, samp.issue, lam.df, v, m) {
 #' @param N_init Vector with initial population size in each cell
 #' @param sdd.pr List with short distance dispersal neighborhoods generated in
 #'   1_simulateSpecies.R
+#' @param sdd.ji
+#' @param p.ji
 #' @param n_sim Number of simulations to run per observed dataset
 #' @param n_cores Number of cores to use for running simulations in parallel
 #' @return List with dataframe P_CAi with overall summaries across datasets for
 #'   the demographic CA distribution and diagnostics containing the vital rate
 #'   regressions
 fit_CA <- function(sp, samp.issue, mod.issue, p, env.rct, env.rct.unsc, lam.df, 
-                   v, m, N_init, sdd.pr, n_sim, n_cores) {
+                   v, m, N_init, sdd.pr, sdd.ji, p.ji, n_sim, n_cores) {
   library(here); library(tidyverse); library(gbPopMod); 
   library(MuMIn); library(lme4); library(doSNOW)
+  out.dir <- paste0("out/", sp, "/", samp.issue, "/", mod.issue, "/temp/")
+  if(!dir.exists(out.dir)) dir.create(out.dir, recursive=TRUE)
   n.cell <- nrow(lam.df)
   n.grid <- nrow(env.rct)
   
@@ -341,9 +345,39 @@ fit_CA <- function(sp, samp.issue, mod.issue, p, env.rct, env.rct.unsc, lam.df,
                                      ifelse(grepl("mustard", sp), 
                                             "mustard.csv", "woody.csv")))$agg)
   
+  # initialize CA parameters
+  p.CA <- set_g_p(tmax=p$tmax, 
+                  lc.r=diff(range(lam.df$y)), lc.c=diff(range(lam.df$x)),
+                  n.lc=5, N.p.t0=n.cell, 
+                  m=3, gamma=1, 
+                  s.B=p$s_SB, g.D=p$rcr_dir, g.B=p$rcr_SB,
+                  p=as.matrix(logit(p$p_est)), 
+                  sdd.max=p$sdd_max, sdd.rate=p$sdd_rate, n.ldd=1,
+                  p.c=matrix(1), bird.hab=p$bird_hab, s.c=1, method="lm")
+  p.CA$p_emig <- p$p_emig
+  
+  # impose dispersal issues
+  if(mod.issue=="underDisp") {
+    p.CA <- add_misDisperse(p.CA, p, sdd_max_adj=-2, sdd_rate_adj=2, ldd=0)
+  } else if(mod.issue=="overDisp") {
+    p.CA <- add_misDisperse(p.CA, p, sdd_max_adj=2, sdd_rate_adj=.5, ldd=5)
+  }
+  if(grepl("Disp", mod.issue)) {
+    sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=env.rct.unsc, 
+                            lc.col=tail(1:ncol(env.rct.unsc), n_LC),
+                            g.p=list(sdd.max=p.CA$sdd.max, 
+                                     sdd.rate=p.CA$sdd.rate, 
+                                     bird.hab=p.CA$bird.hab))
+    sdd.ji.rows <- lapply(1:n.cell, function(x) which(sdd.pr$sp.df$j.idin==x))
+    sdd.ji <- lapply(sdd.ji.rows, function(x) sdd.pr$sp.df$i.idin[x]) 
+    p.ji <- lapply(sdd.ji.rows, function(x) sdd.pr$sp.df$pr[x]) 
+  }
+  
   # Fit CA models
-  CA.f <- CA.lam <- diagnostics <- vector("list", length(O_CA))
-  for(i in 1:length(O_CA)) {
+  p.c <- makeCluster(n_cores); registerDoSNOW(p.c)
+  foreach(i=1:length(O_CA), 
+          .packages=c("tidyverse", "gbPopMod", "MuMIn", "lme4")) %dopar% {
+    walk(paste0("code/fn_", c("aux", "sim", "IPM", "fit"), ".R"), source)
     O_CA.i <- O_CA[[i]]$d 
     O_CA.K <- O_CA.i %>% filter(id %in% O_CA.i$id[abs(O_CA.i$lambda-1)<0.05])
     sim.ls <- vector("list", n_sim)
@@ -381,59 +415,37 @@ fit_CA <- function(sp, samp.issue, mod.issue, p, env.rct, env.rct.unsc, lam.df,
     }
     
     # update parameters
-    p.CA <- set_g_p(tmax=p$tmax, 
-                    lc.r=diff(range(lam.df$y)), lc.c=diff(range(lam.df$x)),
-                    n.lc=5, N.p.t0=n.cell, 
-                    K=vars.ls$K, 
-                    s.M=vars.ls$s.M,
-                    s.N=vars.ls$s.N,
-                    p.f=vars.ls$p.f,
-                    mu=vars.ls$mu,
-                    m=3, gamma=1, 
-                    s.B=p$s_SB, g.D=p$rcr_dir, g.B=p$rcr_SB,
-                    p=as.matrix(logit(p$p_est)), 
-                    sdd.max=p$sdd_max, sdd.rate=p$sdd_rate, n.ldd=1,
-                    p.c=matrix(1), bird.hab=p$bird_hab, s.c=1, method="lm")
-    p.CA$p_emig <- p$p_emig
+    p.CA$K <- vars.ls$K
+    p.CA$s.M <- vars.ls$s.M
+    p.CA$s.N <- vars.ls$s.N
+    p.CA$p.f <- vars.ls$p.f
+    p.CA$mu <- vars.ls$mu
     
-    # impose issues
+    # impose seed bank issue
     if(mod.issue=="noSB") p.CA$s.sb <- 0
-    if(mod.issue=="underDisp") {
-      p.CA <- add_misDisperse(p.CA, p, sdd_max_adj=-2, sdd_rate_adj=2, ldd=0)
-      sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=env.rct.unsc, 
-                              lc.col=tail(1:ncol(env.rct.unsc), n_LC),
-                              g.p=list(sdd.max=p.CA$sdd.max, 
-                                       sdd.rate=p.CA$sdd.rate, 
-                                       bird.hab=p.CA$bird.hab))
-    }
-    if(mod.issue=="overDisp") {
-      p.CA <- add_misDisperse(p.CA, p, sdd_max_adj=2, sdd_rate_adj=.5, ldd=5)
-      sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=env.rct.unsc, 
-                              lc.col=tail(1:ncol(env.rct.unsc), n_LC),
-                              g.p=list(sdd.max=p.CA$sdd.max, 
-                                       sdd.rate=p.CA$sdd.rate, 
-                                       bird.hab=p.CA$bird.hab))
-    }
     
     # run simulations
     N.init <- matrix(0, n.grid, p.CA$m)  # column for each age class
     N.init[X.CA$id[X.CA$inbd], p.CA$m] <- N_init
     N.init[X.CA$id[X.CA$inbd], -p.CA$m] <- round(N_init/5)
-    cat("||-- Starting simulations\n")
-    p.c <- makeCluster(n_cores); registerDoSNOW(p.c)
-    sim.ls <- foreach(s=1:n_sim) %dopar% {
-      gbPopMod::run_sim(n.grid, n.cell, p.CA, X.CA, sdd.pr, N.init, 
-                        NULL, F, (-1:0)+p.CA$tmax)
+    for(s in 1:n_sim) {
+      sim.ls[[s]] <- gbPopMod::run_sim(n.grid, n.cell, p.CA, X.CA, sdd.pr, 
+                                       N.init, NULL, F, (-1:0)+p.CA$tmax)
     }
-    stopCluster(p.c)
-    CA.f[[i]] <- aggregate_CAd_simulations(sim.ls, max(p.CA$m))
-    CA.lam[[i]] <- calc_lambda(p.CA, X.CA, sdd.ji, p.ji, method="lm")$lambda
-    diagnostics[[i]] <- list(p.CA, vars.ls)
-    rm(sim.ls)
-    cat("  Finished dataset", i, "\n\n")
+    
+    i_pad <- str_pad(i, 2, pad="0")
+    saveRDS(aggregate_CAd_simulations(sim.ls, max(p.CA$m)), 
+            paste0(out.dir, "/CAd_fit_", i_pad, ".rds"))
+    saveRDS(calc_lambda(p.CA, X.CA, sdd.ji, p.ji, method="lm")$lambda, 
+            paste0(out.dir, "/CAd_lam_", i_pad, ".rds"))
+    saveRDS(list(p.CA, vars.ls), paste0(out.dir, "/CAd_diag_", i_pad, ".rds"))
   }
-  out <- summarize_CAd_samples(CA.f, lam.df$id)
-  lambdas <- do.call("cbind", CA.lam)
+  stopCluster(p.c)
+  
+  out <- list.files(out.dir, "CAd_fit", full.names=T) %>% map(readRDS) %>%
+    summarize_CAd_samples(., lam.df$id)
+  lambdas <- list.files(out.dir, "CAd_lam", full.names=T) %>% map_dfc(., readRDS)
+  diagnostics <- list.files(out.dir, "CAd_diag", full.names=T) %>% map(readRDS)
   P_CAd <- lam.df %>% 
     dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.in") %>% 
     mutate(prP=out$prP[,dim(out$prP)[2]],
@@ -480,16 +492,40 @@ fit_IPM <- function(sp, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v, m,
                     n_z, n_x, N_init, sdd.ji, p.ji, n_sim, n_cores) {
   library(here); library(tidyverse); library(magrittr); library(gbPopMod);
   library(MuMIn); library(doSNOW)
-  walk(paste0("code/fn_", c("aux", "sim", "IPM", "fit"), ".R"), ~source(here(.)))
+  walk(paste0("code/fn_", c("aux", "sim", "IPM", "fit"), ".R"), source)
+  out.dir <- paste0("out/", sp, "/", samp.issue, "/", mod.issue, "/temp/")
+  if(!dir.exists(out.dir)) dir.create(out.dir, recursive=TRUE)
   n.cell <- nrow(lam.df)
   
   # load observations
   O_IPM <- readRDS(here("vs", sp, paste0("O_IPM_", samp.issue, ".rds")))
   X.IPM <- map(n_x, ~as.matrix(lam.df[,names(lam.df) %in% names(v)[-(1:n_z$s)]]))
   
+  # initialize IPM parameters
+  p.IPM <- p
+  
+  # impose dispersal issues
+  if(mod.issue=="underDisp") {
+    p.IPM <- add_misDisperse(p.IPM, p, sdd_max_adj=-2, sdd_rate_adj=2, ldd=0)
+  } else if(mod.issue=="overDisp") {
+    p.IPM <- add_misDisperse(p.IPM, p, sdd_max_adj=2, sdd_rate_adj=.5, ldd=5)
+  }
+  if(grepl("Disp", mod.issue)) {
+    sp.df <- sdd_set_probs(ncell=n.cell, lc.df=env.rct.unsc, lc.col=8:12,
+                           g.p=list(sdd.max=p.IPM$sdd.max, 
+                                    sdd.rate=p.IPM$sdd.rate, 
+                                    bird.hab=p$bird_hab))$sp.df
+    sdd.ji.rows <- lapply(1:n.cell, function(x) which(sp.df$j.idin==x))
+    sdd.ji <- lapply(sdd.ji.rows, function(x) sp.df$i.idin[x]) 
+    p.ji <- lapply(sdd.ji.rows, function(x) sp.df$pr[x]) 
+  }
+  
   # Fit IPM models
-  S.f <- U.f <- diagnostics <- vector("list", length(O_IPM))
-  for(i in 1:length(O_IPM)) {
+  p.c <- makeCluster(n_cores); registerDoSNOW(p.c)
+  foreach(i=1:length(O_IPM), 
+          .packages=c("tidyverse", "magrittr", "gbPopMod", "MuMIn")) %dopar% {
+    walk(paste0("code/fn_", c("aux", "sim", "IPM", "fit"), ".R"), source)
+    sim.ls <- vector("list", n_sim)
     # separate data for MuMIn::dredge()
     O_IPM.i.s <- filter(O_IPM[[i]], !is.na(surv))
     O_IPM.i.g <- filter(O_IPM[[i]], !is.na(sizeNext) & !is.na(size))
@@ -516,7 +552,6 @@ fit_IPM <- function(sp, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v, m,
     }
     
     # update parameters
-    p.IPM <- p
     p.IPM$s_z <- vars.ls$s[1:n_z$s]
     p.IPM$s_x <- vars.ls$s[(n_z$s+1):length(v)]
     p.IPM$g_z <- vars.ls$g[1:n_z$g]
@@ -531,47 +566,30 @@ fit_IPM <- function(sp, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v, m,
     
     # impose issues
     if(mod.issue=="noSB") p.IPM$s_SB <- 0
-    if(mod.issue=="underDisp") {
-      p.IPM <- add_misDisperse(p.IPM, p, sdd_max_adj=-2, sdd_rate_adj=2, ldd=0)
-      sp.df <- sdd_set_probs(ncell=n.cell, lc.df=env.rct.unsc, lc.col=8:12,
-                              g.p=list(sdd.max=p.IPM$sdd.max, 
-                                       sdd.rate=p.IPM$sdd.rate, 
-                                       bird.hab=p$bird_hab))$sp.df
-      sdd.ji.rows <- lapply(1:n.cell, function(x) which(sp.df$j.idin==x))
-      sdd.ji <- lapply(sdd.ji.rows, function(x) sp.df$i.idin[x]) 
-      p.ji <- lapply(sdd.ji.rows, function(x) sp.df$pr[x]) 
-    }
-    if(mod.issue=="overDisp") {
-      p.IPM <- add_misDisperse(p.IPM, p, sdd_max_adj=2, sdd_rate_adj=.5, ldd=5)
-      sp.df <- sdd_set_probs(ncell=n.cell, lc.df=env.rct.unsc, lc.col=8:12,
-                              g.p=list(sdd.max=p.IPM$sdd.max, 
-                                       sdd.rate=p.IPM$sdd.rate, 
-                                       bird.hab=p$bird_hab))$sp.df
-      sdd.ji.rows <- lapply(1:n.cell, function(x) which(sp.df$j.idin==x))
-      sdd.ji <- lapply(sdd.ji.rows, function(x) sp.df$i.idin[x]) 
-      p.ji <- lapply(sdd.ji.rows, function(x) sp.df$pr[x]) 
-    }
     
     # use estimated slopes to fill IPM matrix
-    cat("||-- Calculating IPM matrices\n")
-    U.f[[i]] <- fill_IPM_matrices(n.cell, buffer=0, discrete=1, p.IPM, n_z,
+    U.f <- fill_IPM_matrices(n.cell, buffer=0, discrete=1, p.IPM, n_z,
                                   n_x, X.IPM, sdd.ji, p.ji)
     
     # use estimated slopes to generate simulated data
-    cat("||-- Starting simulations\n")
-    p.c <- makeCluster(n_cores); registerDoSNOW(p.c)
-    sim.ls <- foreach(s=1:n_sim, .packages=c("here", "tidyverse")) %dopar% {
-      walk(paste0("code/fn_", c("aux", "sim", "IPM", "fit"), ".R"), ~source(here(.)))
-      simulate_data(n.cell, U.f[[i]]$lo, U.f[[i]]$hi, p.IPM, X.IPM, n_z, 
-                    sdd.ji, p.ji, N_init, save_yrs=p.IPM$tmax)
+    for(s in 1:n_sim) {
+      sim.ls[[s]] <- simulate_data(n.cell, U.f$lo, U.f$hi, p.IPM, X.IPM, n_z, 
+                                   sdd.ji, p.ji, N_init, save_yrs=p.IPM$tmax)
     }
-    stopCluster(p.c)
-    S.f[[i]] <- aggregate_CAi_simulations(sim.ls, p.IPM$tmax)
-    diagnostics[[i]] <- vars.ls
-    rm(sim.ls)
-    cat("  Finished dataset", i, "\n\n")
+
+    i_pad <- str_pad(i, 2, pad="0")
+    saveRDS(aggregate_CAi_simulations(sim.ls, p.IPM$tmax), 
+            paste0(out.dir, "/CAi_fit_", i_pad, ".rds"))
+    saveRDS(U.f, paste0(out.dir, "/IPM_fit_", i_pad, ".rds"))
+    saveRDS(list(p.IPM, vars.ls), paste0(out.dir, "/IPM_diag_", i_pad, ".rds"))
   }
-  out <- summarize_IPM_CAi_samples(U.f, S.f)
+  stopCluster(p.c)
+  
+  out <- summarize_IPM_CAi_samples(
+    map(list.files(out.dir, "IPM_fit", full.names=T), readRDS),
+    map(list.files(out.dir, "CAi_fit", full.names=T), readRDS)
+  )
+  diagnostics <- list.files(out.dir, "CAd_diag", full.names=T) %>% map(readRDS)
   
   P_CAi <- lam.df %>% 
     dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.in") %>% 
