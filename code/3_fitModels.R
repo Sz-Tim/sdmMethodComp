@@ -13,13 +13,13 @@
 sp <- "sp1"
 overwrite <- TRUE
 n_core_iss <- 2  # number of issues to run in parallel
-n_core_sim <- 2  # number of simulations to run in parallel for each issue
-n_sim <- 2 # number of simulations per sample (mechanistic only)
+n_core_obs <- 2  # number of simulations to run in parallel for each issue
+n_sim <- 1 # number of simulations per sample (mechanistic only)
 
 # load workspace
 pkgs <- c("dismo", "gbPopMod", "tidyverse", "magrittr", "MuMIn", "here", "doSNOW")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
-walk(paste0("code/fn_", c("aux", "sim", "IPM", "fit"), ".R"), ~source(here(.)))
+walk(paste0("code/fn_", c("aux", "sim", "IPM", "fit"), ".R"), source)
 p <- readRDS(here("vs", sp, "p.rds"))
 N_init <- readRDS(here("vs", sp, "N_init.rds"))
 sdd.pr <- readRDS(here("vs", sp, "sdd.rds"))
