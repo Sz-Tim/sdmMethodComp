@@ -444,7 +444,8 @@ fit_CA <- function(sp, samp.issue, mod.issue, p, env.rct, env.rct.unsc, lam.df,
   
   out <- list.files(out.dir, "CAd_fit", full.names=T) %>% map(readRDS) %>%
     summarize_CAd_samples(., lam.df$id)
-  lambdas <- list.files(out.dir, "CAd_lam", full.names=T) %>% map_dfc(., readRDS)
+  lambdas <- map(list.files(out.dir, "CAd_lam", full.names=T), readRDS) %>%
+    do.call("cbind", .)
   diagnostics <- list.files(out.dir, "CAd_diag", full.names=T) %>% map(readRDS)
   P_CAd <- lam.df %>% 
     dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.in") %>% 
