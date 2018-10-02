@@ -179,7 +179,7 @@ add_noise_IPM <- function(O_IPM, z_l, z_h, err) {
 #' @param ldd Number of annual long distance dispersal events
 #' @return List with modified model parameters \code{p.mod}
 add_misDisperse <- function(p.mod, p, sdd_max_adj=2, sdd_rate_adj=.1, ldd=5) {
-  p.mod$sdd.max <- p.mod$sdd_max <- max(p$sdd_max + sdd_max_adj, 1)
+  p.mod$sdd.max <- p.mod$sdd_max <- max(p$sdd_max + sdd_max_adj, 4)
   p.mod$sdd.rate <- p.mod$sdd_rate <- p$sdd_rate * sdd_rate_adj
   p.mod$p_emig <- pexp(0.5, p$sdd_rate, lower.tail=F)
   p.mod$n.ldd <- ldd
@@ -375,7 +375,7 @@ fit_CA <- function(sp, samp.issue, mod.issue, p, env.rct, env.rct.unsc, lam.df,
   
   # Fit CA models
   p.c <- makeCluster(n_cores); registerDoSNOW(p.c)
-  foreach(i=1:length(O_CA), 
+  foreach(i=1:length(O_CA), .errorhandling="pass", 
           .packages=c("tidyverse", "gbPopMod", "MuMIn", "lme4")) %dopar% {
     walk(paste0("code/fn_", c("aux", "sim", "IPM", "fit"), ".R"), source)
     O_CA.i <- O_CA[[i]]$d 
@@ -522,7 +522,7 @@ fit_IPM <- function(sp, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v, m,
   
   # Fit IPM models
   p.c <- makeCluster(n_cores); registerDoSNOW(p.c)
-  foreach(i=1:length(O_IPM), 
+  foreach(i=1:length(O_IPM), .errorhandling="pass", 
           .packages=c("tidyverse", "magrittr", "gbPopMod", "MuMIn")) %dopar% {
     walk(paste0("code/fn_", c("aux", "sim", "IPM", "fit"), ".R"), source)
     sim.ls <- vector("list", n_sim)
