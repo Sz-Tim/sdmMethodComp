@@ -201,16 +201,11 @@ simulate_data <- function(n.cell, lo, hi, p, X, n_z, sdd.ji, p.ji, N_init, sp,
       sim_expected(k, z.k[[x]], p, X_map[[x]], n_z))
     d1[occupied] <- lapply(occupied, function(x) 
       sim_realized(k, z.k[[x]], E1[[x]], p, age.k[[x]], sp, lo, hi))
-    # if(k==1) { 
-    #   invisible(lapply(occupied, function(x) d1[[x]]$age <<- rep(1, length(z.k[[x]]))))
-    # } else { 
-    #   invisible(lapply(occupied, function(x) d1[[x]]$age <<- age.k[[x]])) 
-    # }
     nSd1 <- vapply(i, function(x) sum(d1[[x]]$seed, na.rm=TRUE), 1)
     
     ## dispersal & density dependence
     D1 <- sapply(i, function(x) sum(nSd1[sdd.ji[[x]]] * p$p_emig * p.ji[[x]]))
-    if(p$NDD) p_est1 <- pmin(p$NDD_n/(nSd1+D1), p$p_est)
+    if(p$NDD) p_est1 <- pmin(p$NDD_n/(nSd1+D1+B1), p$p_est)
     d1 <- lapply(i, function(x) sim_recruits(k, d1[[x]], p_est1[x], nSd1[x], 
                                              B1[x], D1[x], p, pr_germ[x], F))
     ldd_k <- sample.int(n.cell, p$ldd)
@@ -232,10 +227,12 @@ simulate_data <- function(n.cell, lo, hi, p, X, n_z, sdd.ji, p.ji, N_init, sp,
     }
     
     # debug
-    k <- k+1
-    length(occupied)
-    map(d1, ~.$seed[!is.na(.$seed)]) %>% unlist
-    sum(nSd1)
+    # k <- k+1
+    # length(occupied)
+    # sum(p_est1 < p$p_est)
+    # map_int(d1, ~sum(is.na(.$size))) %>% extract(.>0)
+    # map(d1, ~.$seed[!is.na(.$seed)]) %>% unlist
+    # sum(nSd1)
     if(verbose) setTxtProgressBar(pb, k)
   }
   return(list(E=E, d=d, B=B, nSd=nSd, D=D, p_est.i=p_est.i))
