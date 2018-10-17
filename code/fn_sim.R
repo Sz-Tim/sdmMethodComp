@@ -17,15 +17,13 @@ sim_expected <- function(k, z.ik, p, X.i, n_z) {
   E_ik <- setNames(map(1:6, ~numeric(0L)), 
                    c("yr", "size", "s", "g", "fl", "seed"))
   n.ik <- length(z.ik)
-  if(n.ik > 0) {
-    z.mx <- cbind(1, z.ik, z.ik^2, z.ik^3)
-    E_ik$yr <- rep(k, n.ik)
-    E_ik$size <- z.ik
-    E_ik$s <- antilogit(z.mx[,1:n_z$s] %*% p$s_z + c(X.i$s %*% p$s_x))
-    E_ik$g <- z.mx[,1:n_z$g] %*% p$g_z + c(X.i$g %*% p$g_x)
-    E_ik$fl <- antilogit(z.mx[,1:n_z$fl] %*% p$fl_z + c(X.i$fl %*% p$fl_x))
-    E_ik$seed <- exp(z.mx[,1:n_z$seed] %*% p$seed_z + c(X.i$seed %*% p$seed_x))
-  }
+  z.mx <- cbind(1, z.ik, z.ik^2, z.ik^3)
+  E_ik$yr <- rep(k, n.ik)
+  E_ik$size <- z.ik
+  E_ik$s <- antilogit(z.mx[,1:n_z$s] %*% p$s_z + c(X.i$s %*% p$s_x))
+  E_ik$g <- z.mx[,1:n_z$g] %*% p$g_z + c(X.i$g %*% p$g_x)
+  E_ik$fl <- antilogit(z.mx[,1:n_z$fl] %*% p$fl_z + c(X.i$fl %*% p$fl_x))
+  E_ik$seed <- exp(z.mx[,1:n_z$seed] %*% p$seed_z + c(X.i$seed %*% p$seed_x))
   return(E_ik)
 }
 
@@ -39,23 +37,37 @@ sim_expected <- function(k, z.ik, p, X.i, n_z) {
 #' @param z.ik Current size distribution
 #' @param E_ik List of expected values for each individual in cell i in year k
 #' @param p List of parameters
+#' @param age.ik Vector of ages for each individual in cell i in year k
+#' @param sp Either 'barberry' or 'garlic_mustard'
 #' @param lo Minimum allowable size
 #' @param hi Maximum allowable size
 #' @return List d_ik with new realized values appended
-sim_realized <- function(k, z.ik, E_ik, p, lo, hi) {
+sim_realized <- function(k, z.ik, E_ik, p, age.ik, sp, lo, hi) {
   d_ik <- setNames(map(1:7, ~numeric(0L)), 
                    c("yr", "size", "surv", "sizeNext", "fl", "seed", "age"))
   n.ik <- length(z.ik)
-  if(n.ik > 0) {
-    d_ik$yr <- rep(k, n.ik)
-    d_ik$size <- z.ik
+  d_ik$age <- age.ik
+  d_ik$yr <- rep(k, n.ik)
+  d_ik$size <- z.ik
+  if(sp=="garlic_mustard") {
+    d_ik$surv <- rbinom(n.ik, 1, E_ik$s)
+    surv.ik <- ifelse(d_ik$surv, 1, NA)
+    d_ik$fl <- fl.ik <- rbinom(n.ik, 1, E_ik$fl) * surv.ik * 
+      ifelse(age.ik==2, 1, NA)
+    d_ik$seed <- rpois(n.ik, pmin(E_ik$seed, p$seed_max)) * ifelse(fl.ik, 1, NA)
+    d_ik$surv <- d_ik$surv * as.numeric(age.ik==1)
+    surv.ik <- ifelse(d_ik$surv, 1, NA)
+    d_ik$sizeNext <- rnorm(n.ik, E_ik$g, p$g_sig) * surv.ik
+    d_ik$sizeNext <- pmax(d_ik$sizeNext, lo)
+    d_ik$sizeNext <- pmin(d_ik$sizeNext, hi)
+  } else {
     d_ik$surv <- rbinom(n.ik, 1, E_ik$s)
     surv.ik <- ifelse(d_ik$surv, 1, NA)
     d_ik$sizeNext <- rnorm(n.ik, E_ik$g, p$g_sig) * surv.ik
     d_ik$sizeNext <- pmax(d_ik$sizeNext, lo)
     d_ik$sizeNext <- pmin(d_ik$sizeNext, hi)
     d_ik$fl <- fl.ik <- rbinom(n.ik, 1, E_ik$fl) * surv.ik
-    d_ik$seed <- rpois(n.ik, E_ik$seed) * ifelse(fl.ik, 1, NA)
+    d_ik$seed <- rpois(n.ik, pmin(E_ik$seed, p$seed_max)) * ifelse(fl.ik, 1, NA)
   }
   return(d_ik)
 }
@@ -132,6 +144,7 @@ sim_seedbank <- function(nSd_ik, B_ik, D_ik, p, pr_germ) {
 #' @param sdd.ji Dispersing cells TO each target cell j
 #' @param p.ji Dispersal probabilities TO each target cell j
 #' @param N_init Vector of initial population sizes, length n.cell
+#' @param sp Either 'barberry' or 'garlic_mustard'
 #' @param save_yrs \code{NULL} Vector of years to store, or NULL to store all
 #' @param verbose \code{FALSE} Show progress bar?
 #' @return List with elements E = list with element for each cell with expected 
@@ -140,7 +153,7 @@ sim_seedbank <- function(nSd_ik, B_ik, D_ik, p, pr_germ) {
 #' matrix with number of seeds produced in each cell in each year, D = matrix
 #' with number of immigrant seeds in each cell in each year, and p_est.i = 
 #' density dependent establishment probabilities in each cell in each year
-simulate_data <- function(n.cell, lo, hi, p, X, n_z, sdd.ji, p.ji, N_init, 
+simulate_data <- function(n.cell, lo, hi, p, X, n_z, sdd.ji, p.ji, N_init, sp,
                           save_yrs=NULL, verbose=F) {
   library(tidyverse)
   i <- 1:n.cell
@@ -178,24 +191,28 @@ simulate_data <- function(n.cell, lo, hi, p, X, n_z, sdd.ji, p.ji, N_init,
     if(k>1) {
       z.k <- map(d1, ~.$sizeNext[!is.na(.$sizeNext)])
       age.k <- map(d1, ~.$age[!is.na(.$sizeNext)] + 1)
+    } else {
+      age.k <- lapply(i, function(x) rep(1, length(z.k[[x]])))
     }
-    occ <- which(map_int(z.k, length)>0)
+    occupied <- which(map_int(z.k, length)>0)
     E1 <- E_null
     d1 <- d_null
-    E1[occ] <- lapply(occ, function(x) sim_expected(k, z.k[[x]], p, X_map[[x]], n_z))
-    d1[occ] <- lapply(occ, function(x) sim_realized(k, z.k[[x]], E1[[x]], p, lo, hi))
-    if(k==1) { 
-      invisible(lapply(i, function(x) d1[[x]]$age <<- rep(1, length(z.k[[x]]))))
-    } else { 
-      invisible(lapply(i, function(x) d1[[x]]$age <<- age.k[[x]])) 
-    }
+    E1[occupied] <- lapply(occupied, function(x) 
+      sim_expected(k, z.k[[x]], p, X_map[[x]], n_z))
+    d1[occupied] <- lapply(occupied, function(x) 
+      sim_realized(k, z.k[[x]], E1[[x]], p, age.k[[x]], sp, lo, hi))
+    # if(k==1) { 
+    #   invisible(lapply(occupied, function(x) d1[[x]]$age <<- rep(1, length(z.k[[x]]))))
+    # } else { 
+    #   invisible(lapply(occupied, function(x) d1[[x]]$age <<- age.k[[x]])) 
+    # }
     nSd1 <- vapply(i, function(x) sum(d1[[x]]$seed, na.rm=TRUE), 1)
     
     ## dispersal & density dependence
     D1 <- sapply(i, function(x) sum(nSd1[sdd.ji[[x]]] * p$p_emig * p.ji[[x]]))
     if(p$NDD) p_est1 <- pmin(p$NDD_n/(nSd1+D1), p$p_est)
     d1 <- lapply(i, function(x) sim_recruits(k, d1[[x]], p_est1[x], nSd1[x], 
-                                            B1[x], D1[x], p, pr_germ[x], F))
+                                             B1[x], D1[x], p, pr_germ[x], F))
     ldd_k <- sample.int(n.cell, p$ldd)
     for(j in seq_along(ldd_k)) {
       d1[[ldd_k[j]]] <- sim_recruits(k, d1[[ldd_k[j]]], 1, 1, 0, 0, p, NULL, T)
@@ -213,6 +230,12 @@ simulate_data <- function(n.cell, lo, hi, p, X, n_z, sdd.ji, p.ji, N_init,
       D[,yr_k] <- D1
       p_est.i[,yr_k] <- p_est1
     }
+    
+    # debug
+    k <- k+1
+    length(occupied)
+    map(d1, ~.$seed[!is.na(.$seed)]) %>% unlist
+    sum(nSd1)
     if(verbose) setTxtProgressBar(pb, k)
   }
   return(list(E=E, d=d, B=B, nSd=nSd, D=D, p_est.i=p_est.i))
