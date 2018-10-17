@@ -256,8 +256,7 @@ extract_SDM_details <- function(f) {
 ##-- fit vital rate regressions for PNAS 2017 species
 #' For a specified species, fit vital rate regressions using the defined 
 #' climatic variables and maximum size exponent. 
-#' @param sp \code{"barberry"} One of 'barberry', 'lindera', 'garlic_mustard', 
-#' or 'tower_mustard'
+#' @param sp \code{"barberry"} Either 'barberry', 'garlic_mustard'
 #' @param f Landscape grid file (e.g., ENF_5km.csv)
 #' @param nlcd_agg Dataframe with NLCD aggregation scheme
 #' @param clim_X \code{"bio10_1"} Column names for bioclimatic variables to
@@ -313,12 +312,12 @@ fit_PNAS_species <- function(sp="barberry", f, nlcd_agg, clim_X="bio10_1",
                                             "flower", "seeds", "germ")
   ## datasets
   plot.df <- sp.ls[[sp]] %>% 
-    filter(habitat==ifelse(grepl("mustard", sp), 1, 0)) %>%
+    filter(habitat!=ifelse(grepl("mustard", sp), 2, 1)) %>%
     select(wplot, size, sizeNext, surv, fec1, fec2, fec3, flowering,
            n.germ.0, n.germ.1, Ph.ave, N, PAR, light) %>%
     mutate(size2=size^2, size3=size^3) %>%
     left_join(., X.df, by="wplot")
-  all.df <- read.csv(dir("data/PNAS_2017", sp, full.names=T)) %>%
+  all.df <- read.csv(dir("data/PNAS_2017", paste0(sp, "_data"), full.names=T)) %>%
     mutate(size2=size^2, size3=size^3) %>%
     left_join(., X.df, by="wplot")
   hab.mns <- all.df %>% group_by(habitat) %>% 
@@ -339,12 +338,10 @@ fit_PNAS_species <- function(sp="barberry", f, nlcd_agg, clim_X="bio10_1",
                                          "+ light + Ph.ave + N")), 
                        data=filter(plot.df, !is.na(size) & !is.na(sizeNext)))
   if(grepl("mustard", sp)) {
-    ## these are bienniel species
-    ## need to modify IPM construction so P applies in first year, F in second
     vital.reg[[3]] <- glm(as.formula(paste0("flowering", covariates)), 
                           data=filter(plot.df, !is.na(flowering) & !is.na(size)), 
                           family="binomial")
-    vital.reg[[4]] <- glm(as.formula(paste0("fec1", covariates)), 
+    vital.reg[[4]] <- glm(as.formula(paste0("fec1", covariates, "+ PAR + Ph.ave")), 
                           data=filter(plot.df, !is.na(fec1) & !is.na(size)), 
                           family="poisson")
   } else {
@@ -358,7 +355,7 @@ fit_PNAS_species <- function(sp="barberry", f, nlcd_agg, clim_X="bio10_1",
                           family="poisson")
   }
   vital.reg[[5]] <- glm(as.formula(paste0("cbind(n.germ.1, n.germ.0)",
-                                          str_remove(covariates, "size.+\\+"), 
+                                          str_remove(covariates, "size.\\+"), 
                                           " + Ph.ave + light")),
                         data=filter(all.df, !is.na(fec2)), family="binomial")
   
@@ -370,7 +367,7 @@ fit_PNAS_species <- function(sp="barberry", f, nlcd_agg, clim_X="bio10_1",
   if(habitat==4) hab_eff <- hab.opt[ifelse(grepl("mustard", sp), 1, 2),-1]
   for(i in seq_along(vital.reg)) {
     vital.coef[[i]][1] <- vital.coef[[i]][1] + 
-      sum(vital.coef[[i]][c("PAR", "Ph.ave", "N", "light")]*hab_eff, na.rm=T)
+      sum(vital.coef[[i]][c("PAR", "Ph.ave", "N", "light")] * hab_eff, na.rm=T)
     vital.coef[[i]] <- vital.coef[[i]][!names(vital.coef[[i]]) %in% 
                                                 c("PAR", "Ph.ave", "N", "light")]
     vital.par[[i]][names(vital.coef[[i]])] <- vital.coef[[i]]
@@ -398,6 +395,8 @@ fit_PNAS_species <- function(sp="barberry", f, nlcd_agg, clim_X="bio10_1",
   params$p_est <- mean(all.df$fec3, na.rm=T)
   ## seed bank survival
   params$s_SB <- ifelse(grepl("mustard", sp), 0.8, 0.9)
+  ## maximum per capita seed production
+  params$seed_max <- max(all.df$fec1, na.rm=T)*2
   
   return(p=params)
 }
