@@ -19,7 +19,7 @@ samp.issues <- c("none", "noise", "geogBias", "sampBias")
 pkgs <- c("tidyverse", "magrittr", "here")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
 walk(dir("code", "fn", full.names=T), source)
-sp_i <- read.csv("data/species.csv") %>% filter(spName==sp)
+sp_i <- read.csv("data/species.csv") %>% filter(Name==sp)
 env.in <- readRDS(here("vs", sp_i$Num, "env_in.rds"))
 p <- readRDS(here("vs", sp_i$Num, "p.rds"))
 S <- readRDS(here("vs", sp_i$Num, "S.rds"))
@@ -31,7 +31,7 @@ n.cell <- nrow(env.in)
 ########
 ## Set sampling details
 ########
-n_samp <- 20  # number of unique samples to average across
+n_samp <- 10  # number of unique samples to average across
 O_n <- list(Corr=50, Mech=20)  # number of cells in sample
 O_yr <- list(Mx=p$tmax, CA=(-2:0)+p$tmax, IPM=p$tmax)  # years to sample
 P.i <- which(lam.df$Surv.S > 5)  # presences: survival past recruit stage

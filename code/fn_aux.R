@@ -394,7 +394,7 @@ fit_PNAS_species <- function(sp="barberry", f, nlcd_agg, clim_X="bio10_1",
   ## probability of establishment given germination
   params$p_est <- mean(all.df$fec3, na.rm=T)
   ## seed bank survival
-  params$s_SB <- ifelse(grepl("mustard", sp), 0.8, 0.9)
+  params$s_SB <- ifelse(grepl("mustard", sp), 0.85, 0.2)
   ## maximum per capita seed production
   params$seed_max <- max(all.df$fec1, na.rm=T)*2
   

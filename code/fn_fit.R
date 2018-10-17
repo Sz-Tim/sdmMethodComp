@@ -309,7 +309,8 @@ fit_MxL <- function(sp, issue, samp.issue, lam.df, v, m) {
 
 ##-- fit demographic CA model
 #' Generate predicted distribution using a demographic CA model
-#' @param sp Virtual species
+#' @param sp Virtual species name
+#' @param sp_i Single row dataframe with species information
 #' @param samp.issue Issue with observed dataset
 #' @param mod.issue Issue to impose on model
 #' @param p List of true parameters
@@ -328,31 +329,30 @@ fit_MxL <- function(sp, issue, samp.issue, lam.df, v, m) {
 #' @return List with dataframe P_CAi with overall summaries across datasets for
 #'   the demographic CA distribution and diagnostics containing the vital rate
 #'   regressions
-fit_CA <- function(sp, samp.issue, mod.issue, p, env.rct, env.rct.unsc, lam.df, 
-                   v, m, N_init, sdd.pr, sdd.ji, p.ji, n_sim, n_cores) {
+fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc, 
+                   lam.df, v, m, N_init, sdd.pr, sdd.ji, p.ji, n_sim, n_cores) {
   library(here); library(tidyverse); library(gbPopMod); 
   library(MuMIn); library(lme4); library(doSNOW)
-  out.dir <- paste0("out/", sp, "/", samp.issue, "/", mod.issue, "/")
+  walk(dir("code", "fn", full.names=T), source)
+  out.dir <- paste0("out/", sp_i$Num, "/", samp.issue, "/", mod.issue, "/")
   if(!dir.exists(out.dir)) dir.create(out.dir, recursive=TRUE)
   n.cell <- nrow(lam.df)
   n.grid <- nrow(env.rct)
   
   # load observations
-  O_CA <- readRDS(here("vs", sp, paste0("O_CA_", samp.issue, ".rds")))
+  O_CA <- readRDS(here("vs", sp_i$Num, paste0("O_CA_", samp.issue, ".rds")))
   X.CA <- env.rct %>% rename(id.in=id.in) %>%
     dplyr::select(one_of("x", "y", "x_y", "inbd", "id", "id.in", names(v)[-1]))
-  n_LC <- n_distinct(read.csv(paste0("data/PNAS_2017/aggLC_", 
-                                     ifelse(grepl("mustard", sp), 
-                                            "mustard.csv", "woody.csv")))$agg)
+  n_LC <- n_distinct(read.csv(paste0("data/PNAS_2017/", sp_i$LC_f))$agg)
   
   # initialize CA parameters
   p.CA <- set_g_p(tmax=p$tmax, 
                   lc.r=diff(range(lam.df$y)), lc.c=diff(range(lam.df$x)),
                   n.lc=5, N.p.t0=n.cell, 
-                  m=3, gamma=1, 
+                  m=sp_i$m, gamma=1, 
                   s.B=p$s_SB, g.D=p$rcr_dir, g.B=p$rcr_SB,
                   p=as.matrix(logit(p$p_est)), 
-                  sdd.max=p$sdd_max, sdd.rate=p$sdd_rate, n.ldd=1,
+                  sdd.max=p$sdd_max, sdd.rate=p$sdd_rate, n.ldd=p$ldd,
                   p.c=matrix(1), bird.hab=p$bird_hab, s.c=1, method="lm")
   p.CA$p_emig <- p$p_emig
   
@@ -360,7 +360,7 @@ fit_CA <- function(sp, samp.issue, mod.issue, p, env.rct, env.rct.unsc, lam.df,
   if(mod.issue=="underDisp") {
     p.CA <- add_misDisperse(p.CA, p, sdd_max_adj=-2, sdd_rate_adj=2, ldd=0)
   } else if(mod.issue=="overDisp") {
-    p.CA <- add_misDisperse(p.CA, p, sdd_max_adj=2, sdd_rate_adj=.5, ldd=5)
+    p.CA <- add_misDisperse(p.CA, p, sdd_max_adj=2, sdd_rate_adj=.5, ldd=p$ldd*5)
   }
   if(grepl("Disp", mod.issue)) {
     sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=env.rct.unsc, 
@@ -377,7 +377,7 @@ fit_CA <- function(sp, samp.issue, mod.issue, p, env.rct, env.rct.unsc, lam.df,
   p.c <- makeCluster(n_cores); registerDoSNOW(p.c)
   foreach(i=1:length(O_CA), .errorhandling="pass", 
           .packages=c("tidyverse", "gbPopMod", "MuMIn", "lme4")) %dopar% {
-    walk(paste0("code/fn_", c("aux", "sim", "IPM", "fit"), ".R"), source)
+    walk(dir("code", "fn", full.names=T), source)
     O_CA.i <- O_CA[[i]]$d 
     O_CA.K <- O_CA.i %>% filter(id %in% O_CA.i$id[abs(O_CA.i$lambda-1)<0.05])
     sim.ls <- vector("list", n_sim)
@@ -393,7 +393,7 @@ fit_CA <- function(sp, samp.issue, mod.issue, p, env.rct, env.rct.unsc, lam.df,
       full.m$s.M <- glmer(as.formula(paste("cbind(s.M.1, s.M.0) ~", m, collapse="")), 
                           data=O_CA.i, family="binomial")
     }
-    if(sum(O_CA.i$s.N.0==0)/nrow(O_CA.i) < 0.9) { # in case very low mortality
+    if(sp=="barberry" && sum(O_CA.i$s.N.0==0)/nrow(O_CA.i) < 0.9) { # very low mortality
       full.m$s.N <- glmer(as.formula(paste("cbind(s.N.1, s.N.0) ~", m, collapse="")), 
                           data=O_CA.i, family="binomial")
     } 
@@ -406,7 +406,11 @@ fit_CA <- function(sp, samp.issue, mod.issue, p, env.rct, env.rct.unsc, lam.df,
     vars.ls <- rep(list(v), length(full.m)); names(vars.ls) <- names(opt.m)
     for(j in seq_along(full.m)) {
       if(is.null(full.m[[j]])) {
-        vars.opt[[j]] <- c("(Intercept)"=logit(0.9999))
+        if(sp=="barberry") {
+          vars.opt[[j]] <- c("(Intercept)"=logit(0.9999))
+        } else if(sp=="mustard") {
+          vars.opt[[j]] <- c("(Intercept)"=logit(0.0001))
+        }
       } else {
         opt.m[[j]] <- get.models(dredge(full.m[[j]], m.max=6), subset=1)[[1]]
         vars.opt[[j]] <- colMeans(coef(opt.m[[j]])$yr)
@@ -429,8 +433,8 @@ fit_CA <- function(sp, samp.issue, mod.issue, p, env.rct, env.rct.unsc, lam.df,
     N.init[X.CA$id[X.CA$inbd], p.CA$m] <- N_init
     N.init[X.CA$id[X.CA$inbd], -p.CA$m] <- round(N_init/5)
     for(s in 1:n_sim) {
-      sim.ls[[s]] <- gbPopMod::run_sim(n.grid, n.cell, p.CA, X.CA, sdd.pr, 
-                                       N.init, NULL, F, (-1:0)+p.CA$tmax)
+      sim.ls[[s]] <- gbPopMod::run_sim(n.grid, n.cell, p.CA, X.CA, sdd.pr, N.init,
+                                       NULL, T, (-1:0)+p.CA$tmax, 1e8)
     }
     
     i_pad <- str_pad(i, 2, pad="0")
@@ -470,7 +474,8 @@ fit_CA <- function(sp, samp.issue, mod.issue, p, env.rct, env.rct.unsc, lam.df,
 
 ##-- fit IPM & individual-based CA model
 #' Generate predicted distribution using an IPM and an individual-based CA model
-#' @param sp Virtual species
+#' @param sp Virtual species name
+#' @param sp_i Single row dataframe with species information
 #' @param samp.issue Issue with observed dataset
 #' @param mod.issue Issue to impose on model
 #' @param p List of true parameters
@@ -489,17 +494,17 @@ fit_CA <- function(sp, samp.issue, mod.issue, p, env.rct, env.rct.unsc, lam.df,
 #' @return List with dataframes P_IPM and P_CAi with overall summaries across
 #'   datasets for the IPM distribution and individual-based CA distribution
 #'   respectively, and diagnostics containing the vital rate regressions
-fit_IPM <- function(sp, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v, m, 
-                    n_z, n_x, N_init, sdd.ji, p.ji, n_sim, n_cores) {
+fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
+                    m, n_z, n_x, N_init, sdd.ji, p.ji, n_sim, n_cores) {
   library(here); library(tidyverse); library(magrittr); library(gbPopMod);
   library(MuMIn); library(doSNOW)
-  walk(paste0("code/fn_", c("aux", "sim", "IPM", "fit"), ".R"), source)
-  out.dir <- paste0("out/", sp, "/", samp.issue, "/", mod.issue, "/")
+  walk(dir("code", "fn", full.names=T), source)
+  out.dir <- paste0("out/", sp_i$Num, "/", samp.issue, "/", mod.issue, "/")
   if(!dir.exists(out.dir)) dir.create(out.dir, recursive=TRUE)
   n.cell <- nrow(lam.df)
   
   # load observations
-  O_IPM <- readRDS(here("vs", sp, paste0("O_IPM_", samp.issue, ".rds")))
+  O_IPM <- readRDS(here("vs", sp_i$Num, paste0("O_IPM_", samp.issue, ".rds")))
   X.IPM <- map(n_x, ~as.matrix(lam.df[,names(lam.df) %in% names(v)[-(1:n_z$s)]]))
   
   # initialize IPM parameters
@@ -525,7 +530,7 @@ fit_IPM <- function(sp, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v, m,
   p.c <- makeCluster(n_cores); registerDoSNOW(p.c)
   foreach(i=1:length(O_IPM), .errorhandling="pass", 
           .packages=c("tidyverse", "magrittr", "gbPopMod", "MuMIn")) %dopar% {
-    walk(paste0("code/fn_", c("aux", "sim", "IPM", "fit"), ".R"), source)
+    walk(dir("code", "fn", full.names=T), source)
     sim.ls <- vector("list", n_sim)
     # separate data for MuMIn::dredge()
     O_IPM.i.s <- filter(O_IPM[[i]], !is.na(surv))
@@ -570,12 +575,12 @@ fit_IPM <- function(sp, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v, m,
     
     # use estimated slopes to fill IPM matrix
     U.f <- fill_IPM_matrices(n.cell, buffer=0, discrete=1, p.IPM, n_z,
-                                  n_x, X.IPM, sdd.ji, p.ji)
+                                  n_x, X.IPM, sdd.ji, p.ji, sp)
     
     # use estimated slopes to generate simulated data
     for(s in 1:n_sim) {
       sim.ls[[s]] <- simulate_data(n.cell, U.f$lo, U.f$hi, p.IPM, X.IPM, n_z, 
-                                   sdd.ji, p.ji, N_init, save_yrs=p.IPM$tmax)
+                                   sdd.ji, p.ji, N_init, sp, save_yrs=p.IPM$tmax)
     }
 
     i_pad <- str_pad(i, 2, pad="0")

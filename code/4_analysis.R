@@ -8,13 +8,13 @@
 ## Setup
 ########
 # file specifications
-sp <- "sp1"
+sp <- "sp2"
 overwrite <- TRUE
 
 # load workspace
 pkgs <- c("tidyverse", "magrittr", "stringr", "here")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
-walk(paste0("code/fn_", c("IPM", "aux", "sim"), ".R"), ~source(here(.)))
+walk(dir("code", "fn", full.names=T), source)
 lam.df <- readRDS(here("vs", sp, "lam_df.rds"))
 
 f_P <- list.files(here("out", sp), pattern="P_", full.names=T)

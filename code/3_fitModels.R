@@ -20,7 +20,7 @@ n_sim <- 1 # number of simulations per sample (mechanistic only)
 pkgs <- c("dismo", "gbPopMod", "tidyverse", "magrittr", "MuMIn", "here", "doSNOW")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
 walk(dir("code", "fn", full.names=T), source)
-sp_i <- read.csv("data/species.csv") %>% filter(spName==sp)
+sp_i <- read.csv("data/species.csv") %>% filter(Name==sp)
 p <- readRDS(here("vs", sp_i$Num, "p.rds"))
 N_init <- readRDS(here("vs", sp_i$Num, "N_init.rds"))
 sdd.pr <- readRDS(here("vs", sp_i$Num, "sdd.rds"))
@@ -76,7 +76,7 @@ foreach(i=1:4, .packages=pkgs) %dopar% {
   #   }
   # }
   # fit CA-demographic
-  P_CA <- fit_CA(sp_i$Num, samp_iss, mod_iss, p, env.rct, env.rct.unsc, lam.df, 
+  P_CA <- fit_CA(sp, sp_i, samp_iss, mod_iss, p, env.rct, env.rct.unsc, lam.df, 
                  v$CA, m$CA, N_init, sdd.pr, sdd.ji, p.ji, n_sim, n_core_obs)
   if(overwrite) {
     saveRDS(P_CA$diag_CAd, here("out", sp_i$Num, paste0("Diag_CAd_", issue, ".rds")))
@@ -84,8 +84,8 @@ foreach(i=1:4, .packages=pkgs) %dopar% {
     saveRDS(P_CA$P_CAl, here("out", sp_i$Num, paste0("P_CAl_", issue, ".rds")))
   }
   # fit IPM, CA-individual
-  P_IPM <- fit_IPM(sp_i$Num, samp_iss, mod_iss, p, env.rct.unsc, lam.df, v$IPM, m$IPM, 
-                   n_z, n_x, N_init, sdd.ji, p.ji, n_sim, n_core_obs)
+  P_IPM <- fit_IPM(sp, sp_i, samp_iss, mod_iss, p, env.rct.unsc, lam.df, v$IPM, 
+                   m$IPM, n_z, n_x, N_init, sdd.ji, p.ji, n_sim, n_core_obs)
   if(overwrite) {
     saveRDS(P_IPM$diag, here("out", sp_i$Num, paste0("Diag_IPM_", issue, ".rds")))
     saveRDS(P_IPM$P_CAi, here("out", sp_i$Num, paste0("P_CAi_", issue, ".rds")))

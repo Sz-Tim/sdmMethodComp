@@ -8,12 +8,12 @@
 ## Setup
 ########
 # file specifications
-sp <- "sp1"
+sp <- "sp2"
 
 # load workspace
 pkgs <- c("tidyverse", "magrittr", "stringr", "here", "viridis")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
-walk(paste0("code/fn_", c("IPM", "aux", "sim"), ".R"), ~source(here(.)))
+walk(dir("code", "fn", full.names=T), source)
 theme_set(theme_bw())
 lam.df <- readRDS(here("vs", sp, "lam_df.rds"))
 out <- read.csv(here("out", sp, "out.csv"))
@@ -35,11 +35,11 @@ plot(lam.df$Evg, log(lam.df$lambda), col=rgb(0,0,0,0.75))
 plot(lam.df$Mxd, log(lam.df$lambda), col=rgb(0,0,0,0.75))
 hist(log(lam.df$lambda))
 
-ggplot(out, aes(x=lon, y=lat, fill=lambda>1)) + geom_tile() + ggtitle(sp)
-ggplot(out, aes(x=lon, y=lat, fill=lambda)) + geom_tile() + ggtitle(sp) +
+ggplot(lam.df, aes(x=lon, y=lat, fill=lambda>1)) + geom_tile() + ggtitle(sp)
+ggplot(lam.df, aes(x=lon, y=lat, fill=lambda)) + geom_tile() + ggtitle(sp) +
   scale_fill_viridis(option="B")
-ggplot(out, aes(x=lon, y=lat, fill=Surv.S>0)) + geom_tile() + ggtitle(sp)
-ggplot(out, aes(x=lon, y=lat, fill=Surv.S)) + geom_tile() + ggtitle(sp) +
+ggplot(lam.df, aes(x=lon, y=lat, fill=Surv.S>0)) + geom_tile() + ggtitle(sp)
+ggplot(lam.df, aes(x=lon, y=lat, fill=Surv.S)) + geom_tile() + ggtitle(sp) +
   scale_fill_viridis(option="B")
 
 ggplot(out, aes(fill=fate_lam, x=SDM)) + geom_bar(position="fill") + 
