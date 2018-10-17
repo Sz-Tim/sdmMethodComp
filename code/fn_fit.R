@@ -179,7 +179,7 @@ add_noise_IPM <- function(O_IPM, z_l, z_h, err) {
 #' @param ldd Number of annual long distance dispersal events
 #' @return List with modified model parameters \code{p.mod}
 add_misDisperse <- function(p.mod, p, sdd_max_adj=2, sdd_rate_adj=.1, ldd=5) {
-  p.mod$sdd.max <- p.mod$sdd_max <- max(p$sdd_max + sdd_max_adj, 4)
+  p.mod$sdd.max <- p.mod$sdd_max <- max(p$sdd_max + sdd_max_adj, 1)
   p.mod$sdd.rate <- p.mod$sdd_rate <- p$sdd_rate * sdd_rate_adj
   p.mod$p_emig <- pexp(0.5, p$sdd_rate, lower.tail=F)
   p.mod$n.ldd <- ldd
