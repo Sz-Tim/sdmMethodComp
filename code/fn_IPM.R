@@ -200,17 +200,25 @@ setup_IPM_matrix <- function(n=100, z.rng=c(1,10), buffer=0) {
 #' regression
 #' @param X_s Matrix of environmental covariates for survival regression
 #' @param X_g Matrix of environmental covariates for growth regression
+#' @param X_fl Matrix of environmental covariates for flowering regression if 
+#' species is a mustard (i.e., a monocarpic species)
+#' @param sp Either 'barberry' or 'garlic_mustard'
 #' @return P matrix with survival & growth kernel
-fill_P <- function(h, y, z.i, p, n_z, n_x, X_s, X_g) {
+fill_P <- function(h, y, z.i, p, n_z, n_x, X_s, X_g, X_fl, sp) {
   P.mx <- matrix(0, nrow=p$n+1, ncol=p$n+1)
   # survival & growth
   S.v <- calc_surv(y, p=p, n_sz=n_z$s, X.s=X_s)
   G.mx <- h*outer(y, y, calc_grow, p=p, n_gz=n_z$g, X.g=X_g)
+  if(grepl("mustard", sp)) {
+    Fl.v <- calc_flwr(y, p=p, n_flz=n_z$fl, X.fl=X_fl)
+  } else {
+    Fl.v <- 0
+  }
   # correct ejections
   for(k in 1:(p$n/2)) G.mx[1,k] <- G.mx[1,k] + 1 - sum(G.mx[,k])
   for(k in (p$n/2+1):p$n) G.mx[p$n,k] <- G.mx[p$n,k] + 1 - sum(G.mx[,k])
   # fill P matrix
-  for(k in z.i) P.mx[k,z.i] <- G.mx[k-1,]*S.v
+  for(k in z.i) P.mx[k,z.i] <- G.mx[k-1,]*S.v*(1-Fl.v) # Fl.v = 0 if !mustard
   P.mx[1,1] <- calc_staySB(p)
   return(P.mx)
 }
@@ -228,6 +236,7 @@ fill_P <- function(h, y, z.i, p, n_z, n_x, X_s, X_g) {
 #' @param X_fl Matrix of environmental covariates for flowering regression
 #' @param X_seed Matrix of environmental covariates for seed regression
 #' @param X_germ Matrix of environmental covariates for germination regression
+#' @param sp Either 'barberry' or 'garlic_mustard'
 #' @return F matrix with fecundity kernel
 fill_F <- function(h, y, z.i, p, n_z, n_x, X_fl, X_seed, X_germ=NULL) {
   F.mx <- matrix(0, nrow=p$n+1, ncol=p$n+1)
@@ -254,6 +263,7 @@ fill_F <- function(h, y, z.i, p, n_z, n_x, X_fl, X_seed, X_germ=NULL) {
 #' @param X List of covariates, with elements \code{.$s, .$g, .$fl, .$seed}
 #' @param sdd.ji Short distance dispersal immigrant neighborhoods TO each cell j
 #' @param p.ji Dispersal probabilities TO each target cell j
+#' @param sp Either 'barberry' or 'garlic_mustard'
 #' @param verbose \code{FALSE} Give status updates?
 #' @return List of IPMs = IPM matrix for each cell, Ps = P matrix for each cell,
 #' Fs = F matrix for each cell, lo = minimum allowable size, hi = maximum 
@@ -261,7 +271,7 @@ fill_F <- function(h, y, z.i, p, n_z, n_x, X_fl, X_seed, X_germ=NULL) {
 #' matrix step size, sdd.j = Short distance dispersal immigrant neighborhoods to 
 #' each cell (perspective is the dispersal TO each target cell j)
 fill_IPM_matrices <- function(n.cell, buffer, discrete, p, n_z, n_x, 
-                              X, sdd.ji, p.ji, verbose=F) {
+                              X, sdd.ji, p.ji, sp, verbose=F) {
   library(tidyverse)
   i <- 1:n.cell
   
@@ -275,7 +285,7 @@ fill_IPM_matrices <- function(n.cell, buffer, discrete, p, n_z, n_x,
   ## local growth
   if(verbose) cat("Beginning local growth \n")
   Ps <- vapply(i, function(x) fill_P(Mx$h, Mx$y, z.i, p, n_z, n_x, 
-                                     X$s[x,], X$g[x,]), Ps[,,1])
+                                     X$s[x,], X$g[x,], X$fl[x,], sp), Ps[,,1])
   Fb <- vapply(i, function(x) fill_F(Mx$h, Mx$y, z.i, p, n_z, n_x, X$fl[x,], 
                                      X$seed[x,], X$germ[x,]), Fb[,,1])
   Fs[z.i,1,] <- Fb[z.i,1,]  # recruits from seedbank unaffected by immigration
