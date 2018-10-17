@@ -44,13 +44,17 @@ ggplot(out, aes(x=lon, y=lat, fill=Surv.S)) + geom_tile() + ggtitle(sp) +
 
 ggplot(out, aes(fill=fate_lam, x=SDM)) + geom_bar(position="fill") + 
   facet_wrap(~issue) + scale_fill_brewer(name="", type="div") + 
-  ylab("Proportion of cells") + ggtitle(sp)
+  ylab("Proportion of cells") + ggtitle(sp, "lambda-based range")
 ggplot(out, aes(fill=fate_S, x=SDM)) + geom_bar(position="fill") + 
   facet_wrap(~issue) + scale_fill_brewer(name="", type="div") + 
-  ylab("Proportion of cells") + ggtitle(sp)
+  ylab("Proportion of cells") + ggtitle(sp, "abundance-based range")
 ggplot(out, aes(fill=fate_lam, x=issue)) + geom_bar(position="fill") + 
   facet_wrap(~SDM) + scale_fill_brewer(name="", type="div") + 
-  ylab("Proportion of cells") + coord_flip() + ggtitle(sp)
+  ylab("Proportion of cells") + coord_flip() + ggtitle(sp, "lambda-based range")
+ggplot(out, aes(fill=fate_S, x=issue)) + geom_bar(position="fill") + 
+  facet_wrap(~SDM) + scale_fill_brewer(name="", type="div") + 
+  ylab("Proportion of cells") + coord_flip() + ggtitle(sp, "abundance-based range")
+
 ggplot(out, aes(x=lon, y=lat, fill=fate_lam)) +
   geom_tile() + facet_grid(SDM~issue) + 
   scale_fill_brewer(name="Boundary:\nlambda ≥ 1", type="div") +
@@ -59,6 +63,7 @@ ggplot(out, aes(x=lon, y=lat, fill=fate_S)) +
   geom_tile() + facet_grid(SDM~issue) + 
   scale_fill_brewer(name="Boundary:\nN > 0", type="div") +
   theme(axis.text=element_blank()) + ggtitle(sp)
+
 ggplot(out, aes(x=lon, y=lat, fill=prP)) +
   geom_tile() + facet_grid(SDM~issue) + 
   scale_fill_viridis("prob(P)", option="B") +
@@ -72,6 +77,10 @@ ggplot(out, aes(x=lon, y=lat, fill=lambda.f>=1)) +
 ggplot(out, aes(x=lon, y=lat, fill=log(Surv.S.f))) +
   geom_tile() + facet_grid(SDM~issue) + 
   scale_fill_viridis("log(N)", option="B") +
+  theme(axis.text=element_blank())
+ggplot(out, aes(x=lon, y=lat, fill=log(lambda.f))) +
+  geom_tile() + facet_grid(SDM~issue) + 
+  scale_fill_viridis("log(lambda)", option="B") +
   theme(axis.text=element_blank())
 ggplot(out, aes(x=lon, y=lat, fill=log(B.f))) +
   geom_tile() + facet_grid(SDM~issue) + 

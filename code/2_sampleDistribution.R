@@ -11,26 +11,27 @@
 ## Setup
 ########
 # file specifications
-sp <- "sp1"
+sp <- c("barberry", "garlic_mustard")[2]
 overwrite <- TRUE
 samp.issues <- c("none", "noise", "geogBias", "sampBias")
 
 # load workspace
 pkgs <- c("tidyverse", "magrittr", "here")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
-walk(paste0("code/fn_", c("aux", "sim", "IPM", "fit"), ".R"), ~source(here(.)))
-env.in <- readRDS(here("vs", sp, "env_in.rds"))
-p <- readRDS(here("vs", sp, "p.rds"))
-S <- readRDS(here("vs", sp, "S.rds"))
-U <- readRDS(here("vs", sp, "U.rds"))
-lam.df <- readRDS(here("vs", sp, "lam_df.rds")) # env & true pop vals
+walk(dir("code", "fn", full.names=T), source)
+sp_i <- read.csv("data/species.csv") %>% filter(spName==sp)
+env.in <- readRDS(here("vs", sp_i$Num, "env_in.rds"))
+p <- readRDS(here("vs", sp_i$Num, "p.rds"))
+S <- readRDS(here("vs", sp_i$Num, "S.rds"))
+U <- readRDS(here("vs", sp_i$Num, "U.rds"))
+lam.df <- readRDS(here("vs", sp_i$Num, "lam_df.rds")) # env & true pop vals
 n.cell <- nrow(env.in)
 
 
 ########
 ## Set sampling details
 ########
-n_samp <- 25  # number of unique samples to average across
+n_samp <- 20  # number of unique samples to average across
 O_n <- list(Corr=50, Mech=20)  # number of cells in sample
 O_yr <- list(Mx=p$tmax, CA=(-2:0)+p$tmax, IPM=p$tmax)  # years to sample
 P.i <- which(lam.df$Surv.S > 5)  # presences: survival past recruit stage
@@ -81,9 +82,9 @@ for(s.i in samp.issues) {
   ## Store samples
   ########
   if(overwrite) {
-    saveRDS(O_Mx, here("vs", sp, paste0("O_Mx_", s.i, ".rds")))
-    saveRDS(O_CA, here("vs", sp, paste0("O_CA_", s.i, ".rds")))
-    saveRDS(O_IPM, here("vs", sp, paste0("O_IPM_", s.i, ".rds")))
+    saveRDS(O_Mx, here("vs", sp_i$Num, paste0("O_Mx_", s.i, ".rds")))
+    saveRDS(O_CA, here("vs", sp_i$Num, paste0("O_CA_", s.i, ".rds")))
+    saveRDS(O_IPM, here("vs", sp_i$Num, paste0("O_IPM_", s.i, ".rds")))
   }
 }
 
