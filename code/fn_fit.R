@@ -11,6 +11,7 @@
 ##-- sample for demographic CA model
 #' Sample from S and summarise to population-level statistics for the specified
 #' cells and years within each observed dataset
+#' @param sp Virtual species name
 #' @param S True individual-level data produced in 1_simulateSpecies.R
 #' @param Mech.sample List of cell indices for each set of samples
 #' @param O_yr List with [["CA"]] containing the years to sample
@@ -20,7 +21,8 @@
 #'   and year, matrix "B" (dim=[n.cell, length(O_yr$CA)] with the size of the
 #'   seedbank, and matrix "D" (dim=dim(B)) with the number of immigrant seeds to
 #'   each cell
-sample_for_CA <- function(S, Mech.sample, O_yr, prop.sampled) {
+sample_for_CA <- function(sp, S, Mech.sample, O_yr, prop.sampled) {
+  m <- ifelse(sp=="garlic_mustard", 2, 3)
   O_CA <- vector("list", length(Mech.sample))
   for(s in seq_along(O_CA)) {
     CA.d <- CA.B <- CA.D <- vector("list", length(Mech.sample[[1]]))
@@ -36,10 +38,10 @@ sample_for_CA <- function(S, Mech.sample, O_yr, prop.sampled) {
       }
       CA.d[[j]] <- CA.d[[j]] %>% group_by(yr) %>% 
         summarise(N=sum(!is.na(size)), 
-                  s.N.0=sum(surv[age>2]==0, na.rm=TRUE),
-                  s.N.1=sum(surv[age>2]==1, na.rm=TRUE),
-                  s.M.0=sum(surv[age<3]==0, na.rm=TRUE),
-                  s.M.1=sum(surv[age<3]==1, na.rm=TRUE),
+                  s.N.0=sum(surv[age>=m]==0, na.rm=TRUE),
+                  s.N.1=sum(surv[age>=m]==1, na.rm=TRUE),
+                  s.M.0=sum(surv[age<m]==0, na.rm=TRUE),
+                  s.M.1=sum(surv[age<m]==1, na.rm=TRUE),
                   f.0=sum(fl==0, na.rm=TRUE),
                   f.1=sum(fl==1, na.rm=TRUE),
                   mu=mean(seed, na.rm=TRUE) %>% round,
@@ -534,6 +536,7 @@ fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
     sim.ls <- vector("list", n_sim)
     # separate data for MuMIn::dredge()
     O_IPM.i.s <- filter(O_IPM[[i]], !is.na(surv))
+    if(sp=="garlic_mustard") O_IPM.i.s <- filter(O_IPM.i.s, age==1)
     O_IPM.i.g <- filter(O_IPM[[i]], !is.na(sizeNext) & !is.na(size))
     O_IPM.i.fl <- filter(O_IPM[[i]], !is.na(fl))
     O_IPM.i.seed <- filter(O_IPM[[i]], !is.na(seed))

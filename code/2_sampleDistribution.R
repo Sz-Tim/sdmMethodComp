@@ -64,7 +64,7 @@ for(s.i in samp.issues) {
   Mech.sample <- map(1:n_samp, ~sample(P.i, O_n$Mech, replace=F, prob=P.pr))
   
   O_Mx <- map(Corr.sample, ~(1:n.cell %in% .))
-  O_CA <- sample_for_CA(S, Mech.sample, O_yr, prop.sampled)
+  O_CA <- sample_for_CA(sp, S, Mech.sample, O_yr, prop.sampled)
   O_IPM <- sample_for_IPM(S, Mech.sample, O_yr, prop.sampled)
   
   
