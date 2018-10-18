@@ -360,9 +360,11 @@ fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc,
   
   # impose dispersal issues
   if(mod.issue=="underDisp") {
-    p.CA <- add_misDisperse(p.CA, p, sdd_max_adj=-2, sdd_rate_adj=2, ldd=0)
+    p.CA <- add_misDisperse(p.CA, p, sdd_max_adj=-2, sdd_rate_adj=2, 
+                            ldd=round(p$ldd/5))
   } else if(mod.issue=="overDisp") {
-    p.CA <- add_misDisperse(p.CA, p, sdd_max_adj=2, sdd_rate_adj=.5, ldd=p$ldd*5)
+    p.CA <- add_misDisperse(p.CA, p, sdd_max_adj=2, sdd_rate_adj=.5, 
+                            ldd=p$ldd*5)
   }
   if(grepl("Disp", mod.issue)) {
     sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=env.rct.unsc, 
@@ -436,7 +438,7 @@ fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc,
     N.init[X.CA$id[X.CA$inbd], -p.CA$m] <- round(N_init/5)
     for(s in 1:n_sim) {
       sim.ls[[s]] <- gbPopMod::run_sim(n.grid, n.cell, p.CA, X.CA, sdd.pr, N.init,
-                                       NULL, T, (-1:0)+p.CA$tmax, 1e8)
+                                       NULL, T, (-1:0)+p.CA$tmax, 1e6)
     }
     
     i_pad <- str_pad(i, 2, pad="0")
@@ -514,9 +516,11 @@ fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
   
   # impose dispersal issues
   if(mod.issue=="underDisp") {
-    p.IPM <- add_misDisperse(p.IPM, p, sdd_max_adj=-2, sdd_rate_adj=2, ldd=0)
+    p.IPM <- add_misDisperse(p.IPM, p, sdd_max_adj=-2, sdd_rate_adj=2, 
+                             ldd=round(p$ldd/5))
   } else if(mod.issue=="overDisp") {
-    p.IPM <- add_misDisperse(p.IPM, p, sdd_max_adj=2, sdd_rate_adj=.5, ldd=5)
+    p.IPM <- add_misDisperse(p.IPM, p, sdd_max_adj=2, sdd_rate_adj=.5, 
+                             ldd=p$ldd*5)
   }
   if(grepl("Disp", mod.issue)) {
     sp.df <- sdd_set_probs(ncell=n.cell, lc.df=env.rct.unsc, lc.col=8:12,
