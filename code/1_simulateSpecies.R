@@ -41,7 +41,7 @@ n.cell <- sum(L$env.rct$inbd)
 p <- fit_PNAS_species(sp, env.f, nlcd.sp, clim_X, FALSE, max_z_pow, habitat,
                       x_min, x_max, y_min, y_max)
 p$n <- 40
-p$tmax <- 50
+p$tmax <- 120
 p$n0 <- 10
 p$prop_init <- 0.001
 p$NDD <- T
@@ -49,7 +49,7 @@ p$sdd_max <- sp_i$sdd_max
 p$sdd_rate <- sp_i$sdd_rate
 p$ldd <- sp_i$ldd
 p$bird_hab <- c(.32, .36, .05, .09, .09)
-p$NDD_n <- 10#p$n0/10  # mean number of recruits if NDD
+p$NDD_n <- 100#p$n0/10  # mean number of recruits if NDD
 p$p_emig <- pexp(0.5, p$sdd_rate, lower.tail=F) # p(seed emigrants)
 n_z <- list(s=length(p$s_z),  # n size covariates for each vital rate
             g=length(p$g_z),
