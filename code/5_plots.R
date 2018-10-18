@@ -36,10 +36,10 @@ plot(lam.df$Mxd, log(lam.df$lambda), col=rgb(0,0,0,0.75))
 hist(log(lam.df$lambda))
 
 ggplot(lam.df, aes(x=lon, y=lat, fill=lambda>1)) + geom_tile() + ggtitle(sp)
-ggplot(lam.df, aes(x=lon, y=lat, fill=lambda)) + geom_tile() + ggtitle(sp) +
+ggplot(lam.df, aes(x=lon, y=lat, fill=log(lambda))) + geom_tile() + ggtitle(sp) +
   scale_fill_viridis(option="B")
 ggplot(lam.df, aes(x=lon, y=lat, fill=Surv.S>0)) + geom_tile() + ggtitle(sp)
-ggplot(lam.df, aes(x=lon, y=lat, fill=Surv.S)) + geom_tile() + ggtitle(sp) +
+ggplot(lam.df, aes(x=lon, y=lat, fill=log(Surv.S))) + geom_tile() + ggtitle(sp) +
   scale_fill_viridis(option="B")
 
 ggplot(out, aes(fill=fate_lam, x=SDM)) + geom_bar(position="fill") + 
