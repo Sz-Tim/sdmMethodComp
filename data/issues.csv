@@ -1,10 +1,9 @@
 Issue,Sampling,Modeling
 none,none,none
 noise,noise,none
-geogBias,geogBias,none
+nonEq,nonEq,none
 sampBias,sampBias,none
 noSB,none,noSB
 underDisp,none,underDisp
 overDisp,none,overDisp
-clim,none,clim
-lc,none,lc
+wrongCov,none,wrongCov

@@ -183,8 +183,8 @@ add_noise_IPM <- function(O_IPM, z_l, z_h, err) {
 add_misDisperse <- function(p.mod, p, sdd_max_adj=2, sdd_rate_adj=.1, ldd=5) {
   p.mod$sdd.max <- p.mod$sdd_max <- max(p$sdd_max + sdd_max_adj, 1)
   p.mod$sdd.rate <- p.mod$sdd_rate <- p$sdd_rate * sdd_rate_adj
-  p.mod$p_emig <- pexp(0.5, p$sdd_rate, lower.tail=F)
-  p.mod$n.ldd <- ldd
+  p.mod$p_emig <- pexp(0.5, p.mod$sdd_rate, lower.tail=F)
+  p.mod$n.ldd <- p.mod$ldd <- ldd
   return(p.mod)
 }
 
@@ -397,7 +397,7 @@ fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc,
       full.m$s.M <- glmer(as.formula(paste("cbind(s.M.1, s.M.0) ~", m, collapse="")), 
                           data=O_CA.i, family="binomial")
     }
-    if(sp=="barberry" && sum(O_CA.i$s.N.0==0)/nrow(O_CA.i) < 0.9) { # very low mortality
+    if(sp=="barberry" && sum(O_CA.i$s.N.0==0)/nrow(O_CA.i) < 0.9) { # <10% mortality
       full.m$s.N <- glmer(as.formula(paste("cbind(s.N.1, s.N.0) ~", m, collapse="")), 
                           data=O_CA.i, family="binomial")
     } 
@@ -444,16 +444,16 @@ fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc,
     i_pad <- str_pad(i, 2, pad="0")
     saveRDS(aggregate_CAd_simulations(sim.ls, max(p.CA$m)), 
             paste0(out.dir, "/CAd_fit_", i_pad, ".rds"))
-    saveRDS(calc_lambda(p.CA, X.CA, sdd.ji, p.ji, method="lm")$lambda, 
-            paste0(out.dir, "/CAd_lam_", i_pad, ".rds"))
+    # saveRDS(calc_lambda(p.CA, X.CA, sdd.ji, p.ji, method="lm")$lambda, 
+    #         paste0(out.dir, "/CAd_lam_", i_pad, ".rds"))
     saveRDS(list(p.CA, vars.ls), paste0(out.dir, "/CAd_diag_", i_pad, ".rds"))
   }
   stopCluster(p.c)
   
   out <- list.files(out.dir, "CAd_fit", full.names=T) %>% map(readRDS) %>%
     summarize_CAd_samples(., lam.df$id)
-  lambdas <- map(list.files(out.dir, "CAd_lam", full.names=T), readRDS) %>%
-    do.call("cbind", .)
+  # lambdas <- map(list.files(out.dir, "CAd_lam", full.names=T), readRDS) %>%
+  #   do.call("cbind", .)
   diagnostics <- list.files(out.dir, "CAd_diag", full.names=T) %>% map(readRDS)
   P_CAd <- lam.df %>% 
     dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.in") %>% 
@@ -466,10 +466,10 @@ fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc,
            Rcr.S.f=out$N_rcr.mn[,dim(out$N_rcr.mn)[2]],
            nSdStay.f=nSeed.f*(1-p.CA$p_emig), 
            nSdLeave.f=nSeed.f*p.CA$p_emig)
-  P_CAl <- lam.df %>%
-    dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.in") %>% 
-    mutate(lambda.f=rowMeans(lambdas)[lam.df$id.in],
-           prP=rowMeans(lambdas>1)[lam.df$id.in])
+  P_CAl <- NULL#lam.df %>%
+    # dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.in") %>%
+    # mutate(lambda.f=rowMeans(lambdas)[lam.df$id.in],
+    #        prP=rowMeans(lambdas>1)[lam.df$id.in])
   
   return(list(P_CAd=P_CAd,  P_CAl=P_CAl, diag=diagnostics))
 }

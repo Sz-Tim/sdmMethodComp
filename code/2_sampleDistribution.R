@@ -13,18 +13,19 @@
 # file specifications
 sp <- c("barberry", "garlic_mustard")[2]
 overwrite <- TRUE
-samp.issues <- c("none", "noise", "geogBias", "sampBias")
+samp.issues <- c("none", "noise", "sampBias", "nonEq")
 
 # load workspace
 pkgs <- c("tidyverse", "magrittr", "here")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
 walk(dir("code", "fn", full.names=T), source)
 sp_i <- read.csv("data/species_3km.csv") %>% filter(Name==sp)
-env.in <- readRDS(here("vs", sp_i$Num, "env_in.rds"))
-p <- readRDS(here("vs", sp_i$Num, "p.rds"))
-S <- readRDS(here("vs", sp_i$Num, "S.rds"))
-U <- readRDS(here("vs", sp_i$Num, "U.rds"))
-lam.df <- readRDS(here("vs", sp_i$Num, "lam_df.rds")) # env & true pop vals
+vs.dir <- paste0("vs/", sp_i$Num)
+env.in <- readRDS(here(vs.dir, "env_in.rds"))
+p <- readRDS(here(vs.dir, "p.rds"))
+S <- readRDS(here(vs.dir, "S.rds"))
+U <- readRDS(here(vs.dir, "U.rds"))
+lam.df <- readRDS(here(vs.dir, "lam_df.rds")) # env & true pop vals
 n.cell <- nrow(env.in)
 
 
@@ -33,11 +34,13 @@ n.cell <- nrow(env.in)
 ########
 n_samp <- 10  # number of unique samples to average across
 O_n <- list(Corr=50, Mech=20)  # number of cells in sample
-O_yr <- list(Mx=p$tmax, CA=(-2:0)+p$tmax, IPM=p$tmax)  # years to sample
-P.i <- which(lam.df$Surv.S > 5)  # presences: survival past recruit stage
-P.pr <- rep(1, length(P.i))  # pr(sample cell | presence)
 prop.sampled <- 1  # proportion of individuals sampled per sampled cell 
-geog.excl <- which(env.in$y < (max(env.in$y)-diff(range(env.in$y)*0.2)))
+O_yr_tmax <- list(Mx=p$tmax, CA=(-2:0)+p$tmax, IPM=p$tmax)  # years to sample
+P.i_tmax <- which(lam.df$Surv.S > 5)  # presences: survival past recruit stage
+P.pr_tmax <- rep(1, length(P.i_tmax))  # pr(sample cell | presence)
+O_yr_tnonEq <- list(Mx=p$tnonEq, CA=(-2:0)+p$tnonEq, IPM=p$tnonEq)
+P.i_tnonEq <- which(lam.df$Surv.S_nonEq > 5)
+P.pr_tnonEq <- rep(1, length(P.i_tnonEq))
 noise <- list(Mx=0.05, # proportion of observed presences that are false
               CA=list(N=0.02,  # N.obs = rnorm(N.true, N.true*N)
                       mu=0.05),  # fec.obs = rnorm(fec.true, fec.true*fec)
@@ -50,16 +53,21 @@ for(s.i in samp.issues) {
   ########
   ## Impose sampling bias
   ########
-  if(s.i=="geogBias") {
-    P.pr[P.i %in% geog.excl] <- 0
-  } else if(s.i=="sampBias") {
-    P.pr <- P.pr * env.in$rdLen[P.i]
-  }
+  if(s.i=="sampBias") P.pr <- P.pr_tmax * env.in$rdLen[P.i]
   
   
   ########
   ## Draw samples
   ########
+  if(s.i=="nonEq") {
+    P.i <- P.i_tnonEq
+    P.pr <- P.pr_tnonEq
+    O_yr <- O_yr_tnonEq
+  } else {
+    P.i <- P.i_tmax
+    P.pr <- P.pr_tmax
+    O_yr <- O_yr_tmax
+  }
   Corr.sample <- map(1:n_samp, ~sample(P.i, O_n$Corr, replace=F, prob=P.pr))
   Mech.sample <- map(1:n_samp, ~sample(P.i, O_n$Mech, replace=F, prob=P.pr))
   
@@ -82,9 +90,9 @@ for(s.i in samp.issues) {
   ## Store samples
   ########
   if(overwrite) {
-    saveRDS(O_Mx, here("vs", sp_i$Num, paste0("O_Mx_", s.i, ".rds")))
-    saveRDS(O_CA, here("vs", sp_i$Num, paste0("O_CA_", s.i, ".rds")))
-    saveRDS(O_IPM, here("vs", sp_i$Num, paste0("O_IPM_", s.i, ".rds")))
+    saveRDS(O_Mx, here(vs.dir, paste0("O_Mx_", s.i, ".rds")))
+    saveRDS(O_CA, here(vs.dir, paste0("O_CA_", s.i, ".rds")))
+    saveRDS(O_IPM, here(vs.dir, paste0("O_IPM_", s.i, ".rds")))
   }
 }
 

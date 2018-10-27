@@ -28,14 +28,14 @@ logit <- function (x) {
 #' in-bound dataframe with scaled values, and an index for the scaling.
 #' @param f Landscape grid file (e.g., ENF_5km.csv)
 #' @param nlcd_agg Dataframe with NLCD aggregation scheme
-#' @param clim_X Column names for bioclimatic variables to include. Defaults to 
-#' all 19 variables
 #' @param x_max \code{Inf} Maximum row in grid (Inf = full-scale)
 #' @param x_min \code{0} Minimum row in grid (0 = full-scale)
 #' @param y_max \code{Inf} Maximum column in grid (Inf = full-scale)
 #' @param y_min \code{0} Minimum column in grid (0 = full-scale)
-build_landscape <- function(f, nlcd_agg, clim_X=paste0("bio10_", 1:19), 
-                            x_min=0, x_max=Inf, y_min=0, y_max=Inf) {
+#' @param clim_X Column names for bioclimatic variables to include. Defaults to 
+#' all 19 variables
+build_landscape <- function(f, nlcd_agg, x_min=0, x_max=Inf, y_min=0, y_max=Inf,
+                            clim_X=paste0("bio10_", c(1:19, "prMay"))) {
   library(tidyverse)
   # load GIS data & create x-y columns for landscape grid
   f.df <- suppressMessages(read_csv(f)) %>% 
@@ -82,8 +82,12 @@ build_landscape <- function(f, nlcd_agg, clim_X=paste0("bio10_", 1:19),
                             l.df[match_id,-(1:5)])
   # subset inbound cells
   env.in <- filter(env.rct, inbd)
+  # store input arguments
+  env.args <- list(f=f, clim_X=clim_X, 
+                   nlcd_agg=mutate(nlcd_agg, orig=str_remove(orig, "nlcd_")), 
+                   x_min=x_min, x_max=x_max, y_min=y_min, y_max=y_max)
   return(list(env.rct=env.rct, env.rct.unscaled=env.rct.unscaled,
-              env.in=env.in, scale.i=scale.i))
+              env.in=env.in, scale.i=scale.i, env.args=env.args))
 }
 
 
@@ -274,8 +278,8 @@ fit_PNAS_species <- function(sp="barberry", f, nlcd_agg, clim_X="bio10_1",
   library(tidyverse); library(magrittr); library(here); library(MuMIn)
   walk(paste0("code/fn_", c("IPM", "aux", "sim"), ".R"), ~source(here(.)))
   plot_i <- suppressMessages(read_csv("data/PNAS_2017/plot_coords.csv"))
-  env.in <- build_landscape(f=f, nlcd_agg=nlcd_agg,
-                            clim_X=clim_X, x_min=x_min, x_max=x_max, 
+  env.in <- build_landscape(f=f, nlcd_agg=nlcd_agg, clim_X=clim_X, 
+                            x_min=x_min, x_max=x_max, 
                             y_min=y_min, y_max=y_max)$env.in
   n.cell <- sum(env.in$inbd)
   sp.ls <- readRDS("data/PNAS_2017/species_data_list.rds")

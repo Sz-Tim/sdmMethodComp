@@ -200,25 +200,17 @@ setup_IPM_matrix <- function(n=100, z.rng=c(1,10), buffer=0) {
 #' regression
 #' @param X_s Matrix of environmental covariates for survival regression
 #' @param X_g Matrix of environmental covariates for growth regression
-#' @param X_fl Matrix of environmental covariates for flowering regression if 
-#' species is a mustard (i.e., a monocarpic species)
-#' @param sp Either 'barberry' or 'garlic_mustard'
 #' @return P matrix with survival & growth kernel
-fill_P <- function(h, y, z.i, p, n_z, n_x, X_s, X_g, X_fl, sp) {
+fill_P <- function(h, y, z.i, p, n_z, n_x, X_s, X_g) {
   P.mx <- matrix(0, nrow=p$n+1, ncol=p$n+1)
   # survival & growth
   S.v <- calc_surv(y, p=p, n_sz=n_z$s, X.s=X_s)
   G.mx <- h*outer(y, y, calc_grow, p=p, n_gz=n_z$g, X.g=X_g)
-  if(grepl("mustard", sp)) {
-    Fl.v <- calc_flwr(y, p=p, n_flz=n_z$fl, X.fl=X_fl)
-  } else {
-    Fl.v <- 0
-  }
   # correct ejections
   for(k in 1:(p$n/2)) G.mx[1,k] <- G.mx[1,k] + 1 - sum(G.mx[,k])
   for(k in (p$n/2+1):p$n) G.mx[p$n,k] <- G.mx[p$n,k] + 1 - sum(G.mx[,k])
   # fill P matrix
-  for(k in z.i) P.mx[k,z.i] <- G.mx[k-1,]*S.v*(1-Fl.v) # Fl.v = 0 if !mustard
+  for(k in z.i) P.mx[k,z.i] <- G.mx[k-1,]*S.v
   P.mx[1,1] <- calc_staySB(p)
   return(P.mx)
 }
@@ -285,7 +277,7 @@ fill_IPM_matrices <- function(n.cell, buffer, discrete, p, n_z, n_x,
   ## local growth
   if(verbose) cat("Beginning local growth \n")
   Ps <- vapply(i, function(x) fill_P(Mx$h, Mx$y, z.i, p, n_z, n_x, 
-                                     X$s[x,], X$g[x,], X$fl[x,], sp), Ps[,,1])
+                                     X$s[x,], X$g[x,]), Ps[,,1])
   Fb <- vapply(i, function(x) fill_F(Mx$h, Mx$y, z.i, p, n_z, n_x, X$fl[x,], 
                                      X$seed[x,], X$germ[x,]), Fb[,,1])
   Fs[z.i,1,] <- Fb[z.i,1,]  # recruits from seedbank unaffected by immigration
@@ -314,9 +306,54 @@ fill_IPM_matrices <- function(n.cell, buffer, discrete, p, n_z, n_x,
     Fs[z.i,z.i,] <- vapply(i, function (x) Fs[z.i,z.i,x] + D[[x]], Fs[z.i,z.i,1])
   }
   
-  return(list(IPMs=Ps+Fs,# Ps=Ps, Fb=Fb, Fs=Fs, 
+  return(list(IPMs=Ps+Fs, Ps=Ps, Fs=Fs, 
               lo=Mx$lo, hi=Mx$hi, b=Mx$b, y=Mx$y, h=Mx$h))
 }
+
+
+
+##-- Estimate lambda by iterating IPM matrix
+#' Calculates lambda by iterating a size distribution across the IPM matrix.
+#' This is necessary for size- and age-structured populations, where a different
+#' IPM matrix applies to each age. This function is specifically made for garlic
+#' mustard's biennial life cycle, in which individuals live for two years,
+#' reproducing only in the second, and it also includes a seed bank as a
+#' discrete stage. This code is adapted from Ellner & Rees 2006.
+#' @param p List of parameters
+#' @param P.mx Survival matrix
+#' @param F.mx Fecundity matrix
+#' @param tol Uncertainty tolerance in lambda estimate
+iter_lambda <- function(p, P.mx, F.mx, tol=0.01) {
+  # initialize objects
+  # ages: Nt[,1] = Seed Bank, Nt[,2] = Rosette Stage, Nt[,3] = Flowering Stage
+  # sizes: Nt[1,] = Seed, Nt[2:p$n+1,] = Size breakpoints
+  Nt <- Nt1 <- matrix(1, nrow=p$n+1, ncol=3)
+  Nt1[1,-1] <- Nt[1,-1] <- 0
+  Nt1[-1,1] <- Nt[-1,1] <- 0
+  qmax <- 1000; lam <- 1
+  P.bank <- P.mx[1,1]
+  P.mx[1,1] <- 0
+  
+  # iterate population
+  while(qmax>tol) {
+    # survival within the seed bank
+    Nt1[1,1] <- P.bank * Nt[1,1]
+    # survival from rosette to flowering stage
+    Nt1[,3] <- P.mx %*% Nt[,2]
+    # reproduction
+    Ft <- F.mx %*% Nt[,3]
+    # addition to seed bank
+    Nt1[1,1] <- Ft[1,]
+    # rosettes from seed bank & direct recruitment
+    Nt1[-1,2] <- Ft[-1,] + F.mx[-1,1]*Nt[1,1]
+    # calculate lambda, update Nt
+    qmax <- sum(abs(Nt1-lam*Nt))
+    lam <- sum(Nt1)
+    Nt <- Nt1/lam
+  } 
+  return(lam)
+}
+
 
 
 

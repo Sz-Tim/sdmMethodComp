@@ -11,11 +11,11 @@
 ## Setup
 ########
 # file specifications
-sp <- c("barberry", "garlic_mustard")[1]
+sp <- c("barberry", "garlic_mustard")[2]
 res <- "10km" # "3km", "5km", "10km", "50km"
 overwrite <- TRUE
-clim_X <- paste0("bio10_", c(1,12))# c(5, "prMay"))
-habitat <- 1
+clim_X <- paste0("bio10_", c(5, "prMay"))
+habitat <- 3
 max_z_pow <- 1
 n.cores <- 4
 x_min <- 200#675#
@@ -30,7 +30,7 @@ walk(dir("code", "fn", full.names=T), source)
 env.f <- paste0("data/ENF_", res, ".csv")
 sp_i <- read.csv(paste0("data/species_", res, ".csv")) %>% filter(Name==sp)
 nlcd.sp <- read.csv(here("data/PNAS_2017/", sp_i$LC_f))
-L <- build_landscape(env.f, nlcd.sp, clim_X=clim_X, x_min, x_max, y_min, y_max) 
+L <- build_landscape(env.f, nlcd.sp, x_min, x_max, y_min, y_max) 
 n.cell <- sum(L$env.rct$inbd)
 
 
@@ -40,8 +40,9 @@ n.cell <- sum(L$env.rct$inbd)
 ########
 p <- fit_PNAS_species(sp, env.f, nlcd.sp, clim_X, FALSE, max_z_pow, habitat,
                       x_min, x_max, y_min, y_max)
-p$n <- 40
+p$n <- 10
 p$tmax <- 120
+p$tnonEq <- p$tmax/3
 p$n0 <- 10
 p$prop_init <- 0.001
 p$NDD <- T
@@ -60,7 +61,8 @@ n_x <- list(s=length(p$s_x), # n env covariates for each vital rate
             fl=length(p$fl_x), 
             seed=length(p$seed_x),
             germ=length(p$germ_x))
-X <- map(n_x, ~as.matrix(L$env.in[,1:.]))  # env covariates for each vital rate
+X <- map(n_x, ~as.matrix(L$env.in[,grep(paste(clim_X, collapse="|"), 
+                                        names(L$env.in))]))  # env covs
 if(!is.null(X$germ)) X$germ <- cbind(1, X$germ[,-n_x$germ])
 # p$p_emig <- 0
 sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=L$env.rct.unscaled,
@@ -94,14 +96,19 @@ N_init[sample(filter(L$env.in, x>215 & x<230 & y>50 & y<75)$id.in,
 # Use assigned slopes to fill IPM matrix
 U <- fill_IPM_matrices(n.cell, buffer=0.1, discrete=1, p, n_z, n_x, 
                        X, sdd.ji, p.ji, sp, verbose=T)
+if(sp=="garlic_mustard") {
+  U$lambda <- sapply(1:n.cell, function(x) iter_lambda(p, U$Ps[,,x], U$Fs[,,x]))
+} else {
+  U$lambda <- apply(U$IPMs, 3, function(x) Re(eigen(x)$values[1]))
+}
 
 # Ground Truth: generate simulated data
 S <- simulate_data(n.cell, U$lo, U$hi, p, X, n_z, sdd.ji, p.ji, N_init, sp, 
-                   save_yrs=(-2:0)+p$tmax, T)
+                   save_yrs=NULL, T)
 
 # Aggregate results
 lam.df <- L$env.in %>%
-  mutate(lambda=apply(U$IPMs, 3, function(x) Re(eigen(x)$values[1])),
+  mutate(lambda=U$lambda,
          lam.S=map_dbl(S$d, ~sum(.$surv[.$yr==p$tmax], na.rm=T))/
            (map_dbl(S$d, ~sum(.$surv[.$yr==(p$tmax-1)], na.rm=T))+.01),
          nSeed=S$nSd[,dim(S$nSd)[2]], 
@@ -109,6 +116,7 @@ lam.df <- L$env.in %>%
          B=S$B[,dim(S$B)[2]], 
          N.S=map_dbl(S$d, ~sum(!is.na(.$sizeNext[.$yr==p$tmax]))),
          Surv.S=map_dbl(S$d, ~sum(.$surv[.$yr==p$tmax], na.rm=T)),
+         Surv.S_nonEq=map_dbl(S$d, ~sum(.$surv[.$yr==p$tnonEq], na.rm=T)),
          nRepro=map_dbl(S$d, ~sum(.$fl[.$yr==p$tmax], na.rm=T)),
          Rcr.S=map_dbl(S$d, ~sum(is.na(.$size[.$yr==p$tmax]))),
          nSdStay=nSeed*(1-p$p_emig), 
@@ -132,12 +140,17 @@ lam.gg <- ggplot(lam.df, aes(x=lon, y=lat)) + theme_bw() +
   theme(axis.text=element_blank()) + labs(x="", y="") +
   scale_fill_viridis(name="", option="B") +
   ggtitle(paste0(sp, ": 3km x 3km, favorable habitat"))
+
 lam.gg + geom_tile(aes(fill=log(lambda))) + 
   labs(subtitle="log(lambda)") +
   geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
 lam.gg + geom_tile(aes(fill=log(Surv.S))) + 
-  labs(subtitle="log(N)") +
+  labs(subtitle=paste("log(N): year", p$tmax)) +
   geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
+lam.gg + geom_tile(aes(fill=log(Surv.S_nonEq))) + 
+  labs(subtitle=paste("log(N): year", p$tmax/3)) +
+  geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
+
 lam.gg + geom_tile(aes(fill=log(nSeed))) + 
   labs(subtitle="log(Seed production)") +
   geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
@@ -153,6 +166,7 @@ lam.gg + geom_tile(aes(fill=log(nSdStay+round(D)))) +
 lam.gg + geom_tile(aes(fill=log(B))) + 
   labs(subtitle="log(Seed bank)") +
   geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
+
 lam.gg + geom_tile(aes(fill=lambda>1)) +  
   labs(subtitle="lambda > 1") +
   scale_fill_manual("", values=c("gray30", "dodgerblue")) +
@@ -161,6 +175,7 @@ lam.gg + geom_tile(aes(fill=Surv.S>0)) +
   labs(subtitle="N > 0") +
   scale_fill_manual("", values=c("gray30", "dodgerblue")) +
   geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
+
 lam.gg + geom_tile(aes(fill=s)) + 
   labs(subtitle="s: mean(z.rng)/2") +
   geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
@@ -178,21 +193,22 @@ lam.gg + geom_tile(aes(fill=germ)) +
 ## Store true species distribution
 ########
 if(overwrite) {
-  if(!dir.exists(here("vs", sp_i$Num))) {
-    dir.create(here("vs", sp_i$Num), recursive=T)
-  }
-  saveRDS(L$scale.i, here("vs", sp_i$Num, "cov_scale.rds"))
-  saveRDS(L$env.rct, here("vs", sp_i$Num, "env_rct.rds"))
-  saveRDS(L$env.rct.unscaled, here("vs", sp_i$Num, "env_rct_unscaled.rds"))
-  saveRDS(L$env.in, here("vs", sp_i$Num, "env_in.rds"))
-  saveRDS(p, here("vs", sp_i$Num, "p.rds"))
-  saveRDS(N_init, here("vs", sp_i$Num, "N_init.rds"))
-  saveRDS(sdd.pr, here("vs", sp_i$Num, "sdd.rds"))
-  saveRDS(sdd.ji, here("vs", sp_i$Num, "sdd_ji.rds"))
-  saveRDS(p.ji, here("vs", sp_i$Num, "p_ji.rds"))
-  saveRDS(U, here("vs", sp_i$Num, "U.rds"))
-  saveRDS(S, here("vs", sp_i$Num, "S.rds"))
-  saveRDS(lam.df, here("vs", sp_i$Num, "lam_df.rds"))
+  vs.dir <- paste0("vs/", sp_i$Num)
+  if(!dir.exists(here(vs.dir))) dir.create(here(vs.dir), recursive=T)
+  saveRDS(L$scale.i, here(vs.dir, "cov_scale.rds"))
+  saveRDS(L$env.rct, here(vs.dir, "env_rct.rds"))
+  saveRDS(L$env.rct.unscaled, here(vs.dir, "env_rct_unscaled.rds"))
+  saveRDS(L$env.in, here(vs.dir, "env_in.rds"))
+  saveRDS(L$env.args, here(vs.dir, "env_args.rds"))
+  saveRDS(clim_X, here(vs.dir, "clim_X.rds"))
+  saveRDS(p, here(vs.dir, "p.rds"))
+  saveRDS(N_init, here(vs.dir, "N_init.rds"))
+  saveRDS(sdd.pr, here(vs.dir, "sdd.rds"))
+  saveRDS(sdd.ji, here(vs.dir, "sdd_ji.rds"))
+  saveRDS(p.ji, here(vs.dir, "p_ji.rds"))
+  saveRDS(U, here(vs.dir, "U.rds"))
+  saveRDS(S, here(vs.dir, "S.rds"))
+  saveRDS(lam.df, here(vs.dir, "lam_df.rds"))
 }
 
 
