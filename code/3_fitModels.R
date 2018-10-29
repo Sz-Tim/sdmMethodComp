@@ -31,8 +31,8 @@ lam.df <- readRDS(here(vs.dir, "lam_df.rds"))
 
 clim_X_correct <- readRDS(here(vs.dir, "clim_X.rds"))
 L <- map(dir(here(vs.dir), "env_", full.names=T), readRDS) %>%
-  setNames(c("env.args", "env.in", "env.rct.unscaled", "env.rct"))
-n.cell <- nrow(L$env.in); n.grid <- nrow(L$env.rct)
+  setNames(str_remove(dir(here(vs.dir), "env_"), ".rds"))
+n.cell <- nrow(L$env_in); n.grid <- nrow(L$env_rct)
 clim_X_wrong <- paste0("bio10_", c(1, 5, 12, "prMay")) %>%
   magrittr::extract(! . %in% clim_X_correct)
 issue_i <- read.csv("data/issues.csv", stringsAsFactors=F)
@@ -85,7 +85,7 @@ foreach(i=seq_along(issue_i$Issue), .packages=pkgs) %dopar% {
   # }
   # fit CA-demographic
   P_CA <- fit_CA(sp, sp_i, samp_iss, mod_iss, p, 
-                 L$env.rct, L$env.rct.unscaled, lam.df, v$CA, m$CA, 
+                 L$env_rct, L$env_rct.unscaled, lam.df, v$CA, m$CA, 
                  N_init, sdd.pr, sdd.ji, p.ji, n_sim, n_core_obs)
   if(overwrite) {
     saveRDS(P_CA$diag_CAd, here(out.dir, paste0("Diag_CAd_", issue, ".rds")))
@@ -94,7 +94,7 @@ foreach(i=seq_along(issue_i$Issue), .packages=pkgs) %dopar% {
   }
   # fit IPM, CA-individual
   P_IPM <- fit_IPM(sp, sp_i, samp_iss, mod_iss, p, 
-                   L$env.rct.unscaled, lam.df, v$IPM, m$IPM, n_z, n_x, 
+                   L$env_rct.unscaled, lam.df, v$IPM, m$IPM, n_z, n_x, 
                    N_init, sdd.ji, p.ji, n_sim, n_core_obs)
   if(overwrite) {
     saveRDS(P_IPM$diag, here(out.dir, paste0("Diag_IPM_", issue, ".rds")))
