@@ -38,24 +38,24 @@ clim_X_wrong <- paste0("bio10_", c(1, 5, 12, "prMay")) %>%
 issue_i <- read.csv("data/issues.csv", stringsAsFactors=F)
 vars_correct <- rep(0, length(clim_X_correct)*2+4)
 names(vars_correct) <- c("(Intercept)", "size", "size2", "size3",
-                         clim_X_correct, paste0(clim_X_correct, "_sq"))
+                         paste0(rep(clim_X_correct, each=2), c("", "_sq")))
 vars_correct <- vars_correct[-4]
 vars_wrong <- rep(0, length(clim_X_wrong)*2+4)
 names(vars_wrong) <- c("(Intercept)", "size", "size2", "size3",
-                         clim_X_wrong, paste0(clim_X_wrong, "_sq"))
+                       paste0(rep(clim_X_wrong, each=2), c("", "_sq")))
 vars_wrong <- vars_wrong[-4]
 out.dir <- paste0("out/", sp_i$Num)
 if(!dir.exists(here(out.dir))) dir.create(here(out.dir), recursive=T)
 
 
 p.c <- makeCluster(n_core_iss); registerDoSNOW(p.c)
-foreach(i=seq_along(issue_i$Issue), .packages=pkgs) %dopar% {
+foreach(i=seq_along(issue_i$Issue), .packages=c("dismo", pkgs)) %dopar% {
   # load issues
   issue <- issue_i$Issue[i]
   samp_iss <- issue_i$Sampling[i]
   mod_iss <- issue_i$Modeling[i]
   
-  # set model details
+  # set variables & model formulas
   v <- m <- list(CA=NULL, IPM=NULL)
   if(mod_iss=="wrongCov") {
     vars <- vars_wrong
