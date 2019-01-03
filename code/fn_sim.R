@@ -166,10 +166,10 @@ simulate_data <- function(n.cell, lo, hi, p, X, n_z, sdd.ji, p.ji, N_init, sp,
   }
   
   # does germination probability vary with environment?
-  if(!is.null(X$germ)) { 
-    pr_germ <- c(antilogit(X$germ %*% p$germ_x))
-  } else { 
+  if(is.null(X$germ)) { 
     pr_germ <- NULL 
+  } else { 
+    pr_germ <- c(antilogit(X$germ %*% p$germ_x))
   }
   
   # storage objects
