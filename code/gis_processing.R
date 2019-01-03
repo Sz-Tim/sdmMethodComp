@@ -148,6 +148,19 @@ grd.df$rd_len[rd.grd$layer] <- rd.grd$length
 
 
 
+##------ Species observation locations
+## Geolocated presences from Allen & Bradley 2016. Used as a measure of the 
+## probability of sampling in a given location.
+##------
+library(sf)
+spp_obs <- read.csv("data/AllenBradley2016/IAS_occurences_final_analysis.csv") %>%
+  st_as_sf(coords=c("LONGITUDE_DECIMAL", "LATITUDE_DECIMAL")) %>%
+  st_set_crs(4326) %>%
+  st_transform(crs=alb_CRS@projargs) %>%
+  st_crop(., extent(ENF.us))
+
+
+
 write_csv(grd.df, paste0("data/ENF_", cell_side/1000, "km.csv"))
 
 
