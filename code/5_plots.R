@@ -8,7 +8,7 @@
 ## Setup
 ########
 # file specifications
-sp <- "sp2"
+sp <- "sp1"
 
 # load workspace
 pkgs <- c("tidyverse", "magrittr", "stringr", "here", "viridis")
@@ -18,11 +18,11 @@ theme_set(theme_bw())
 lam.df <- readRDS(here("vs", sp, "lam_df.rds"))
 out <- read.csv(here("out", sp, "out.csv"))
 out$issue <- factor(out$issue, 
-                    levels=c("none", "noise", "geogBias", "sampBias",
-                             "noSB", "underDisp", "overDisp", "clim", "lc"),
-                    labels=c("None", "Measurement error", "Geographic bias", 
-                             "Sampling bias", "No Seedbank", "Under dispersal",
-                             "Over dispersal", "Climate Only", "LC only"))
+                    levels=c("none", "noise", "sampBias", "nonEq",
+                             "noSB", "underDisp", "overDisp", "wrongCov"),
+                    labels=c("None", "Measurement error", "Sampling bias", 
+                             "Non-equilibrium", "No Seedbank", "Under dispersal",
+                             "Over dispersal", "Incorrect covariates"))
 SDM_col <- c(MxE="#3f007d", IPM="#014636", CAi="#02818a", CAd="#67a9cf")
 
 par(mfrow=c(3,3))
