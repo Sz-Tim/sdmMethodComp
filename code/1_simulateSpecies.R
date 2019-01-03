@@ -141,51 +141,53 @@ lam.gg <- ggplot(lam.df, aes(x=lon, y=lat)) + theme_bw() +
   scale_fill_viridis(name="", option="B") +
   ggtitle(paste0(sp, ": 3km x 3km, favorable habitat"))
 
-lam.gg + geom_tile(aes(fill=log(lambda))) + 
-  labs(subtitle="log(lambda)") +
-  geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
-lam.gg + geom_tile(aes(fill=log(Surv.S))) + 
-  labs(subtitle=paste("log(N): year", p$tmax)) +
-  geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
-lam.gg + geom_tile(aes(fill=log(Surv.S_nonEq))) + 
-  labs(subtitle=paste("log(N): year", p$tmax/3)) +
-  geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
-
-lam.gg + geom_tile(aes(fill=log(nSeed))) + 
-  labs(subtitle="log(Seed production)") +
-  geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
-lam.gg + geom_tile(aes(fill=nSeed/nRepro)) + 
-  labs(subtitle="Per capita seed production") +
-  geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
-lam.gg + geom_tile(aes(fill=log(round(D)))) + 
-  labs(subtitle="log(Immigrant seeds)") +
-  geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
-lam.gg + geom_tile(aes(fill=log(nSdStay+round(D)))) + 
-  labs(subtitle="log(Propagule pressure)") +
-  geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
-lam.gg + geom_tile(aes(fill=log(B))) + 
-  labs(subtitle="log(Seed bank)") +
-  geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
-
-lam.gg + geom_tile(aes(fill=lambda>1)) +  
-  labs(subtitle="lambda > 1") +
-  scale_fill_manual("", values=c("gray30", "dodgerblue")) +
-  geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
-lam.gg + geom_tile(aes(fill=Surv.S>0)) + 
-  labs(subtitle="N > 0") +
-  scale_fill_manual("", values=c("gray30", "dodgerblue")) +
-  geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
-
-lam.gg + geom_tile(aes(fill=s)) + 
-  labs(subtitle="s: mean(z.rng)/2") +
-  geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
-lam.gg + geom_tile(aes(fill=g)) + 
-  labs(subtitle="g = mn(growth): mean(z.rng)") +
-  geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
-lam.gg + geom_tile(aes(fill=germ)) + 
-  labs(subtitle="pr(germination)") +
-  geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
+if(plots) {
+  lam.gg + geom_tile(aes(fill=log(lambda))) + 
+    labs(subtitle="log(lambda)") +
+    geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
+  lam.gg + geom_tile(aes(fill=log(Surv.S))) + 
+    labs(subtitle=paste("log(N): year", p$tmax)) +
+    geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
+  lam.gg + geom_tile(aes(fill=log(Surv.S_nonEq))) + 
+    labs(subtitle=paste("log(N): year", p$tnonEq)) +
+    geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
   
+  lam.gg + geom_tile(aes(fill=log(nSeed))) + 
+    labs(subtitle="log(Seed production)") +
+    geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
+  lam.gg + geom_tile(aes(fill=nSeed/nRepro)) + 
+    labs(subtitle="Per capita seed production") +
+    geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
+  lam.gg + geom_tile(aes(fill=log(round(D)))) + 
+    labs(subtitle="log(Immigrant seeds)") +
+    geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
+  lam.gg + geom_tile(aes(fill=log(nSdStay+round(D)))) + 
+    labs(subtitle="log(Propagule pressure)") +
+    geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
+  lam.gg + geom_tile(aes(fill=log(B))) + 
+    labs(subtitle="log(Seed bank)") +
+    geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
+  
+  lam.gg + geom_tile(aes(fill=lambda>1)) +  
+    labs(subtitle="lambda > 1") +
+    scale_fill_manual("", values=c("gray30", "dodgerblue")) +
+    geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
+  lam.gg + geom_tile(aes(fill=Surv.S>0)) + 
+    labs(subtitle="N > 0") +
+    scale_fill_manual("", values=c("gray30", "dodgerblue")) +
+    geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
+  
+  lam.gg + geom_tile(aes(fill=s)) + 
+    labs(subtitle="s: mean(z.rng)/2") +
+    geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
+  lam.gg + geom_tile(aes(fill=g)) + 
+    labs(subtitle="g = mn(growth): mean(z.rng)") +
+    geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
+  lam.gg + geom_tile(aes(fill=germ)) + 
+    labs(subtitle="pr(germination)") +
+    geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
+}
+
 
 
 
