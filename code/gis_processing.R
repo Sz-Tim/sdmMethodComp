@@ -57,7 +57,9 @@ grd.wgs <- spTransform(grd, wgs_CRS)
 grd.df <- as.data.frame(coordinates(grd))
 names(grd.df) <- c("long", "lat")
 
-
+clim.rast <- raster("data/climate/CHELSA_prec_5_V1.2_land.tif")
+# run crop(), projectRaster() below
+clim.df <- zonal.stats(grd, clim.rast, mean, trace=F, plot=F)
 
 ##------ Climate data
 ## Climate raster files are stored in climate/ with no other files. Each file
@@ -66,7 +68,7 @@ names(grd.df) <- c("long", "lat")
 ## from CHELSA <http://chelsa-climate.org/downloads/>
 ##------
 # Load and extract bioclimatic variable numbers
-clim.f <- dir("data/climate")
+clim.f <- dir("data/climate", "bio10")
 clim.var <- str_split_fixed(clim.f, pattern="[[:punct:]]", 4)[,2:3] %>% 
   apply(1, str_flatten, collapse="_")
 clim.rast <- stack(paste0("data/climate/", clim.f))
@@ -148,7 +150,7 @@ grd.df$rd_len[rd.grd$layer] <- rd.grd$length
 
 
 
-write_csv(grd.df, paste0("data/ENF_", cell_side/1000, "km.csv"))
+write_csv(grd.df, paste0("data/ENF_", cell_side/1000, "km_pr_may.csv"))
 
 
 
