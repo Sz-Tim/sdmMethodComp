@@ -208,17 +208,17 @@ add_misDisperse <- function(p.mod, p, sdd_max_adj=2, sdd_rate_adj=.1, ldd=5) {
 #'   columns for cell information, mean(probability of presence), and
 #'   sd(probability of presence); and [["diag"]] containing diagnostics
 fit_MxE <- function(sp, issue, samp.issue, lam.df, v) {
-  library(dismo); library(here); library(tidyverse); library(raster)
+  library(here); library(tidyverse)
   path_iss <- paste0("out/maxent/", sp, "/", issue, "/")
   # load observations
   O_Mx <- readRDS(here("vs", sp, paste0("O_Mx_", samp.issue, ".rds")))
   X.Mx <- lam.df[,names(lam.df) %in% v]
   temp.rast <- vector("list", ncol(X.Mx))
   for(vi in 1:ncol(X.Mx)) {
-    temp.rast[[vi]] <- rasterFromXYZ(cbind(lam.df[,c("lon","lat")], X.Mx[,vi]))
+    temp.rast[[vi]] <- raster::rasterFromXYZ(cbind(lam.df[,c("lon","lat")], X.Mx[,vi]))
   }
   names(temp.rast) <- names(X.Mx)
-  rast.Mx <- stack(temp.rast)
+  rast.Mx <- raster::stack(temp.rast)
 
   bias_type="none"
   MxE.f <- MxE.p <- vector("list", length(O_Mx))
@@ -228,9 +228,11 @@ fit_MxE <- function(sp, issue, samp.issue, lam.df, v) {
                 "outputformat=logistic")
   for(i in seq_along(O_Mx)) {
     if(!dir.exists(paste0(path_iss, i))) dir.create(paste0(path_iss, i), recursive=T)
-    MxE.f[[i]] <- maxent(x=rast.Mx, p=as.matrix(lam.df[O_Mx[[i]], c("lon", "lat")]),
-                        args=fit.args, path=paste0(path_iss, i))
-    MxE.p[[i]] <- mean(predict(MxE.f[[i]], rast.Mx, args="outputformat=logistic"))
+    MxE.f[[i]] <- dismo::maxent(x=rast.Mx, 
+                                p=as.matrix(lam.df[O_Mx[[i]], c("lon", "lat")]),
+                                args=fit.args, path=paste0(path_iss, i))
+    MxE.p[[i]] <- mean(dismo::predict(MxE.f[[i]], rast.Mx, 
+                                      args="outputformat=logistic"))
     d_j <- vector("list", 10)
     for (j in 0:9){   #loop for each replicate
       d <- read.csv(paste0(path_iss, i, "/species_", j, "_samplePredictions.csv"))
