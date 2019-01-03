@@ -6,7 +6,7 @@
 library(maptools); library(raster); library(rgeos); library(rgdal)
 library(spatialEco); library(tidyverse); library(doSNOW); library(foreach)
 n_core <- 8
-cell_side <- 3000  # cell dimensions in meters; cell_area = cell_side^2
+cell_side <- 5000  # cell dimensions in meters; cell_area = cell_side^2
 
 
 
@@ -68,7 +68,7 @@ clim.df <- zonal.stats(grd, clim.rast, mean, trace=F, plot=F)
 ## from CHELSA <http://chelsa-climate.org/downloads/>
 ##------
 # Load and extract bioclimatic variable numbers
-clim.f <- dir("data/climate", "bio10")
+clim.f <- dir("data/climate")
 clim.var <- str_split_fixed(clim.f, pattern="[[:punct:]]", 4)[,2:3] %>% 
   apply(1, str_flatten, collapse="_")
 clim.rast <- stack(paste0("data/climate/", clim.f))
@@ -77,7 +77,7 @@ clim.rast <- crop(clim.rast, extent(ENF.wgs), snap="out")
 clim.rast <- projectRaster(clim.rast, crs=alb_CRS)
 # Calculate mean value within each grid cell
 p.c <- makeCluster(n_core); registerDoSNOW(p.c)
-clim.df <- foreach(i=seq_along(clim.var), .combine="data.frame", .errorhandling="pass",
+clim.df <- foreach(i=seq_along(clim.var), .errorhandling="pass",
                    .packages=c("sp", "spatialEco")) %dopar% {
   zonal.stats(grd, clim.rast[[i]], mean, trace=F, plot=F)
 }
@@ -150,7 +150,23 @@ grd.df$rd_len[rd.grd$layer] <- rd.grd$length
 
 
 
-write_csv(grd.df, paste0("data/ENF_", cell_side/1000, "km_pr_may.csv"))
+##------ Species observation locations
+## Geolocated presences from Allen & Bradley 2016. Used as a measure of the 
+## probability of sampling in a given location.
+##------
+library(sf)
+spp_obs <- read.csv("data/AllenBradley2016/IAS_occurences_final_analysis.csv") %>%
+  st_as_sf(coords=c("LONGITUDE_DECIMAL", "LATITUDE_DECIMAL")) %>%
+  st_set_crs(4326) %>%
+  st_transform(crs=alb_CRS@projargs) %>%
+  st_crop(., extent(ENF.us)) %>%
+  st_intersection(x=st_as_sf(grd), y=.) %>%
+  group_by(layer) %>% 
+  summarise(nObs=n())
+grd.df$nObs[spp_obs$layer] <- spp_obs$nObs
+
+
+write_csv(grd.df, paste0("data/ENF_", cell_side/1000, "km.csv"))
 
 
 

@@ -8,20 +8,21 @@
 ## Setup
 ########
 # file specifications
-sp <- "sp1"
+sp <- "sp2"
 overwrite <- TRUE
 
 # load workspace
 pkgs <- c("tidyverse", "magrittr", "stringr", "here")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
-walk(paste0("code/fn_", c("IPM", "aux", "sim"), ".R"), ~source(here(.)))
+walk(dir("code", "fn", full.names=T), source)
 lam.df <- readRDS(here("vs", sp, "lam_df.rds"))
 
 f_P <- list.files(here("out", sp), pattern="P_", full.names=T)
 i_P <- extract_SDM_details(f_P)
 out <- map2(f_P, i_P, ~readRDS(.x) %>% mutate(SDM=.y[1], issue=.y[2])) %>%
   do.call(bind_rows, .) %>%
-  full_join(dplyr::select(lam.df, -one_of("x", "y", "x_y", "inbd", "lat", "lon", "id")), 
+  full_join(dplyr::select(lam.df, 
+                          -one_of("x", "y", "x_y", "inbd", "lat", "lon", "id")), 
             ., by="id.in") %>%
   mutate(fate_S=case_when(Surv.S>0 & prP>=0.5 ~ "S:1 P:1",
                           Surv.S==0 & prP>=0.5 ~ "S:0 P:1",

@@ -228,6 +228,7 @@ fill_P <- function(h, y, z.i, p, n_z, n_x, X_s, X_g) {
 #' @param X_fl Matrix of environmental covariates for flowering regression
 #' @param X_seed Matrix of environmental covariates for seed regression
 #' @param X_germ Matrix of environmental covariates for germination regression
+#' @param sp Either 'barberry' or 'garlic_mustard'
 #' @return F matrix with fecundity kernel
 fill_F <- function(h, y, z.i, p, n_z, n_x, X_fl, X_seed, X_germ=NULL) {
   F.mx <- matrix(0, nrow=p$n+1, ncol=p$n+1)
@@ -254,6 +255,7 @@ fill_F <- function(h, y, z.i, p, n_z, n_x, X_fl, X_seed, X_germ=NULL) {
 #' @param X List of covariates, with elements \code{.$s, .$g, .$fl, .$seed}
 #' @param sdd.ji Short distance dispersal immigrant neighborhoods TO each cell j
 #' @param p.ji Dispersal probabilities TO each target cell j
+#' @param sp Either 'barberry' or 'garlic_mustard'
 #' @param verbose \code{FALSE} Give status updates?
 #' @return List of IPMs = IPM matrix for each cell, Ps = P matrix for each cell,
 #' Fs = F matrix for each cell, lo = minimum allowable size, hi = maximum 
@@ -261,7 +263,7 @@ fill_F <- function(h, y, z.i, p, n_z, n_x, X_fl, X_seed, X_germ=NULL) {
 #' matrix step size, sdd.j = Short distance dispersal immigrant neighborhoods to 
 #' each cell (perspective is the dispersal TO each target cell j)
 fill_IPM_matrices <- function(n.cell, buffer, discrete, p, n_z, n_x, 
-                              X, sdd.ji, p.ji, verbose=F) {
+                              X, sdd.ji, p.ji, sp, verbose=F) {
   library(tidyverse)
   i <- 1:n.cell
   
@@ -295,15 +297,63 @@ fill_IPM_matrices <- function(n.cell, buffer, discrete, p, n_z, n_x,
     # direct recruits: F[z,z,i]
     #   local seedlings = Fs[z,z,i]
     #   immigrant seeds -> seedlings = Fb[z,z,j_to_i] * p_emig * pr(j_to_i)
-    Fs[z.i,z.i,] <- vapply(i, function (x) Fs[z.i,z.i,x] + 
-                             Reduce(`+`, map2(sdd.ji[[x]], p$p_emig*p.ji[[x]], 
-                                              ~(Fb[z.i,z.i,.x] * .y))),
-                           Fs[z.i,z.i,1])
+    D <- lapply(i, function(x) Reduce(`+`, map2(sdd.ji[[x]], p$p_emig*p.ji[[x]], 
+                                                ~(Fb[z.i,z.i,.x] * .y))))
+    D_NULL <- which(map_lgl(D, is.null))
+    if(length(D_NULL) > 0) {
+      for(x in D_NULL) D[[x]] <- matrix(0, ncol=p$n, nrow=p$n)
+    }
+    Fs[z.i,z.i,] <- vapply(i, function (x) Fs[z.i,z.i,x] + D[[x]], Fs[z.i,z.i,1])
   }
   
-  return(list(IPMs=Ps+Fs,# Ps=Ps, Fb=Fb, Fs=Fs, 
+  return(list(IPMs=Ps+Fs, Ps=Ps, Fs=Fs, 
               lo=Mx$lo, hi=Mx$hi, b=Mx$b, y=Mx$y, h=Mx$h))
 }
+
+
+
+##-- Estimate lambda by iterating IPM matrix
+#' Calculates lambda by iterating a size distribution across the IPM matrix.
+#' This is necessary for size- and age-structured populations, where a different
+#' IPM matrix applies to each age. This function is specifically made for garlic
+#' mustard's biennial life cycle, in which individuals live for two years,
+#' reproducing only in the second, and it also includes a seed bank as a
+#' discrete stage. This code is adapted from Ellner & Rees 2006.
+#' @param p List of parameters
+#' @param P.mx Survival matrix
+#' @param F.mx Fecundity matrix
+#' @param tol Uncertainty tolerance in lambda estimate
+iter_lambda <- function(p, P.mx, F.mx, tol=0.01) {
+  # initialize objects
+  # ages: Nt[,1] = Seed Bank, Nt[,2] = Rosette Stage, Nt[,3] = Flowering Stage
+  # sizes: Nt[1,] = Seed, Nt[2:p$n+1,] = Size breakpoints
+  Nt <- Nt1 <- matrix(1, nrow=p$n+1, ncol=3)
+  Nt1[1,-1] <- Nt[1,-1] <- 0
+  Nt1[-1,1] <- Nt[-1,1] <- 0
+  qmax <- 1000; lam <- 1
+  P.bank <- P.mx[1,1]
+  P.mx[1,1] <- 0
+  
+  # iterate population
+  while(qmax>tol) {
+    # survival within the seed bank
+    Nt1[1,1] <- P.bank * Nt[1,1]
+    # survival from rosette to flowering stage
+    Nt1[,3] <- P.mx %*% Nt[,2]
+    # reproduction
+    Ft <- F.mx %*% Nt[,3]
+    # addition to seed bank
+    Nt1[1,1] <- Ft[1,]
+    # rosettes from seed bank & direct recruitment
+    Nt1[-1,2] <- Ft[-1,] + F.mx[-1,1]*Nt[1,1]
+    # calculate lambda, update Nt
+    qmax <- sum(abs(Nt1-lam*Nt))
+    lam <- sum(Nt1)
+    Nt <- Nt1/lam
+  } 
+  return(lam)
+}
+
 
 
 

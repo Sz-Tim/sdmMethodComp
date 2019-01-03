@@ -13,16 +13,16 @@ sp <- "sp1"
 # load workspace
 pkgs <- c("tidyverse", "magrittr", "stringr", "here", "viridis")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
-walk(paste0("code/fn_", c("IPM", "aux", "sim"), ".R"), ~source(here(.)))
+walk(dir("code", "fn", full.names=T), source)
 theme_set(theme_bw())
 lam.df <- readRDS(here("vs", sp, "lam_df.rds"))
 out <- read.csv(here("out", sp, "out.csv"))
 out$issue <- factor(out$issue, 
-                    levels=c("none", "noise", "geogBias", "sampBias",
-                             "noSB", "underDisp", "overDisp", "clim", "lc"),
-                    labels=c("None", "Measurement error", "Geographic bias", 
-                             "Sampling bias", "No Seedbank", "Under dispersal",
-                             "Over dispersal", "Climate Only", "LC only"))
+                    levels=c("none", "noise", "sampBias", "nonEq",
+                             "noSB", "underDisp", "overDisp", "wrongCov"),
+                    labels=c("None", "Measurement error", "Sampling bias", 
+                             "Non-equilibrium", "No Seedbank", "Under dispersal",
+                             "Over dispersal", "Incorrect covariates"))
 SDM_col <- c(MxE="#3f007d", IPM="#014636", CAi="#02818a", CAd="#67a9cf")
 
 par(mfrow=c(3,3))
@@ -35,22 +35,26 @@ plot(lam.df$Evg, log(lam.df$lambda), col=rgb(0,0,0,0.75))
 plot(lam.df$Mxd, log(lam.df$lambda), col=rgb(0,0,0,0.75))
 hist(log(lam.df$lambda))
 
-ggplot(out, aes(x=lon, y=lat, fill=lambda>1)) + geom_tile() + ggtitle(sp)
-ggplot(out, aes(x=lon, y=lat, fill=lambda)) + geom_tile() + ggtitle(sp) +
+ggplot(lam.df, aes(x=lon, y=lat, fill=lambda>1)) + geom_tile() + ggtitle(sp)
+ggplot(lam.df, aes(x=lon, y=lat, fill=log(lambda))) + geom_tile() + ggtitle(sp) +
   scale_fill_viridis(option="B")
-ggplot(out, aes(x=lon, y=lat, fill=Surv.S>0)) + geom_tile() + ggtitle(sp)
-ggplot(out, aes(x=lon, y=lat, fill=Surv.S)) + geom_tile() + ggtitle(sp) +
+ggplot(lam.df, aes(x=lon, y=lat, fill=Surv.S>0)) + geom_tile() + ggtitle(sp)
+ggplot(lam.df, aes(x=lon, y=lat, fill=log(Surv.S))) + geom_tile() + ggtitle(sp) +
   scale_fill_viridis(option="B")
 
 ggplot(out, aes(fill=fate_lam, x=SDM)) + geom_bar(position="fill") + 
   facet_wrap(~issue) + scale_fill_brewer(name="", type="div") + 
-  ylab("Proportion of cells") + ggtitle(sp)
+  ylab("Proportion of cells") + ggtitle(sp, "lambda-based range")
 ggplot(out, aes(fill=fate_S, x=SDM)) + geom_bar(position="fill") + 
   facet_wrap(~issue) + scale_fill_brewer(name="", type="div") + 
-  ylab("Proportion of cells") + ggtitle(sp)
+  ylab("Proportion of cells") + ggtitle(sp, "abundance-based range")
 ggplot(out, aes(fill=fate_lam, x=issue)) + geom_bar(position="fill") + 
   facet_wrap(~SDM) + scale_fill_brewer(name="", type="div") + 
-  ylab("Proportion of cells") + coord_flip() + ggtitle(sp)
+  ylab("Proportion of cells") + coord_flip() + ggtitle(sp, "lambda-based range")
+ggplot(out, aes(fill=fate_S, x=issue)) + geom_bar(position="fill") + 
+  facet_wrap(~SDM) + scale_fill_brewer(name="", type="div") + 
+  ylab("Proportion of cells") + coord_flip() + ggtitle(sp, "abundance-based range")
+
 ggplot(out, aes(x=lon, y=lat, fill=fate_lam)) +
   geom_tile() + facet_grid(SDM~issue) + 
   scale_fill_brewer(name="Boundary:\nlambda ≥ 1", type="div") +
@@ -59,6 +63,7 @@ ggplot(out, aes(x=lon, y=lat, fill=fate_S)) +
   geom_tile() + facet_grid(SDM~issue) + 
   scale_fill_brewer(name="Boundary:\nN > 0", type="div") +
   theme(axis.text=element_blank()) + ggtitle(sp)
+
 ggplot(out, aes(x=lon, y=lat, fill=prP)) +
   geom_tile() + facet_grid(SDM~issue) + 
   scale_fill_viridis("prob(P)", option="B") +
@@ -72,6 +77,10 @@ ggplot(out, aes(x=lon, y=lat, fill=lambda.f>=1)) +
 ggplot(out, aes(x=lon, y=lat, fill=log(Surv.S.f))) +
   geom_tile() + facet_grid(SDM~issue) + 
   scale_fill_viridis("log(N)", option="B") +
+  theme(axis.text=element_blank())
+ggplot(out, aes(x=lon, y=lat, fill=log(lambda.f))) +
+  geom_tile() + facet_grid(SDM~issue) + 
+  scale_fill_viridis("log(lambda)", option="B") +
   theme(axis.text=element_blank())
 ggplot(out, aes(x=lon, y=lat, fill=log(B.f))) +
   geom_tile() + facet_grid(SDM~issue) + 
