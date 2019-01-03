@@ -41,8 +41,8 @@ n.cell <- sum(L$env.rct$inbd)
 p <- fit_PNAS_species(sp, env.f, nlcd.sp, clim_X, FALSE, max_z_pow, habitat,
                       x_min, x_max, y_min, y_max)
 p$n <- 10
-p$tmax <- 120
-p$tnonEq <- p$tmax/3
+p$tmax <- 80
+p$tnonEq <- floor(p$tmax/3)
 p$n0 <- 10
 p$prop_init <- 0.001
 p$NDD <- T
