@@ -72,17 +72,23 @@ foreach(i=seq_along(issue_i$Issue), .packages=c("dismo", pkgs)) %dopar% {
   v$IPM <- vars[c(1, v.size, v.i)]
   m$IPM <- paste(names(v$IPM)[-1], collapse=" + ")
   n_z <- rep(list(1+length(v.size)), 4)  # adds intercept
-  n_x <- rep(list(length(v.i)), 4)
-  names(n_z) <- names(n_x) <- c("s", "g", "fl", "seed")
+  names(n_z) <- c("s", "g", "fl", "seed")
+  if(is.null(p$germ_x)) {
+    n_x <- rep(list(length(v.i)), 5)
+    names(n_x) <- c(names(n_z), "germ")
+  } else {
+    n_x <- rep(list(length(v.i)), 4)
+    names(n_x) <- names(n_z)
+  }
   
   # fit MaxEnt
-  # if(issue %in% issue_i$Issue[c(1:4,8:9)]) {
-  #   P_MxE <- fit_MxE(sp_i$Num, issue, samp_iss, lam.df, v$Mx)
-  #   if(overwrite) {
-  #     saveRDS(P_MxE$diag, here(out.dir, paste0("Diag_MxE_", issue, ".rds")))
-  #     saveRDS(P_MxE$P_MxE, here(out.dir, paste0("P_MxE_", issue, ".rds")))
-  #   }
-  # }
+  if(issue %in% issue_i$Issue[c(1:4,8)]) {
+    P_MxE <- fit_MxE(sp_i$Num, issue, samp_iss, lam.df, v$Mx)
+    if(overwrite) {
+      saveRDS(P_MxE$diag, here(out.dir, paste0("Diag_MxE_", issue, ".rds")))
+      saveRDS(P_MxE$P_MxE, here(out.dir, paste0("P_MxE_", issue, ".rds")))
+    }
+  }
   # fit CA-demographic
   P_CA <- fit_CA(sp, sp_i, samp_iss, mod_iss, p, 
                  L$env_rct, L$env_rct_unscaled, lam.df, v$CA, m$CA, 
@@ -93,8 +99,8 @@ foreach(i=seq_along(issue_i$Issue), .packages=c("dismo", pkgs)) %dopar% {
     # saveRDS(P_CA$P_CAl, here(out.dir, paste0("P_CAl_", issue, ".rds")))
   }
   # fit IPM, CA-individual
-  P_IPM <- fit_IPM(sp, sp_i, samp_iss, mod_iss, p, 
-                   L$env_rct_unscaled, lam.df, v$IPM, m$IPM, n_z, n_x, 
+  P_IPM <- fit_IPM(sp, sp_i, samp_iss, mod_iss, p,
+                   L$env_rct_unscaled, lam.df, v$IPM, m$IPM, n_z, n_x,
                    N_init, sdd.ji, p.ji, n_sim, n_core_obs)
   if(overwrite) {
     saveRDS(P_IPM$diag, here(out.dir, paste0("Diag_IPM_", issue, ".rds")))
