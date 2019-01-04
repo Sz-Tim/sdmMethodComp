@@ -363,10 +363,10 @@ fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc,
   # impose dispersal issues
   if(mod.issue=="underDisp") {
     p.CA <- add_misDisperse(p.CA, p, sdd_max_adj=-2, sdd_rate_adj=2, 
-                            ldd=round(p$ldd/5))
+                            ldd=round(p$ldd/2))
   } else if(mod.issue=="overDisp") {
     p.CA <- add_misDisperse(p.CA, p, sdd_max_adj=2, sdd_rate_adj=.5, 
-                            ldd=p$ldd*5)
+                            ldd=p$ldd*2)
   }
   if(grepl("Disp", mod.issue)) {
     sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=env.rct.unsc, 
