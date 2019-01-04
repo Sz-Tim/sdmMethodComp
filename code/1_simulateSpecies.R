@@ -11,17 +11,18 @@
 ## Setup
 ########
 # file specifications
-sp <- c("barberry", "garlic_mustard")[2]
+sp <- c("barberry", "garlic_mustard")[1]
 res <- "10km" # "3km", "5km", "10km", "50km"
 overwrite <- TRUE
+plots <- TRUE
 clim_X <- paste0("bio10_", c(5, "prMay"))
 habitat <- 3
 max_z_pow <- 1
 n.cores <- 4
-x_min <- 200#675#
+x_min <- 0#200#675#
 x_max <- Inf
 y_min <- 0
-y_max <- 75#250#
+y_max <- Inf#75#250#
 
 # load workspace
 pkgs <- c("gbPopMod", "tidyverse", "magrittr", "here", "doSNOW", "foreach")
@@ -40,6 +41,11 @@ n.cell <- sum(L$env.rct$inbd)
 ########
 p <- fit_PNAS_species(sp, env.f, nlcd.sp, clim_X, FALSE, max_z_pow, habitat,
                       x_min, x_max, y_min, y_max)
+p$s_x[1] <- p$s_x[1]*50
+p$s_x[c(2,4)] <- c(-0.8, -0.5)
+p$g_x[c(2,4)] <- -0.1
+p$germ_x[2] <- p$germ_x[2]*-1
+p$germ_x[c(3,5)] <- c(-2, -0.1)
 p$n <- 10
 p$tmax <- 80
 p$tnonEq <- floor(p$tmax/3)
