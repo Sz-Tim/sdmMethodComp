@@ -441,7 +441,7 @@ fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc,
     for(s in 1:n_sim) {
       sim.ls[[s]] <- gbPopMod::run_sim(n.grid, n.cell, p.CA, X.CA, sdd.pr, 
                                        N.init, NULL, T, (-1:0)+p.CA$tmax, 
-                                       1e6, dem_out=TRUE, FALSE)
+                                       p.CA$K_max, dem_out=TRUE, FALSE)
     }
     
     i_pad <- str_pad(i, 2, pad="0")
