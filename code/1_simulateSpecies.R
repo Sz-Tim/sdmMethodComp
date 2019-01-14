@@ -41,12 +41,13 @@ n.cell <- sum(L$env.rct$inbd)
 ########
 p <- fit_PNAS_species(sp, env.f, nlcd.sp, clim_X, FALSE, max_z_pow, habitat,
                       x_min, x_max, y_min, y_max)
+p$s_z[1] <- -10
 p$s_x[1] <- p$s_x[1]*50
 p$s_x[c(2,4)] <- c(-0.8, -0.5)
 p$g_x[c(2,4)] <- -0.1
 p$germ_x <- c(-1, -3, -1, -2, -0.2)
 p$n <- 10
-p$tmax <- 10
+p$tmax <- 150
 p$tnonEq <- floor(p$tmax/3)
 p$n0 <- 10
 p$prop_init <- 0.001
@@ -94,7 +95,8 @@ p.ji <- lapply(sdd.ji.rows, function(x) sdd.pr$sp.df$pr[x])
 # Initial populations
 N_init <- rep(0, n.cell)
 # 725 765 200
-N_init[sample(filter(L$env.in, x>215 & x<230 & y>50 & y<75)$id.in,
+N_init[sample(filter(L$env.in, x>200 & y<100)$id.in,
+# N_init[sample(filter(L$env.in, x>215 & x<230 & y>50 & y<75)$id.in,
               p$prop_init*n.cell, replace=F)] <- p$n0
 
 # Use assigned slopes to fill IPM matrix
@@ -133,6 +135,7 @@ lam.df <- L$env.in %>%
          max.age=map_dbl(S$d, ~max(.$age)),
          pr_Immigrant=map_dbl(p.ji, sum),
          s=antilogit(c(cbind(1, mean(p$z.rng)/2, X$s) %*% c(p$s_z, p$s_x))),
+         s.max=antilogit(c(cbind(1, max(p$z.rng), X$s) %*% c(p$s_z, p$s_x))),
          g=c(cbind(1, mean(p$z.rng), X$g) %*% c(p$g_z, p$g_x)),
          germ=antilogit(c(X$germ %*% p$germ_x)))
 
@@ -189,6 +192,9 @@ if(plots) {
   
   lam.gg + geom_tile(aes(fill=s)) + 
     labs(subtitle="s: mean(z.rng)/2") +
+    geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
+  lam.gg + geom_tile(aes(fill=s.max)) + 
+    labs(subtitle="s: max(z.rng)") +
     geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
   lam.gg + geom_tile(aes(fill=g)) + 
     labs(subtitle="g = mn(growth): mean(z.rng)") +
