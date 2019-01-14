@@ -148,7 +148,7 @@ lam.gg <- ggplot(lam.df, aes(x=lon, y=lat)) + theme_bw() +
 if(plots) {
   lam.gg + geom_tile(aes(fill=log(lambda))) + 
     labs(subtitle="log(lambda)") +
-    geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
+    geom_point(data=lam.df[which(N_init>0),], colour="white", shape=1)
   lam.gg + geom_tile(aes(fill=log(Surv.S))) + 
     labs(subtitle=paste("log(N): year", p$tmax)) +
     geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
