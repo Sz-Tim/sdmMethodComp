@@ -208,7 +208,8 @@ simulate_data <- function(n.cell, lo, hi, p, X, n_z, sdd.ji, p.ji, N_init, sp,
     D1 <- sapply(i, function(x) sum(nSd1[sdd.ji[[x]]] * p$p_emig * p.ji[[x]]))
     p_est1 <- rep(p$p_est, n.cell)
     if(!is.null(p$K_max)) {
-      p_est1[occupied[map_dbl(d1[occupied], ~sum(.$surv, na.rm=T)) > p$K_max]] <- 0
+      p_est1[occupied] <- p$p_est * 
+        (1 - map_dbl(d1[occupied], ~sum(.$surv, na.rm=T))/p$K_max)
     }
     # if(p$NDD) p_est1 <- pmin(p$NDD_n/(nSd1+D1+B1), p$p_est)
     d1 <- lapply(i, function(x) sim_recruits(k, d1[[x]], p_est1[x], nSd1[x], 
