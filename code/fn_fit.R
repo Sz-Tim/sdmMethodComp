@@ -13,6 +13,7 @@
 #' cells and years within each observed dataset
 #' @param sp Virtual species name
 #' @param S True individual-level data produced in 1_simulateSpecies.R
+#' @param lam.df Dataframe with covariates, generated in 1_simulateSpecies.R
 #' @param Mech.sample List of cell indices for each set of samples
 #' @param O_yr List with [["CA"]] containing the years to sample
 #' @param prop.sampled Proportion of individuals (per cell) to sample
@@ -21,15 +22,18 @@
 #'   and year, matrix "B" (dim=[n.cell, length(O_yr$CA)] with the size of the
 #'   seedbank, and matrix "D" (dim=dim(B)) with the number of immigrant seeds to
 #'   each cell
-sample_for_CA <- function(sp, S, Mech.sample, O_yr, prop.sampled) {
+sample_for_CA <- function(sp, S, lam.df, Mech.sample, O_yr, prop.sampled) {
   m <- ifelse(sp=="garlic_mustard", 2, 3)
   O_CA <- vector("list", length(Mech.sample))
   for(s in seq_along(O_CA)) {
     CA.d <- CA.B <- CA.D <- vector("list", length(Mech.sample[[1]]))
+    germ.plots <- rbinom(length(Mech.sample[[s]]), 100, 
+                         rep(lam.df$germ[Mech.sample[[s]]], each=length(O_yr$CA)))
     for(j in seq_along(Mech.sample[[s]])) {
       i <- Mech.sample[[s]][j]
-      CA.d[[j]] <- data.frame(S$d[[i]]) %>% filter(yr %in% O_yr$CA)
-      CA.d[[j]] <- sample_frac(CA.d[[j]], prop.sampled)
+      CA.d[[j]] <- data.frame(S$d[[i]]) %>% 
+        filter(yr %in% O_yr$CA) %>% 
+        sample_frac(prop.sampled)
       if(!all(O_yr$CA %in% CA.d[[j]]$yr)) {
         missing.yr <- O_yr$CA[!O_yr$CA %in% CA.d[[j]]$yr]
         CA.d[[j]] <- CA.d[[j]] %>%
@@ -51,17 +55,15 @@ sample_for_CA <- function(sp, S, Mech.sample, O_yr, prop.sampled) {
         ungroup() %>%
         mutate(lambda=N/lag(N,1)) %>%
         add_column(id.in=i) %>%
-        full_join(env.in[i,], by="id.in")
+        full_join(lam.df[i,-(55:74)], by="id.in")
       CA.B[[j]] <- S$B[i,tail(1:dim(S$B)[2], length(O_yr$CA))]
       CA.D[[j]] <- S$D[i,tail(1:dim(S$B)[2], length(O_yr$CA))]
     }
     O_CA[[s]] <- list(d=do.call(rbind, CA.d),
                       B=do.call(rbind, CA.B),
                       D=do.call(rbind, CA.D))
-    # p(establish) = recruits / attempted germinants
-    # p_est = N_rcr / (nSeed*p_emig*rcr_dir + B*rcr_SB + D*rcr_dir)
-    g <- with(O_CA[[s]], d$nSeed*p$p_emig*p$rcr_dir + B*p$rcr_SB + D*p$rcr_dir)
-    O_CA[[s]]$d$p.est <- c(t(O_CA[[s]]$d$N.rcr / g))
+    O_CA[[s]]$d$p.est.1 <- germ.plots
+    O_CA[[s]]$d$p.est.0 <- 100-germ.plots
   }
   return(O_CA)
 }
@@ -71,15 +73,17 @@ sample_for_CA <- function(sp, S, Mech.sample, O_yr, prop.sampled) {
 ##-- sample for IPM and individual-based CA model
 #' Sample from S for the specified cells and years within each observed dataset
 #' @param S True individual-level data produced in 1_simulateSpecies.R
+#' @param lam.df Dataframe with covariates, generated in 1_simulateSpecies.R
 #' @param Mech.sample List of cell indices for each set of samples
 #' @param O_yr List with [["IPM"]] containing the years to sample
 #' @param prop.sampled Proportion of individuals (per cell) to sample
 #' @return List with an element for each dataset, where each dataset is a
 #'   dataframe with individual-level statistics for each cell and year
-sample_for_IPM <- function(S, Mech.sample, O_yr, prop.sampled) {
+sample_for_IPM <- function(S, lam.df, Mech.sample, O_yr, prop.sampled) {
   O_IPM <- vector("list", length(Mech.sample))
   for(s in seq_along(O_IPM)) {
     IPM.d <- vector("list", length(Mech.sample[[1]]))
+    germ.plots <- rbinom(length(Mech.sample[[s]]), 100, lam.df$germ[Mech.sample[[s]]])
     for(j in seq_along(Mech.sample[[s]])) {
       i <- Mech.sample[[s]][j]
       IPM.d[[j]] <- data.frame(S$d[[i]]) %>% filter(yr %in% O_yr$IPM) %>%
@@ -88,7 +92,9 @@ sample_for_IPM <- function(S, Mech.sample, O_yr, prop.sampled) {
         full_join(env.in[i,], by="id.in")
       IPM.d[[j]] <- sample_frac(IPM.d[[j]], prop.sampled)
     }
-    O_IPM[[s]] <- do.call(rbind, IPM.d)
+    O_IPM[[s]]$d <- do.call(rbind, IPM.d)
+    O_IPM[[s]]$germ.df <- lam.df[Mech.sample[[s]],-(55:74)] %>%
+      mutate(p.1=germ.plots, p.0=100-germ.plots)
   }
   return(O_IPM)
 }
@@ -157,8 +163,8 @@ add_noise_CA <- function(O_CA, err) {
 add_noise_IPM <- function(O_IPM, z_l, z_h, err) {
   options(warn=-1)
   for(s in seq_along(O_IPM)) {
-    n_obs <- nrow(O_IPM[[s]])
-    O_IPM[[s]] <- O_IPM[[s]] %>%
+    n_obs <- nrow(O_IPM[[s]]$d)
+    O_IPM[[s]]$d <- O_IPM[[s]]$d %>%
       mutate(sizeNext=pmin(rnorm(n_obs, sizeNext, err$g), z_h),
              sizeNext=pmax(sizeNext, z_l),
              seed=pmax(round(rnorm(n_obs, seed, seed*err$seed)), 0))
@@ -355,7 +361,6 @@ fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc,
                   n.lc=5, N.p.t0=n.cell, 
                   m=sp_i$m, gamma=1, 
                   s.B=p$s_SB, g.D=p$rcr_dir, g.B=p$rcr_SB,
-                  p=as.matrix(logit(p$p_est)), 
                   sdd.max=p$sdd_max, sdd.rate=p$sdd_rate, n.ldd=p$ldd,
                   p.c=matrix(1), bird.hab=p$bird_hab, s.c=1, method="lm")
   p.CA$p_emig <- p$p_emig
@@ -390,8 +395,8 @@ fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc,
     
     # global models
     options(na.action="na.fail")
-    full.m <- opt.m <- vars.opt <- setNames(vector("list", 5), 
-                                            c("K", "s.M", "s.N", "p.f", "mu"))
+    full.m <- opt.m <- vars.opt <- setNames(vector("list", 6), 
+                                            c("K", "s.M", "s.N", "p.f", "mu", "p.est"))
     
     full.m$K <- glmer(as.formula(paste("N ~", m, collapse="")),
                       data=O_CA.K, family="poisson")
@@ -407,6 +412,8 @@ fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc,
                         data=O_CA.i, family="binomial")
     full.m$mu <- glmer(as.formula(paste("mu ~", m, collapse="")), 
                        data=O_CA.i, family="poisson")
+    full.m$p.est <- glmer(as.formula(paste("cbind(p.est.1, p.est.0) ~", m, collapse="")), 
+                        data=O_CA.i, family="binomial")
     
     # store coefficients from optimal models
     vars.ls <- rep(list(v), length(full.m)); names(vars.ls) <- names(opt.m)
@@ -430,6 +437,7 @@ fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc,
     p.CA$s.N <- vars.ls$s.N
     p.CA$p.f <- vars.ls$p.f
     p.CA$mu <- vars.ls$mu
+    p.CA$p <- vars.ls$p.est
     
     # impose seed bank issue
     if(mod.issue=="noSB") p.CA$s.sb <- 0
@@ -447,16 +455,12 @@ fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc,
     i_pad <- str_pad(i, 2, pad="0")
     saveRDS(aggregate_CAd_simulations(sim.ls, max(p.CA$m)), 
             paste0(out.dir, "/CAd_fit_", i_pad, ".rds"))
-    # saveRDS(calc_lambda(p.CA, X.CA, sdd.ji, p.ji, method="lm")$lambda, 
-    #         paste0(out.dir, "/CAd_lam_", i_pad, ".rds"))
     saveRDS(list(p.CA, vars.ls), paste0(out.dir, "/CAd_diag_", i_pad, ".rds"))
   }
   stopCluster(p.c)
   
   out <- list.files(out.dir, "CAd_fit", full.names=T) %>% map(readRDS) %>%
     summarize_CAd_samples(., lam.df$id)
-  # lambdas <- map(list.files(out.dir, "CAd_lam", full.names=T), readRDS) %>%
-  #   do.call("cbind", .)
   diagnostics <- list.files(out.dir, "CAd_diag", full.names=T) %>% map(readRDS)
   P_CAd <- lam.df %>% 
     dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.in") %>% 
@@ -469,12 +473,8 @@ fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc,
            Rcr.S.f=out$N_rcr.mn[,dim(out$N_rcr.mn)[2]],
            nSdStay.f=nSeed.f*(1-p.CA$p_emig), 
            nSdLeave.f=nSeed.f*p.CA$p_emig)
-  P_CAl <- NULL#lam.df %>%
-    # dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.in") %>%
-    # mutate(lambda.f=rowMeans(lambdas)[lam.df$id.in],
-    #        prP=rowMeans(lambdas>1)[lam.df$id.in])
   
-  return(list(P_CAd=P_CAd,  P_CAl=P_CAl, diag=diagnostics))
+  return(list(P_CAd=P_CAd, diag=diagnostics))
 }
 
 
@@ -542,11 +542,12 @@ fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
     walk(dir("code", "fn", full.names=T), source)
     sim.ls <- vector("list", n_sim)
     # separate data for MuMIn::dredge()
-    O_IPM.i.s <- filter(O_IPM[[i]], !is.na(surv))
+    O_IPM.i.s <- filter(O_IPM[[i]]$d, !is.na(surv))
     if(sp=="garlic_mustard") O_IPM.i.s <- filter(O_IPM.i.s, age==1)
-    O_IPM.i.g <- filter(O_IPM[[i]], !is.na(sizeNext) & !is.na(size))
-    O_IPM.i.fl <- filter(O_IPM[[i]], !is.na(fl))
-    O_IPM.i.seed <- filter(O_IPM[[i]], !is.na(seed))
+    O_IPM.i.g <- filter(O_IPM[[i]]$d, !is.na(sizeNext) & !is.na(size))
+    O_IPM.i.fl <- filter(O_IPM[[i]]$d, !is.na(fl))
+    O_IPM.i.seed <- filter(O_IPM[[i]]$d, !is.na(seed))
+    O_IPM.i.germ <- O_IPM[[i]]$germ.df
     
     # full models
     options(na.action="na.fail")
@@ -557,12 +558,18 @@ fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
                    fl=glm(as.formula(paste("fl ~", m, collapse="")), 
                           data=O_IPM.i.fl, family="binomial"),
                    seed=glm(as.formula(paste("seed ~", m, collapse="")), 
-                            data=O_IPM.i.seed, family="poisson"))
+                            data=O_IPM.i.seed, family="poisson"),
+                   germ=glm(as.formula(paste("cbind(p.1, p.0) ~", 
+                                             paste(grep("size", names(v), 
+                                                        invert=T, value=T)[-1], 
+                                                   collapse=" + "), 
+                                             collapse="")),
+                            data=O_IPM.i.germ, family="binomial"))
     
     # store coefficients from optimal models
     opt.m <- map(full.m, ~get.models(dredge(., m.lim=c(1,6)), subset=1)[[1]])
     vars.opt <- map(opt.m, coef)
-    vars.ls <- rep(list(v), 4); names(vars.ls) <- names(opt.m)
+    vars.ls <- rep(list(v), 5); names(vars.ls) <- names(opt.m)
     for(j in seq_along(vars.ls)) {
       vars.ls[[j]][names(vars.opt[[j]])] <- vars.opt[[j]]
     }
@@ -577,7 +584,8 @@ fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
     p.IPM$fl_x <- vars.ls$fl[(n_z$fl+1):length(v)]
     p.IPM$seed_z <- vars.ls$seed[1:n_z$seed]
     p.IPM$seed_x <- vars.ls$seed[(n_z$seed+1):length(v)]
-    p.IPM$rcr_z <- filter(O_IPM[[i]], is.na(size)) %>% 
+    p.IPM$germ_x <- vars.ls$germ[grep("size", names(v), invert=T, value=T)]
+    p.IPM$rcr_z <- filter(O_IPM[[i]]$d, is.na(size)) %>% 
       summarise(mn=mean(sizeNext), sd=sd(sizeNext)) %>% unlist
     
     # impose issues
