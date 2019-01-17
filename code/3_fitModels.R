@@ -81,7 +81,8 @@ foreach(i=seq_along(issue_i$Issue), .packages=c("dismo", pkgs)) %dopar% {
   }
   
   # fit MaxEnt
-  if(issue %in% issue_i$Issue[c(1:4,8)]) {
+  if("rJava" %in% rownames(installed.packages()) && 
+     issue %in% issue_i$Issue[c(1:4,8)]) {
     P_MxE <- fit_MxE(sp_i$Num, issue, samp_iss, lam.df, v$Mx)
     if(overwrite) {
       saveRDS(P_MxE$diag, here(out.dir, paste0("Diag_MxE_", issue, ".rds")))
