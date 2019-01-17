@@ -28,12 +28,13 @@ SDM_col <- c(MxE="#3f007d", IPM="#014636", CAi="#02818a", CAd="#67a9cf")
 par(mfrow=c(3,3))
 plot(lam.df$bio10_1, log(lam.df$lambda), col=rgb(0,0,0,0.75))
 plot(lam.df$bio10_12, log(lam.df$lambda), col=rgb(0,0,0,0.75))
-plot(lam.df$Opn, log(lam.df$lambda), col=rgb(0,0,0,0.75))
-plot(lam.df$Oth, log(lam.df$lambda), col=rgb(0,0,0,0.75))
-plot(lam.df$Dec, log(lam.df$lambda), col=rgb(0,0,0,0.75))
-plot(lam.df$Evg, log(lam.df$lambda), col=rgb(0,0,0,0.75))
-plot(lam.df$Mxd, log(lam.df$lambda), col=rgb(0,0,0,0.75))
+plot(lam.df$bio10_5, log(lam.df$lambda), col=rgb(0,0,0,0.75))
+plot(lam.df$bio10_prMay, log(lam.df$lambda), col=rgb(0,0,0,0.75))
 hist(log(lam.df$lambda))
+plot(lam.df$bio10_1, log(lam.df$Surv.S), col=rgb(0,0,0,0.75))
+plot(lam.df$bio10_12, log(lam.df$Surv.S), col=rgb(0,0,0,0.75))
+plot(lam.df$bio10_5, log(lam.df$Surv.S), col=rgb(0,0,0,0.75))
+plot(lam.df$bio10_prMay, log(lam.df$Surv.S), col=rgb(0,0,0,0.75))
 
 ggplot(lam.df, aes(x=lon, y=lat, fill=lambda>1)) + geom_tile() + ggtitle(sp)
 ggplot(lam.df, aes(x=lon, y=lat, fill=log(lambda))) + geom_tile() + ggtitle(sp) +
@@ -114,13 +115,15 @@ tss.S <- S.sum %>% ungroup %>% group_by(SDM, issue) %>%
   summarise(TSS=sum(rate[fate_S %in% c("S:0 P:0", "S:1 P:1")])-1) %>%
   ungroup %>% mutate(issue=fct_rev(issue), metric="N > 0")
 tss.df <- rbind(tss.lam, tss.S)
-ggplot(tss.df, aes(x=TSS, y=metric, colour=SDM)) + facet_wrap(~issue) +
-  labs(title=sp, y="Boundary definition") +
-  geom_point(size=5, alpha=0.9) + 
-  geom_vline(xintercept=c(-1,1), colour="gray") + 
+ggplot(tss.df, aes(x=TSS, y=issue, shape=metric)) +
+  labs(title=sp, y="") + xlim(0,1) + 
+  geom_point(size=5, alpha=0.9, fill=NA, colour="black") +
+  geom_point(size=5, alpha=0.9, aes(fill=SDM, colour=SDM)) +
+  geom_vline(xintercept=1, colour="gray") + 
   geom_vline(xintercept=0, colour="gray", linetype=2) +
   theme(panel.grid.major.y=element_line(colour="gray")) +
-  xlim(0,1) + scale_colour_manual(values=SDM_col)
+  scale_fill_manual(values=SDM_col) + scale_colour_manual(values=SDM_col) +
+  scale_shape_manual(values=c(21, 23))
 
 
 par(mfrow=c(5,6))
