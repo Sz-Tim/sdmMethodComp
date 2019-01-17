@@ -513,6 +513,7 @@ fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
   # load observations
   O_IPM <- readRDS(here("vs", sp_i$Num, paste0("O_IPM_", samp.issue, ".rds")))
   X.IPM <- map(n_x, ~as.matrix(lam.df[,names(lam.df) %in% names(v)[-(1:n_z$s)]]))
+  if(!is.null(X.IPM$germ)) X.IPM$germ <- cbind(1, X.IPM$germ)
   
   # initialize IPM parameters
   p.IPM <- p
