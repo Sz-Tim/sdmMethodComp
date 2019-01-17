@@ -11,7 +11,7 @@
 ## Setup
 ########
 # file specifications
-sp <- c("barberry", "garlic_mustard")[2]
+sp <- c("barberry", "garlic_mustard")[1]
 overwrite <- TRUE
 samp.issues <- c("none", "noise", "sampBias", "nonEq")
 
@@ -27,6 +27,7 @@ S <- readRDS(here(vs.dir, "S.rds"))
 U <- readRDS(here(vs.dir, "U.rds"))
 lam.df <- readRDS(here(vs.dir, "lam_df.rds")) # env & true pop vals
 n.cell <- nrow(env.in)
+
 
 
 ########
@@ -72,8 +73,8 @@ for(s.i in samp.issues) {
   Mech.sample <- map(1:n_samp, ~sample(P.i, O_n$Mech, replace=F, prob=P.pr))
   
   O_Mx <- map(Corr.sample, ~(1:n.cell %in% .))
-  O_CA <- sample_for_CA(sp, S, Mech.sample, O_yr, prop.sampled)
-  O_IPM <- sample_for_IPM(S, Mech.sample, O_yr, prop.sampled)
+  O_CA <- sample_for_CA(sp, S, lam.df, Mech.sample, O_yr, prop.sampled)
+  O_IPM <- sample_for_IPM(S, lam.df, Mech.sample, O_yr, prop.sampled)
   
   
   ########
