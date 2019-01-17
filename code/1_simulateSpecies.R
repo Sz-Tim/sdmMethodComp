@@ -16,13 +16,13 @@ res <- "10km" # "3km", "5km", "10km", "50km"
 overwrite <- TRUE
 plots <- TRUE
 clim_X <- paste0("bio10_", c(5, "prMay"))
-habitat <- 3
+habitat <- 4
 max_z_pow <- 1
 n.cores <- 4
-x_min <- 0#200#675#
+x_min <- 200#675#
 x_max <- Inf
 y_min <- 0
-y_max <- Inf#75#250#
+y_max <- 75#250#
 
 # load workspace
 pkgs <- c("gbPopMod", "tidyverse", "magrittr", "here", "doSNOW", "foreach")
@@ -41,13 +41,13 @@ n.cell <- sum(L$env.rct$inbd)
 ########
 p <- fit_PNAS_species(sp, env.f, nlcd.sp, clim_X, FALSE, max_z_pow, habitat,
                       x_min, x_max, y_min, y_max)
-p$s_z[1] <- -10
-p$s_x[1] <- p$s_x[1]*50
-p$s_x[c(2,4)] <- c(-0.8, -0.5)
+# p$s_z <- c(-12, p$s_z[2]*.8)
+# p$s_x[1] <- p$s_x[1]*50
+# p$s_x[c(2,4)] <- c(-0.8, -0.5)
 p$g_x[c(2,4)] <- -0.1
-p$germ_x <- c(-1, -3, -1, -2, -0.2)
+# p$germ_x <- c(-1, -3, -1, -2, -0.2)
 p$n <- 10
-p$tmax <- 150
+p$tmax <- 70
 p$tnonEq <- floor(p$tmax/3)
 p$n0 <- 10
 p$prop_init <- 0.001
@@ -55,7 +55,7 @@ p$sdd_max <- sp_i$sdd_max
 p$sdd_rate <- sp_i$sdd_rate
 p$ldd <- sp_i$ldd
 p$bird_hab <- c(.32, .36, .05, .09, .09)
-p$K_max <- 1e2  # maximum allowed abundance
+p$K_max <- 1e3  # maximum allowed abundance
 p$p_emig <- pexp(0.5, p$sdd_rate, lower.tail=F) # p(seed emigrants)
 n_z <- list(s=length(p$s_z),  # n size covariates for each vital rate
             g=length(p$g_z),
@@ -95,8 +95,8 @@ p.ji <- lapply(sdd.ji.rows, function(x) sdd.pr$sp.df$pr[x])
 # Initial populations
 N_init <- rep(0, n.cell)
 # 725 765 200
-N_init[sample(filter(L$env.in, x>200 & y<100)$id.in,
-# N_init[sample(filter(L$env.in, x>215 & x<230 & y>50 & y<75)$id.in,
+# N_init[sample(filter(L$env.in, x>200 & y<100)$id.in,
+N_init[sample(filter(L$env.in, x>215 & x<230 & y>50 & y<75)$id.in,
               p$prop_init*n.cell, replace=F)] <- p$n0
 
 # Use assigned slopes to fill IPM matrix
@@ -151,10 +151,10 @@ if(plots) {
     geom_point(data=lam.df[which(N_init>0),], colour="white", shape=1)
   lam.gg + geom_tile(aes(fill=log(Surv.S))) + 
     labs(subtitle=paste("log(N): year", p$tmax)) +
-    geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
+    geom_point(data=lam.df[which(N_init>0),], colour="white", shape=1)
   lam.gg + geom_tile(aes(fill=log(Surv.S_nonEq))) + 
     labs(subtitle=paste("log(N): year", p$tnonEq)) +
-    geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
+    geom_point(data=lam.df[which(N_init>0),], colour="white", shape=1)
   
   lam.gg + geom_tile(aes(fill=log(nSeed))) + 
     labs(subtitle="log(Seed production)") +
@@ -172,14 +172,6 @@ if(plots) {
     labs(subtitle="log(Seed bank)") +
     geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
   
-  lam.gg + geom_tile(aes(fill=lambda>1)) +  
-    labs(subtitle="lambda > 1") +
-    scale_fill_manual("", values=c("gray30", "dodgerblue")) +
-    geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
-  lam.gg + geom_tile(aes(fill=Surv.S>0)) + 
-    labs(subtitle="N > 0") +
-    scale_fill_manual("", values=c("gray30", "dodgerblue")) +
-    geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
   ggplot() + theme_bw() +
     geom_tile(data=lam.df, aes(x=lon, y=lat), fill="gray90") +
     geom_tile(data=filter(lam.df, lambda>1), aes(x=lon, y=lat), 
