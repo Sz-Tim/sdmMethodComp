@@ -8,7 +8,7 @@
 ## Setup
 ########
 # file specifications
-sp <- "sp2"
+sp <- "sp1"
 overwrite <- TRUE
 
 # load workspace
