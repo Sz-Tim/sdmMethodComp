@@ -13,7 +13,7 @@
 sp <- c("barberry", "garlic_mustard")[1]
 overwrite <- TRUE
 n_core_iss <- 2  # number of issues to run in parallel
-n_core_obs <- 4  # number of simulations to run in parallel for each issue
+n_core_obs <- 2  # number of simulations to run in parallel for each issue
 n_sim <- 1 # number of simulations per sample (mechanistic only)
 
 # load workspace
@@ -36,14 +36,12 @@ n.cell <- nrow(L$env_in); n.grid <- nrow(L$env_rct)
 clim_X_wrong <- paste0("bio10_", c(1, 5, 12, "prMay")) %>%
   magrittr::extract(! . %in% clim_X_correct)
 issue_i <- read.csv("data/issues.csv", stringsAsFactors=F)
-vars_correct <- rep(0, length(clim_X_correct)*2+4)
-names(vars_correct) <- c("(Intercept)", "size", "size2", "size3",
+vars_correct <- rep(0, length(clim_X_correct)*2+2)
+names(vars_correct) <- c("(Intercept)", "size", 
                          paste0(rep(clim_X_correct, each=2), c("", "_sq")))
-vars_correct <- vars_correct[-4]
-vars_wrong <- rep(0, length(clim_X_wrong)*2+4)
-names(vars_wrong) <- c("(Intercept)", "size", "size2", "size3",
+vars_wrong <- rep(0, length(clim_X_wrong)*2+2)
+names(vars_wrong) <- c("(Intercept)", "size", 
                        paste0(rep(clim_X_wrong, each=2), c("", "_sq")))
-vars_wrong <- vars_wrong[-4]
 out.dir <- paste0("out/", sp_i$Num)
 if(!dir.exists(here(out.dir))) dir.create(here(out.dir), recursive=T)
 
@@ -73,9 +71,10 @@ foreach(i=seq_along(issue_i$Issue), .packages=c("dismo", pkgs)) %dopar% {
   m$IPM <- paste(names(v$IPM)[-1], collapse=" + ")
   n_z <- rep(list(1+length(v.size)), 4)  # adds intercept
   names(n_z) <- c("s", "g", "fl", "seed")
-  if(is.null(p$germ_x)) {
+  if(!is.null(p$germ_x)) {
     n_x <- rep(list(length(v.i)), 5)
     names(n_x) <- c(names(n_z), "germ")
+    n_x$germ <- n_x$germ + 1
   } else {
     n_x <- rep(list(length(v.i)), 4)
     names(n_x) <- names(n_z)
@@ -96,7 +95,6 @@ foreach(i=seq_along(issue_i$Issue), .packages=c("dismo", pkgs)) %dopar% {
   if(overwrite) {
     saveRDS(P_CA$diag_CAd, here(out.dir, paste0("Diag_CAd_", issue, ".rds")))
     saveRDS(P_CA$P_CAd, here(out.dir, paste0("P_CAd_", issue, ".rds")))
-    # saveRDS(P_CA$P_CAl, here(out.dir, paste0("P_CAl_", issue, ".rds")))
   }
   # fit IPM, CA-individual
   P_IPM <- fit_IPM(sp, sp_i, samp_iss, mod_iss, p,
