@@ -72,17 +72,15 @@ foreach(i=seq_along(issue_i$Issue), .packages=c("dismo", pkgs)) %dopar% {
   n_z <- rep(list(1+length(v.size)), 4)  # adds intercept
   names(n_z) <- c("s", "g", "fl", "seed")
   if(!is.null(p$germ_x)) {
-    n_x <- rep(list(length(v.i)), 5)
+    n_x <- rep(list(length(v.i)), length(n_z)+1)
     names(n_x) <- c(names(n_z), "germ")
-    n_x$germ <- n_x$germ + 1
   } else {
-    n_x <- rep(list(length(v.i)), 4)
+    n_x <- rep(list(length(v.i)), length(n_z))
     names(n_x) <- names(n_z)
   }
   
   # fit MaxEnt
-  if("rJava" %in% rownames(installed.packages()) && 
-     issue %in% issue_i$Issue[c(1:4,8)]) {
+  if(issue %in% issue_i$Issue[c(1:4,8)]) {
     P_MxE <- fit_MxE(sp_i$Num, issue, samp_iss, lam.df, v$Mx)
     if(overwrite) {
       saveRDS(P_MxE$diag, here(out.dir, paste0("Diag_MxE_", issue, ".rds")))
@@ -90,8 +88,8 @@ foreach(i=seq_along(issue_i$Issue), .packages=c("dismo", pkgs)) %dopar% {
     }
   }
   # fit CA-demographic
-  P_CA <- fit_CA(sp, sp_i, samp_iss, mod_iss, p, 
-                 L$env_rct, L$env_rct_unscaled, lam.df, v$CA, m$CA, 
+  P_CA <- fit_CA(sp, sp_i, samp_iss, mod_iss, p,
+                 L$env_rct, L$env_rct_unscaled, lam.df, v$CA, m$CA,
                  N_init, sdd.pr, sdd.ji, p.ji, n_sim, n_core_obs)
   if(overwrite) {
     saveRDS(P_CA$diag_CAd, here(out.dir, paste0("Diag_CAd_", issue, ".rds")))
