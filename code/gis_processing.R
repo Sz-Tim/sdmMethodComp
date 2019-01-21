@@ -6,7 +6,7 @@
 library(maptools); library(raster); library(rgeos); library(rgdal)
 library(spatialEco); library(tidyverse); library(doSNOW); library(foreach)
 n_core <- 8
-cell_side <- 5000  # cell dimensions in meters; cell_area = cell_side^2
+cell_side <- 10000  # cell dimensions in meters; cell_area = cell_side^2
 
 
 
@@ -78,7 +78,7 @@ clim.rast <- projectRaster(clim.rast, crs=alb_CRS)
 # Calculate mean value within each grid cell
 p.c <- makeCluster(n_core); registerDoSNOW(p.c)
 clim.df <- foreach(i=seq_along(clim.var), .errorhandling="pass",
-                   .packages=c("sp", "spatialEco")) %dopar% {
+                   .packages=c("sp", "spatialEco", "raster")) %dopar% {
   zonal.stats(grd, clim.rast[[i]], mean, trace=F, plot=F)
 }
 stopCluster(p.c)
@@ -163,12 +163,42 @@ spp_obs <- read.csv("data/AllenBradley2016/IAS_occurences_final_analysis.csv") %
   st_intersection(x=st_as_sf(grd), y=.) %>%
   group_by(layer) %>% 
   summarise(nObs=n())
+grd.df$nObs <- 0
 grd.df$nObs[spp_obs$layer] <- spp_obs$nObs
+
+pop.f <- dir("data/population", "*.shp$", full.names=T)
+state.pops <- vector("list", length(pop.f))
+pop.data <- read_csv("data/population/nhgis0011_ds172_2010_block.csv")
+for(f in seq_along(pop.f)) {
+  pop.sf <- st_read(pop.f[f]) %>%
+    st_transform(., alb_CRS@projargs) %>%
+    left_join(., pop.data, by="GISJOIN") %>%
+    mutate(block.density=H7V001/st_area(.)) %>%
+    st_intersection(x=st_as_sf(grd), y=.) %>%
+    mutate(polygon.pop=block.density * st_area(.)) %>%
+    group_by(layer) %>%
+    summarise(cell.pop=sum(polygon.pop))
+  state.pops[[f]] <- as.data.frame(pop.sf)[,-3]
+}
+pop.df <- do.call("rbind", state.pops) %>%
+  group_by(layer) %>%
+  summarise(pop=sum(cell.pop))
+grd.df$pop <- 0
+grd.df$pop[pop.df$layer] <- pop.df$pop
+
+obs.df <- grd.df %>% select(long, lat, rd_len, pop, nObs) %>%
+  mutate(obs=nObs>0,
+         log_rd=log(rd_len+1),
+         log_rd2=log(rd_len+1)^2,
+         log_pop=log(pop+1),
+         log_pop2=log(pop+1)^2)
+obs.glm <- glm(obs ~ log_rd + log_rd2 + log_pop + log_pop2, data=obs.df, family="binomial")
+grd.df$prSamp <- obs.glm$fitted.values
 
 
 write_csv(grd.df, paste0("data/ENF_", cell_side/1000, "km.csv"))
 
-
+# grd.df <- read_csv(paste0("data/ENF_", cell_side/1000, "km.csv"))
 
 
 
