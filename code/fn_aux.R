@@ -54,10 +54,10 @@ build_landscape <- function(f, nlcd_agg, x_min=0, x_max=Inf, y_min=0, y_max=Inf,
     agg.mx[,i] <- rowSums(f.df[, with(nlcd_agg, orig[agg==lc.cat[i]])])
   }
   # assemble specified variables
-  l.df <- cbind(f.df[, c("long", "lat", "x", "y", "x_y", clim_X)], agg.mx) %>%
+  l.df <- cbind(f.df[, c("long", "lat", "x", "y", "x_y", "prSamp", clim_X)], agg.mx) %>%
     filter(x>=x_min & x<=x_max & y>=y_min & y<=y_max)
   # center & scale covariates, store center & scale
-  l.scale <- select(l.df, -(1:5)) %>% scale
+  l.scale <- select(l.df, -(1:6)) %>% scale
   scale.i <- cbind(sc_mn=attributes(l.scale)$`scaled:center`,
                    sc_sd=attributes(l.scale)$`scaled:scale`)
   rownames(scale.i) <- colnames(l.scale)
@@ -73,7 +73,7 @@ build_landscape <- function(f, nlcd_agg, x_min=0, x_max=Inf, y_min=0, y_max=Inf,
     mutate(inbd=!is.na(match(.$x_y, l.df$x_y)),
            lat=l.df$lat[match_id],
            lon=l.df$long[match_id],
-           rdLen=f.df$rd_len[match_id]) %>%
+           prSamp=l.df$prSamp[match_id]) %>%
     mutate(id=row_number(), 
            id.in=min_rank(na_if(inbd*id, 0)))
   # env.rct[is.na(env.rct)] <- 0
