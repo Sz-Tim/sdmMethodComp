@@ -95,10 +95,9 @@ sim_recruits <- function(k, d_i, p_est_ik, nSd_ik, B_ik, D_ik, p, pr_germ, ldd=F
   if(ldd) {
     n <- 1
   } else {
-    n <- min(round(p_est_ik * (nSd_ik * (1-p$p_emig) * p$rcr_dir + 
-                                 B_ik * p$rcr_SB + 
-                                 D_ik * p$rcr_dir)),
-             p$K_max - sum(d_i$surv, na.rm=T))
+    n <- round(p_est_ik * (nSd_ik * (1-p$p_emig) * p$rcr_dir + 
+                             B_ik * p$rcr_SB + 
+                             D_ik * p$rcr_dir)) 
   }
   if(n > 0) {
     rcr_i <- (1:n)+length(d_i$yr)
@@ -206,12 +205,7 @@ simulate_data <- function(n.cell, lo, hi, p, X, n_z, sdd.ji, p.ji, N_init, sp,
     
     ## dispersal & density dependence
     D1 <- sapply(i, function(x) sum(nSd1[sdd.ji[[x]]] * p$p_emig * p.ji[[x]]))
-    p_est1 <- rep(p$p_est, n.cell)
-    if(!is.null(p$K_max)) {
-      p_est1[occupied] <- p$p_est * 
-        (1 - map_dbl(d1[occupied], ~sum(.$surv, na.rm=T))/p$K_max)^4
-    }
-    # if(p$NDD) p_est1 <- pmin(p$NDD_n/(nSd1+D1+B1), p$p_est)
+    if(p$NDD) p_est1 <- pmin(p$NDD_n/(nSd1+D1+B1), p$p_est)
     d1 <- lapply(i, function(x) sim_recruits(k, d1[[x]], p_est1[x], nSd1[x], 
                                              B1[x], D1[x], p, pr_germ[x], F))
     ldd_k <- sample.int(n.cell, p$ldd)
@@ -233,12 +227,12 @@ simulate_data <- function(n.cell, lo, hi, p, X, n_z, sdd.ji, p.ji, N_init, sp,
     }
     
     # debug
-    k <- k+1
-    length(occupied)
-    sum(p_est1 < p$p_est)
-    map_int(d1, ~sum(is.na(.$size))) %>% extract(.>0)
-    map(d1, ~.$seed[!is.na(.$seed)]) %>% unlist
-    sum(nSd1)
+    # k <- k+1
+    # length(occupied)
+    # sum(p_est1 < p$p_est)
+    # map_int(d1, ~sum(is.na(.$size))) %>% extract(.>0)
+    # map(d1, ~.$seed[!is.na(.$seed)]) %>% unlist
+    # sum(nSd1)
     if(verbose) setTxtProgressBar(pb, k)
   }
   return(list(E=E, d=d, B=B, nSd=nSd, D=D, p_est.i=p_est.i))
