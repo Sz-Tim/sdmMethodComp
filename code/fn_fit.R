@@ -620,7 +620,7 @@ fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
     map(list.files(out.dir, "IPM_fit", full.names=T), readRDS),
     map(list.files(out.dir, "CAi_fit", full.names=T), readRDS)
   )
-  diagnostics <- list.files(out.dir, "CAd_diag", full.names=T) %>% map(readRDS)
+  diagnostics <- list.files(out.dir, "IPM_diag", full.names=T) %>% map(readRDS)
   
   P_CAi <- lam.df %>% 
     dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.in") %>% 
