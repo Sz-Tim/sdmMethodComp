@@ -205,7 +205,7 @@ add_misDisperse <- function(p.mod, p, sdd_max_adj=2, sdd_rate_adj=.1, ldd=5) {
 
 ##-- fit MaxEnt
 #' Generate predicted distribution using MaxEnt
-#' @param sp Virtual species
+#' @param spNum Virtual species number
 #' @param issue Issue name
 #' @param samp.issue Issue with observed dataset
 #' @param lam.df Dataframe with covariates, generated in 1_simulateSpecies.R
@@ -213,11 +213,11 @@ add_misDisperse <- function(p.mod, p, sdd_max_adj=2, sdd_rate_adj=.1, ldd=5) {
 #' @return List with dataframe [["P_MxE"]] containing a row for each cell and
 #'   columns for cell information, mean(probability of presence), and
 #'   sd(probability of presence); and [["diag"]] containing diagnostics
-fit_MxE <- function(sp, issue, samp.issue, lam.df, v) {
+fit_MxE <- function(spNum, issue, samp.issue, lam.df, v) {
   library(here); library(tidyverse)
-  path_iss <- paste0("out/maxent/", sp, "/", issue, "/")
+  path_iss <- paste0("out/maxent/", spNum, "/", issue, "/")
   # load observations
-  O_Mx <- readRDS(here("vs", sp, paste0("O_Mx_", samp.issue, ".rds")))
+  O_Mx <- readRDS(here("vs", spNum, paste0("O_Mx_", samp.issue, ".rds")))
   X.Mx <- lam.df[,names(lam.df) %in% v]
   temp.rast <- vector("list", ncol(X.Mx))
   for(vi in 1:ncol(X.Mx)) {
@@ -237,8 +237,8 @@ fit_MxE <- function(sp, issue, samp.issue, lam.df, v) {
     MxE.f[[i]] <- dismo::maxent(x=rast.Mx, 
                                 p=as.matrix(lam.df[O_Mx[[i]], c("lon", "lat")]),
                                 args=fit.args, path=paste0(path_iss, i))
-    MxE.p[[i]] <- mean(dismo::predict(MxE.f[[i]], rast.Mx, 
-                                      args="outputformat=logistic"))
+    MxE.p[[i]] <- raster::mean(dismo::predict(MxE.f[[i]], rast.Mx, 
+                                              args="outputformat=logistic"))
     d_j <- vector("list", 10)
     for (j in 0:9){   #loop for each replicate
       d <- read.csv(paste0(path_iss, i, "/species_", j, "_samplePredictions.csv"))
