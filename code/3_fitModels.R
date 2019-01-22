@@ -12,8 +12,8 @@
 # file specifications
 sp <- c("barberry", "garlic_mustard")[1]
 overwrite <- TRUE
-n_core_iss <- 2  # number of issues to run in parallel
-n_core_obs <- 2  # number of simulations to run in parallel for each issue
+n_core_iss <- 4  # number of issues to run in parallel
+n_core_obs <- 6  # number of simulations to run in parallel for each issue
 n_sim <- 1 # number of simulations per sample (mechanistic only)
 
 # load workspace

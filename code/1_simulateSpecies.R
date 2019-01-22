@@ -18,7 +18,7 @@ plots <- TRUE
 clim_X <- paste0("bio10_", c(5, "prMay"))
 habitat <- 4
 max_z_pow <- 1
-n.cores <- 4
+n.cores <- 24
 x_min <- 200#675#
 x_max <- Inf
 y_min <- 0
