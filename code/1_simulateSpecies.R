@@ -100,7 +100,7 @@ N_init[sample(filter(L$env.in, x>215 & x<230 & y>50 & y<75)$id.in,
               p$prop_init*n.cell, replace=F)] <- p$n0
 
 # Use assigned slopes to fill IPM matrix
-U <- fill_IPM_matrices(n.cell, buffer=0.1, discrete=1, p, n_z, n_x, 
+U <- fill_IPM_matrices(n.cell, buffer=0, discrete=1, p, n_z, n_x, 
                        X, sdd.ji, p.ji, sp, verbose=T)
 if(sp=="garlic_mustard") {
   U$lambda <- sapply(1:n.cell, function(x) iter_lambda(p, U$Ps[,,x], U$Fs[,,x]))
