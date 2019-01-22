@@ -51,11 +51,6 @@ noise <- list(Mx=0.05, # proportion of observed presences that are false
 
 
 for(s.i in samp.issues) {
-  ########
-  ## Impose sampling bias
-  ########
-  if(s.i=="sampBias") P.pr <- P.pr_tmax * env.in$rdLen[P.i]
-  
   
   ########
   ## Draw samples
@@ -69,6 +64,8 @@ for(s.i in samp.issues) {
     P.pr <- P.pr_tmax
     O_yr <- O_yr_tmax
   }
+  if(s.i=="sampBias") P.pr <- env.in$prSamp[P.i]
+  
   Corr.sample <- map(1:n_samp, ~sample(P.i, O_n$Corr, replace=F, prob=P.pr))
   Mech.sample <- map(1:n_samp, ~sample(P.i, O_n$Mech, replace=F, prob=P.pr))
   
