@@ -118,7 +118,7 @@ tss.df <- rbind(tss.lam, tss.S)
 ggplot(tss.df, aes(x=TSS, y=issue, shape=metric)) +
   labs(title=sp, y="") + xlim(0,1) + 
   geom_point(size=5, alpha=0.9, fill=NA, colour="black") +
-  geom_point(size=5, alpha=0.9, aes(fill=SDM, colour=SDM)) +
+  geom_point(size=5, alpha=0.7, aes(fill=SDM, colour=SDM)) +
   geom_vline(xintercept=1, colour="gray") + 
   geom_vline(xintercept=0, colour="gray", linetype=2) +
   theme(panel.grid.major.y=element_line(colour="gray")) +
