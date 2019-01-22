@@ -12,8 +12,8 @@
 # file specifications
 sp <- c("barberry", "garlic_mustard")[1]
 overwrite <- TRUE
-n_core_iss <- 2  # number of issues to run in parallel
-n_core_obs <- 2  # number of simulations to run in parallel for each issue
+n_core_iss <- 4  # number of issues to run in parallel
+n_core_obs <- 6  # number of simulations to run in parallel for each issue
 n_sim <- 1 # number of simulations per sample (mechanistic only)
 
 # load workspace
@@ -80,7 +80,8 @@ foreach(i=seq_along(issue_i$Issue), .packages=c("dismo", pkgs)) %dopar% {
   }
   
   # fit MaxEnt
-  if(issue %in% issue_i$Issue[c(1:4,8)]) {
+  if("rJava" %in% rownames(installed.packages()) && 
+     issue %in% issue_i$Issue[c(1:4,8)]) {
     P_MxE <- fit_MxE(sp_i$Num, issue, samp_iss, lam.df, v$Mx)
     if(overwrite) {
       saveRDS(P_MxE$diag, here(out.dir, paste0("Diag_MxE_", issue, ".rds")))

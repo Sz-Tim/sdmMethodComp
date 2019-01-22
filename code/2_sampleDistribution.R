@@ -33,8 +33,8 @@ n.cell <- nrow(env.in)
 ########
 ## Set sampling details
 ########
-n_samp <- 10  # number of unique samples to average across
-O_n <- list(Corr=50, Mech=20)  # number of cells in sample
+n_samp <- 50  # number of unique samples to average across
+O_n <- list(Corr=50, Mech=25)  # number of cells in sample
 prop.sampled <- 1  # proportion of individuals sampled per sampled cell 
 O_yr_tmax <- list(Mx=p$tmax, CA=(-2:0)+p$tmax, IPM=p$tmax)  # years to sample
 P.i_tmax <- which(lam.df$Surv.S > 5)  # presences: survival past recruit stage
@@ -42,7 +42,7 @@ P.pr_tmax <- rep(1, length(P.i_tmax))  # pr(sample cell | presence)
 O_yr_tnonEq <- list(Mx=p$tnonEq, CA=(-2:0)+p$tnonEq, IPM=p$tnonEq)
 P.i_tnonEq <- which(lam.df$Surv.S_nonEq > 5)
 P.pr_tnonEq <- rep(1, length(P.i_tnonEq))
-noise <- list(Mx=0.05, # proportion of observed presences that are false
+noise <- list(Mx=0.03, # proportion of observed presences that are false
               CA=list(N=0.02,  # N.obs = rnorm(N.true, N.true*N)
                       mu=0.05),  # fec.obs = rnorm(fec.true, fec.true*fec)
               IPM=list(g=0.1,  # sizeNext.obs = rnorm(SizeNext.true, g) 
@@ -51,11 +51,6 @@ noise <- list(Mx=0.05, # proportion of observed presences that are false
 
 
 for(s.i in samp.issues) {
-  ########
-  ## Impose sampling bias
-  ########
-  if(s.i=="sampBias") P.pr <- P.pr_tmax * env.in$rdLen[P.i]
-  
   
   ########
   ## Draw samples
@@ -69,6 +64,8 @@ for(s.i in samp.issues) {
     P.pr <- P.pr_tmax
     O_yr <- O_yr_tmax
   }
+  if(s.i=="sampBias") P.pr <- env.in$prSamp[P.i]
+  
   Corr.sample <- map(1:n_samp, ~sample(P.i, O_n$Corr, replace=F, prob=P.pr))
   Mech.sample <- map(1:n_samp, ~sample(P.i, O_n$Mech, replace=F, prob=P.pr))
   
