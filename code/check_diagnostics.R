@@ -12,35 +12,35 @@ x.mx <- cbind(x, x^2)
 ########
 par(mfrow=c(2,3))
 # survival vs size
-plot(NA, NA, xlab="Size", ylab="Survival", ylim=c(0,1), xlim=p$z.rng, cex.lab=1.5)
+plot(NA, NA, xlab="Size (t)", ylab="Survival", ylim=c(0,1), xlim=p$z.rng, cex.lab=1.5)
 for(i in seq_along(ipm.diag)) {
   walk(ipm.diag[[i]], ~lines(z.seq, antilogit(z.mx %*% .[[1]]$s_z), col=ipm.cols[i]))
 }
 lines(z.seq, antilogit(z.mx %*% p$s_z), lwd=2, lty=3)
   
 # growth vs size
-plot(NA, NA, xlab="Size", ylab="Size Next", ylim=p$z.rng, xlim=p$z.rng, cex.lab=1.5)
+plot(NA, NA, xlab="Size (t)", ylab="Size (t+1)", ylim=p$z.rng, xlim=p$z.rng, cex.lab=1.5)
 for(i in seq_along(ipm.diag)) {
   walk(ipm.diag[[i]], ~lines(z.seq, z.mx %*% .[[1]]$g_z, col=ipm.cols[i]))
 }
 lines(z.seq, z.mx %*% p$g_z, lwd=2, lty=3)
 
 # flowering vs size
-plot(NA, NA, xlab="Size", ylab="Flowering", ylim=c(0,1), xlim=p$z.rng, cex.lab=1.5)
+plot(NA, NA, xlab="Size (t)", ylab="Flowering", ylim=c(0,1), xlim=p$z.rng, cex.lab=1.5)
 for(i in seq_along(ipm.diag)) {
   walk(ipm.diag[[i]], ~lines(z.seq, antilogit(z.mx %*% .[[1]]$fl_z), col=ipm.cols[i]), cex.lab=1.5)
 }
 lines(z.seq, antilogit(z.mx %*% p$fl_z), lwd=2, lty=3)
 
 # seeds vs size
-plot(NA, NA, xlab="Size", ylab="Seed production", ylim=c(0,6e3), xlim=p$z.rng, cex.lab=1.5)
+plot(NA, NA, xlab="Size (t)", ylab="Seed production", ylim=c(0,6e3), xlim=p$z.rng, cex.lab=1.5)
 for(i in seq_along(ipm.diag)) {
   walk(ipm.diag[[i]], ~lines(z.seq, exp(z.mx %*% .[[1]]$seed_z), col=ipm.cols[i]))
 }
 lines(z.seq, exp(z.mx %*% p$seed_z), lwd=2, lty=3)
 
 # recruit size distribution
-plot(NA, NA, xlab="Recruit size", ylab="density", xlim=p$z.rng, ylim=c(0, 0.5), cex.lab=1.5)
+plot(NA, NA, xlab="Recruit size", ylab="density", xlim=p$z.rng, ylim=c(0, 0.4), cex.lab=1.5)
 for(i in seq_along(ipm.diag)) {
   walk(ipm.diag[[i]], ~curve(dnorm(x, .[[1]]$rcr_z[1], .[[1]]$rcr_z[2]), add=T, 
                              from=p$z.rng[1], to=p$z.rng[2], col=ipm.cols[i]))
@@ -50,7 +50,7 @@ curve(dnorm(x, p$rcr_z[1], p$rcr_z[2]), from=p$z.rng[1], to=p$z.rng[2], lwd=2,
 
 # legend
 plot(NA, NA, xlab="", ylab="", xlim=c(-1,1), ylim=c(-1,1), axes=F)
-legend("center", lty=c(rep(1, length(ipm.cols)), 3), lwd=c(rep(1, length(ipm.cols)), 2),
+legend("center", lty=c(rep(1, length(ipm.cols)), 3), lwd=c(rep(3, length(ipm.cols)+1)),
        col=c(ipm.cols, 1), legend=c(names(ipm.diag), "True"), cex=1.5)
 
 
@@ -96,7 +96,7 @@ lines(x, antilogit(cbind(1, x.mx) %*% p$germ_x[1:3]), lwd=2, lty=3)
 
 # legend
 plot(NA, NA, xlab="", ylab="", xlim=c(-1,1), ylim=c(-1,1), axes=F)
-legend("center", lty=c(rep(1, length(ipm.cols)), 3), lwd=c(rep(1, length(ipm.cols)), 2),
+legend("center", lty=c(rep(1, length(ipm.cols)), 3), lwd=c(rep(3, length(ipm.cols)+1)),
        col=c(ipm.cols, 1), legend=c(names(ipm.diag), "True"), cex=1.5)
 
 
@@ -144,6 +144,6 @@ lines(x, antilogit(cbind(1, x.mx) %*% p$germ_x[c(1,4:5)]), lwd=2, lty=3)
 
 # legend
 plot(NA, NA, xlab="", ylab="", xlim=c(-1,1), ylim=c(-1,1), axes=F)
-legend("center", lty=c(rep(1, length(ipm.cols)), 3), lwd=c(rep(1, length(ipm.cols)), 2),
+legend("center", lty=c(rep(1, length(ipm.cols)), 3), lwd=c(rep(3, length(ipm.cols)+1)),
        col=c(ipm.cols, 1), legend=c(names(ipm.diag), "True"), cex=1.5)
 
