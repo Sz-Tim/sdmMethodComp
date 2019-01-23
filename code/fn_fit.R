@@ -368,10 +368,10 @@ fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc,
   # impose dispersal issues
   if(mod.issue=="underDisp") {
     p.CA <- add_misDisperse(p.CA, p, sdd_max_adj=-2, sdd_rate_adj=2, 
-                            ldd=round(p$ldd/2))
+                            ldd=round(p$ldd/5))
   } else if(mod.issue=="overDisp") {
     p.CA <- add_misDisperse(p.CA, p, sdd_max_adj=2, sdd_rate_adj=.5, 
-                            ldd=p$ldd*2)
+                            ldd=p$ldd*5)
   }
   if(grepl("Disp", mod.issue)) {
     sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=env.rct.unsc, 
@@ -389,6 +389,7 @@ fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc,
   foreach(i=1:length(O_CA), .errorhandling="pass", 
           .packages=c("tidyverse", "gbPopMod", "MuMIn", "lme4")) %dopar% {
     walk(dir("code", "fn", full.names=T), source)
+    i_pad <- str_pad(i, 2, pad="0")
     O_CA.i <- O_CA[[i]]$d 
     O_CA.K <- O_CA.i %>% filter(id %in% O_CA.i$id[abs(O_CA.i$lambda-1)<0.05])
     sim.ls <- vector("list", n_sim)
@@ -442,6 +443,9 @@ fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc,
     # impose seed bank issue
     if(mod.issue=="noSB") p.CA$s.sb <- 0
     
+    # save parameters to diagnostic file
+    saveRDS(list(p.CA, vars.ls), paste0(out.dir, "/CAd_diag_", i_pad, ".rds"))
+    
     # run simulations
     N.init <- matrix(0, n.grid, p.CA$m)  # column for each age class
     N.init[X.CA$id[X.CA$inbd], p.CA$m] <- N_init
@@ -451,11 +455,8 @@ fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc,
                                        N.init, NULL, T, (-1:0)+p.CA$tmax, 
                                        p.CA$K_max, dem_out=TRUE, FALSE)
     }
-    
-    i_pad <- str_pad(i, 2, pad="0")
     saveRDS(aggregate_CAd_simulations(sim.ls, max(p.CA$m)), 
             paste0(out.dir, "/CAd_fit_", i_pad, ".rds"))
-    saveRDS(list(p.CA, vars.ls), paste0(out.dir, "/CAd_diag_", i_pad, ".rds"))
   }
   stopCluster(p.c)
   
@@ -542,6 +543,7 @@ fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
           .packages=c("tidyverse", "magrittr", "gbPopMod", "MuMIn")) %dopar% {
     walk(dir("code", "fn", full.names=T), source)
     sim.ls <- vector("list", n_sim)
+    i_pad <- str_pad(i, 2, pad="0")
     # separate data for MuMIn::dredge()
     O_IPM.i.s <- filter(O_IPM[[i]]$d, !is.na(surv))
     if(sp=="garlic_mustard") O_IPM.i.s <- filter(O_IPM.i.s, age==1)
@@ -592,6 +594,9 @@ fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
     # impose issues
     if(mod.issue=="noSB") p.IPM$s_SB <- 0
     
+    # save parameters to diagnostics file
+    saveRDS(list(p.IPM, opt.m), paste0(out.dir, "/IPM_diag_", i_pad, ".rds"))
+    
     # use estimated slopes to fill IPM matrix
     U.f <- fill_IPM_matrices(n.cell, buffer=0, discrete=1, p.IPM, n_z,
                                   n_x, X.IPM, sdd.ji, p.ji, sp)
@@ -601,18 +606,15 @@ fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
     } else {
       U.f$lambda <- apply(U.f$IPMs, 3, function(x) Re(eigen(x)$values[1]))
     }
+    saveRDS(U.f, paste0(out.dir, "/IPM_fit_", i_pad, ".rds"))
     
     # use estimated slopes to generate simulated data
     for(s in 1:n_sim) {
       sim.ls[[s]] <- simulate_data(n.cell, U.f$lo, U.f$hi, p.IPM, X.IPM, n_z, 
                                    sdd.ji, p.ji, N_init, sp, save_yrs=p.IPM$tmax)
     }
-
-    i_pad <- str_pad(i, 2, pad="0")
     saveRDS(aggregate_CAi_simulations(sim.ls, p.IPM$tmax), 
             paste0(out.dir, "/CAi_fit_", i_pad, ".rds"))
-    saveRDS(U.f, paste0(out.dir, "/IPM_fit_", i_pad, ".rds"))
-    saveRDS(list(p.IPM, vars.ls), paste0(out.dir, "/IPM_diag_", i_pad, ".rds"))
   }
   stopCluster(p.c)
   
