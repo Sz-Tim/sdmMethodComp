@@ -58,6 +58,7 @@ p$sdd_rate <- sp_i$sdd_rate
 p$ldd <- sp_i$ldd
 p$bird_hab <- c(.32, .36, .05, .09, .09)
 p$NDD_n <- 20  # mean number of recruits if NDD
+p$K_max <- 1e4  # max abundance for CAd
 p$p_emig <- pexp(0.5, p$sdd_rate, lower.tail=F) # p(seed emigrants)
 n_z <- list(s=length(p$s_z),  # n size covariates for each vital rate
             g=length(p$g_z),
