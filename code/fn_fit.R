@@ -444,7 +444,7 @@ fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc,
     if(mod.issue=="noSB") p.CA$s.sb <- 0
     
     # save parameters to diagnostic file
-    saveRDS(list(p.CA, vars.ls), paste0(out.dir, "/CAd_diag_", i_pad, ".rds"))
+    saveRDS(p.CA, paste0(out.dir, "/CAd_diag_", i_pad, ".rds"))
     
     # run simulations
     N.init <- matrix(0, n.grid, p.CA$m)  # column for each age class
@@ -595,7 +595,7 @@ fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
     if(mod.issue=="noSB") p.IPM$s_SB <- 0
     
     # save parameters to diagnostics file
-    saveRDS(list(p.IPM, opt.m), paste0(out.dir, "/IPM_diag_", i_pad, ".rds"))
+    saveRDS(p.IPM, paste0(out.dir, "/IPM_diag_", i_pad, ".rds"))
     
     # use estimated slopes to fill IPM matrix
     U.f <- fill_IPM_matrices(n.cell, buffer=0, discrete=1, p.IPM, n_z,
