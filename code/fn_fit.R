@@ -465,8 +465,8 @@ fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc,
   fits <- list.files(out.dir, "CAd_fit", full.names=T) %>% map(readRDS) 
   PA.mx <- do.call("cbind", map(fits, ~.$P[,dim(fits[[1]]$P)[2],1]))[lam.df$id,]
   out <- summarize_CAd_samples(fits, lam.df$id)
-  TSS_CAd <- list(N=apply(PA.mx, 2, calc_TSS, lam.df$Surv.S>0),
-                  lam=apply(PA.mx, 2, calc_TSS, lam.df$lambda>1))
+  TSS_CAd <- list(N=apply(PA.mx, 2, calc_TSS, S.pa=lam.df$Surv.S>0),
+                  lam=apply(PA.mx, 2, calc_TSS, S.pa=lam.df$lambda>1))
   diagnostics <- list.files(out.dir, "CAd_diag", full.names=T) %>% map(readRDS)
   P_CAd <- lam.df %>% 
     dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.in") %>% 
@@ -627,10 +627,10 @@ fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
     map(list.files(out.dir, "IPM_fit", full.names=T), readRDS),
     map(list.files(out.dir, "CAi_fit", full.names=T), readRDS)
   )
-  TSS_IPM <- list(N=apply(out$Uf.pa, 2, calc_TSS, lam.df$Surv.S>0),
-                  lam=apply(out$Uf.pa, 2, calc_TSS, lam.df$lambda>1))
-  TSS_CAi <- list(N=apply(out$Sf.pa, 2, calc_TSS, lam.df$Surv.S>0),
-                  lam=apply(out$Sf.pa, 2, calc_TSS, lam.df$lambda>1))
+  TSS_IPM <- list(N=apply(out$Uf.pa, 2, calc_TSS, S.pa=lam.df$Surv.S>0),
+                  lam=apply(out$Uf.pa, 2, calc_TSS, S.pa=lam.df$lambda>1))
+  TSS_CAi <- list(N=apply(out$Sf.pa, 2, calc_TSS, S.pa=lam.df$Surv.S>0),
+                  lam=apply(out$Sf.pa, 2, calc_TSS, S.pa=lam.df$lambda>1))
   diagnostics <- list.files(out.dir, "IPM_diag", full.names=T) %>% map(readRDS)
   
   P_CAi <- lam.df %>% 
