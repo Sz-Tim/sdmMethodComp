@@ -1,6 +1,17 @@
+
+sp <- c("barberry", "garlic_mustard")[1]
+pkgs <- c("tidyverse", "magrittr", "stringr", "here", "viridis")
+suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
+walk(dir("code", "fn", full.names=T), source)
+sp_i <- read.csv("data/species_3km.csv") %>% filter(Name==sp)
+vs.dir <- paste0("vs/", sp_i$Num, "/")
+p <- readRDS(here(vs.dir, "p.rds"))
+lam.df <- readRDS(here(vs.dir, "lam_df.rds"))
+
 ipm.diag <- setNames(dir("out/sp1", "Diag_IPM", full.names=T) %>% map(readRDS),
                      str_remove(str_remove(dir("out/sp1", "Diag_IPM"), ".rds"), "Diag_IPM_"))
 ipm.cols <- RColorBrewer::brewer.pal(length(ipm.diag), "Dark2")
+ipm.cols <- apply(col2rgb(ipm.cols)/255, 2, function(x) rgb(x[1],x[2],x[3],0.5)) 
 
 z.seq <- seq(p$z.rng[1], p$z.rng[2], length.out=200)
 z.mx <- cbind(1, z.seq)
