@@ -16,9 +16,9 @@ suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
 walk(dir("code", "fn", full.names=T), source)
 theme_set(theme_bw())
 lam.df <- readRDS(here("vs", sp, "lam_df.rds"))
-out_p <- read.csv(here("out", sp, "out_p.csv"))
+out_P <- read.csv(here("out", sp, "out_P.csv"))
 out_TSS <- read.csv(here("out", sp, "out_TSS.csv"))
-out_p$issue <- factor(out_p$issue, 
+out_P$issue <- factor(out_P$issue, 
                     levels=c("none", "noise", "sampBias", "nonEq",
                              "noSB", "underDisp", "overDisp", "wrongCov"),
                     labels=c("None", "Measurement error", "Sampling bias", 
@@ -51,70 +51,72 @@ ggplot(lam.df, aes(x=lon, y=lat, fill=log(Surv.S))) + geom_tile() + ggtitle(sp) 
   scale_fill_viridis(option="B")
 
 ggplot(out_TSS, aes(x=TSS, fill=SDM, colour=SDM)) + xlim(-1,1) +
+  geom_vline(xintercept=c(-1,0,1), colour="grey90") +
   geom_density(alpha=0.75) + 
   facet_grid(issue~Boundary, scales="free_y") +
-  scale_fill_manual(values=SDM_col) + scale_colour_manual(values=SDM_col)
+  scale_fill_manual(values=SDM_col) + scale_colour_manual(values=SDM_col) +
+  theme(panel.grid=element_blank())
 
-ggplot(out_p, aes(fill=fate_lam, x=SDM)) + geom_bar(position="fill") + 
+ggplot(out_P, aes(fill=fate_lam, x=SDM)) + geom_bar(position="fill") + 
   facet_wrap(~issue) + scale_fill_brewer(name="", type="div") + 
   ylab("Proportion of cells") + ggtitle(sp, "lambda-based range")
-ggplot(out_p, aes(fill=fate_S, x=SDM)) + geom_bar(position="fill") + 
+ggplot(out_P, aes(fill=fate_S, x=SDM)) + geom_bar(position="fill") + 
   facet_wrap(~issue) + scale_fill_brewer(name="", type="div") + 
   ylab("Proportion of cells") + ggtitle(sp, "abundance-based range")
-ggplot(out_p, aes(fill=fate_lam, x=issue)) + geom_bar(position="fill") + 
+ggplot(out_P, aes(fill=fate_lam, x=issue)) + geom_bar(position="fill") + 
   facet_wrap(~SDM) + scale_fill_brewer(name="", type="div") + 
   ylab("Proportion of cells") + coord_flip() + ggtitle(sp, "lambda-based range")
-ggplot(out_p, aes(fill=fate_S, x=issue)) + geom_bar(position="fill") + 
+ggplot(out_P, aes(fill=fate_S, x=issue)) + geom_bar(position="fill") + 
   facet_wrap(~SDM) + scale_fill_brewer(name="", type="div") + 
   ylab("Proportion of cells") + coord_flip() + ggtitle(sp, "abundance-based range")
 
-ggplot(out_p, aes(x=lon, y=lat, fill=fate_lam)) +
+ggplot(out_P, aes(x=lon, y=lat, fill=fate_lam)) +
   geom_tile() + facet_grid(SDM~issue) + 
   scale_fill_brewer(name="Boundary:\nlambda ≥ 1", type="div") +
   theme(axis.text=element_blank()) + ggtitle(sp)
-ggplot(out_p, aes(x=lon, y=lat, fill=fate_S)) +
+ggplot(out_P, aes(x=lon, y=lat, fill=fate_S)) +
   geom_tile() + facet_grid(SDM~issue) + 
   scale_fill_brewer(name="Boundary:\nN > 0", type="div") +
   theme(axis.text=element_blank()) + ggtitle(sp)
 
-ggplot(out_p, aes(x=lon, y=lat, fill=prP)) +
+ggplot(out_P, aes(x=lon, y=lat, fill=prP)) +
   geom_tile() + facet_grid(SDM~issue) + 
   scale_fill_viridis("prob(P)", option="B") +
   theme(axis.text=element_blank()) + ggtitle(sp)
-ggplot(out_p, aes(x=lon, y=lat, fill=prP>0.5)) +
+ggplot(out_P, aes(x=lon, y=lat, fill=prP>0.5)) +
   geom_tile() + facet_grid(SDM~issue) + 
   theme(axis.text=element_blank())
-ggplot(out_p, aes(x=lon, y=lat, fill=lambda.f>=1)) +
+ggplot(out_P, aes(x=lon, y=lat, fill=lambda.f>=1)) +
   geom_tile() + facet_grid(SDM~issue) + 
   theme(axis.text=element_blank())
-ggplot(out_p, aes(x=lon, y=lat, fill=log(Surv.S.f))) +
+ggplot(out_P, aes(x=lon, y=lat, fill=log(Surv.S.f))) +
   geom_tile() + facet_grid(SDM~issue) + 
   scale_fill_viridis("log(N)", option="B") +
   theme(axis.text=element_blank())
-ggplot(out_p, aes(x=lon, y=lat, fill=log(lambda.f))) +
+ggplot(out_P, aes(x=lon, y=lat, fill=log(lambda.f))) +
   geom_tile() + facet_grid(SDM~issue) + 
   scale_fill_viridis("log(lambda)", option="B") +
   theme(axis.text=element_blank())
-ggplot(out_p, aes(x=lon, y=lat, fill=log(B.f))) +
+ggplot(out_P, aes(x=lon, y=lat, fill=log(B.f))) +
   geom_tile() + facet_grid(SDM~issue) + 
   scale_fill_viridis("log(B)", option="B") +
   theme(axis.text=element_blank())
-ggplot(out_p, aes(x=lon, y=lat, fill=log(D.f))) +
+ggplot(out_P, aes(x=lon, y=lat, fill=log(D.f))) +
   geom_tile() + facet_grid(SDM~issue) + 
   scale_fill_viridis("log(D)", option="B") +
   theme(axis.text=element_blank())
-ggplot(out_p, aes(x=lon, y=lat, fill=log(nSdStay.f + nSdLeave.f))) +
+ggplot(out_P, aes(x=lon, y=lat, fill=log(nSdStay.f + nSdLeave.f))) +
   geom_tile() + facet_grid(SDM~issue) + 
   scale_fill_viridis("log(Sd)", option="B") +
   theme(axis.text=element_blank())
 
-lam.sum <- out_p %>% group_by(SDM, issue, fate_lam) %>%
+lam.sum <- out_P %>% group_by(SDM, issue, fate_lam) %>%
   summarise(ct=n()) %>%
   mutate(rate=case_when(fate_lam=="S:0 P:0" ~ ct/sum(lam.df$lambda<1),
                             fate_lam=="S:0 P:1" ~ ct/sum(lam.df$lambda<1),
                             fate_lam=="S:1 P:0" ~ ct/sum(lam.df$lambda>=1),
                             fate_lam=="S:1 P:1" ~ ct/sum(lam.df$lambda>=1)))
-S.sum <- out_p %>% group_by(SDM, issue, fate_S) %>%
+S.sum <- out_P %>% group_by(SDM, issue, fate_S) %>%
   summarise(ct=n()) %>%
   mutate(rate=case_when(fate_S=="S:0 P:0" ~ ct/sum(lam.df$Surv.S==0),
                             fate_S=="S:0 P:1" ~ ct/sum(lam.df$Surv.S==0),
@@ -141,106 +143,106 @@ ggplot(tss.df, aes(x=TSS, y=issue, shape=metric)) +
 par(mfrow=c(5,6))
 map(list.files("out", "Diag_Mx", full.names=T), readRDS) %>%
   walk(~walk(., ~plot(., 'ROC')))
-ggplot(out_p, aes(x=prP, y=1*(Surv.S>0))) + geom_point(alpha=0.05) + 
+ggplot(out_P, aes(x=prP, y=1*(Surv.S>0))) + geom_point(alpha=0.05) + 
   facet_grid(SDM~issue)
   
 
 
-out_p %>% filter(fate_lam == "S:0 P:1") %>% group_by(SDM, issue) %>% 
+out_P %>% filter(fate_lam == "S:0 P:1") %>% group_by(SDM, issue) %>% 
   summarise(prop=round(n()/1084, 3)) %>% 
   ggplot(aes(x=issue, y=prop, colour=SDM)) + geom_point(size=3) +
   ggtitle("Commission Rate") + ylim(0,1) + ylab("Prop P=1 | S=0")
-out_p %>% filter(fate_lam == "S:1 P:0") %>%  group_by(SDM, issue) %>% 
+out_P %>% filter(fate_lam == "S:1 P:0") %>%  group_by(SDM, issue) %>% 
   summarise(prop=round(n()/1354, 3)) %>%
   ggplot(aes(x=issue, y=prop, colour=SDM)) + geom_point(size=3) + 
   ggtitle("Ommission Rate") + ylim(0, 1) + ylab("Prop P=0 | S=1")
-out_p %>% filter(fate_lam %in% c("S:1 P:1", "S:0 P:0")) %>% 
+out_P %>% filter(fate_lam %in% c("S:1 P:1", "S:0 P:0")) %>% 
   group_by(SDM, issue) %>% 
   summarise(prop=round(n()/2438, 3)) %>% 
   ggplot(aes(x=issue, y=prop, colour=SDM)) + geom_point(size=3) + 
   ggtitle("TSS") + ylim(0, 1) + ylab("Prop P=S")
 
-ggplot(out_p, aes(fill=sign(log(lambda.f))==sign(log(lambda)), x=SDM)) + 
+ggplot(out_P, aes(fill=sign(log(lambda.f))==sign(log(lambda)), x=SDM)) + 
   geom_bar(position="fill") + facet_wrap(~issue)
 
-ggplot(out_p, aes(x=lon, y=lat, fill=Surv.S.f-Surv.S)) +
+ggplot(out_P, aes(x=lon, y=lat, fill=Surv.S.f-Surv.S)) +
   geom_tile() + facet_grid(SDM~issue) + scale_fill_gradient2()
-ggplot(out_p, aes(x=lon, y=lat, fill=(Surv.S.f-Surv.S)/Surv.S)) +
+ggplot(out_P, aes(x=lon, y=lat, fill=(Surv.S.f-Surv.S)/Surv.S)) +
   geom_tile() + facet_grid(SDM~issue) + scale_fill_gradient()
 
 
 
-ggplot(out_p, aes(x=lon, y=lat)) + facet_grid(SDM~issue) +
+ggplot(out_P, aes(x=lon, y=lat)) + facet_grid(SDM~issue) +
   geom_tile(aes(fill=Surv.S.f>1)) + 
   scale_fill_manual(values=c(NA, "dodgerblue")) +
   geom_point(aes(colour=Surv.S>0), alpha=0.3, size=0.6) + 
   scale_colour_manual(values=c(NA, "black"))
-ggplot(out_p, aes(x=lon, y=lat, fill=log(lam.S.f))) +
+ggplot(out_P, aes(x=lon, y=lat, fill=log(lam.S.f))) +
   geom_tile() + facet_grid(SDM~issue) + scale_fill_gradient2()
-ggplot(out_p, aes(x=lon, y=lat, fill=log(lam.S.f)>=0)) +
+ggplot(out_P, aes(x=lon, y=lat, fill=log(lam.S.f)>=0)) +
   geom_tile() + facet_grid(SDM~issue)
 
-ggplot(out_p, aes(x=lon, y=lat, fill=log(Surv.S.f))) + geom_tile() + 
+ggplot(out_P, aes(x=lon, y=lat, fill=log(Surv.S.f))) + geom_tile() + 
   facet_grid(SDM~issue) + scale_fill_gradient(low="white", high="red")
 
-ggplot(out_p, aes(x=lon, y=lat, fill=sign(log(lam.S.f))==sign(log(lam.S)))) +
+ggplot(out_P, aes(x=lon, y=lat, fill=sign(log(lam.S.f))==sign(log(lam.S)))) +
   geom_tile() + facet_grid(SDM~issue)
 
-ggplot(out_p, aes(x=lon, y=lat, fill=sign(log(lambda.f))==sign(log(lambda)))) +
+ggplot(out_P, aes(x=lon, y=lat, fill=sign(log(lambda.f))==sign(log(lambda)))) +
   geom_tile() + facet_grid(SDM~issue)
 
-ggplot(filter(out_p, SDM=="IPM"), aes(x=lon, y=lat, fill=lambda.f-lambda)) +
+ggplot(filter(out_P, SDM=="IPM"), aes(x=lon, y=lat, fill=lambda.f-lambda)) +
   geom_tile() + facet_wrap(~issue) + 
   scale_fill_gradient2(low="blue", high="red")
-ggplot(filter(out_p, SDM=="IPM"), aes(x=lon, y=lat, fill=lambda.f)) +
+ggplot(filter(out_P, SDM=="IPM"), aes(x=lon, y=lat, fill=lambda.f)) +
   geom_tile() + facet_wrap(~issue) + 
   scale_fill_gradient2(low="blue", high="red", midpoint=1, limits=c(0,NA))
-ggplot(filter(out_p, SDM=="IPM"), aes(x=lon, y=lat, fill=lambda)) +
+ggplot(filter(out_P, SDM=="IPM"), aes(x=lon, y=lat, fill=lambda)) +
   geom_tile() + facet_wrap(~issue) + 
   scale_fill_gradient2(low="blue", high="red", midpoint=1, limits=c(0,4))
 
-ggplot(out_p, aes(x=lon, y=lat, fill=D.f-D)) +
+ggplot(out_P, aes(x=lon, y=lat, fill=D.f-D)) +
   geom_tile() + facet_grid(SDM~issue) + scale_fill_gradient2()
 
-ggplot(out_p, aes(x=lon, y=lat, fill=Btmax.f-Btmax)) +
+ggplot(out_P, aes(x=lon, y=lat, fill=Btmax.f-Btmax)) +
   geom_tile() + facet_grid(SDM~issue) + scale_fill_gradient2()
 
-ggplot(out_p, aes(x=lon, y=lat, fill=nSeed.f-nSeed)) +
+ggplot(out_P, aes(x=lon, y=lat, fill=nSeed.f-nSeed)) +
   geom_tile() + facet_grid(SDM~issue) + scale_fill_gradient2()
 
-ggplot(out_p, aes(x=lon, y=lat, fill=Rcr.S.f-Rcr.S)) +
+ggplot(out_P, aes(x=lon, y=lat, fill=Rcr.S.f-Rcr.S)) +
   geom_tile() + facet_grid(SDM~issue) + scale_fill_gradient2()
 
-ggplot(out_p, aes(x=N.S, y=N.S.f, colour=SDM, group=SDM)) + 
+ggplot(out_P, aes(x=N.S, y=N.S.f, colour=SDM, group=SDM)) + 
   geom_point(alpha=0.5) + facet_wrap(~issue) +
   stat_smooth(se=F, method="loess") + geom_abline(slope=1, size=1)
 
-ggplot(out_p, aes(x=Surv.S, y=Surv.S.f, colour=SDM, group=SDM)) + 
+ggplot(out_P, aes(x=Surv.S, y=Surv.S.f, colour=SDM, group=SDM)) + 
   geom_point(alpha=0.5) + facet_wrap(~issue, scales="free") +
   scale_colour_manual(values=SDM_col) + 
   stat_smooth(se=F, method="loess") + geom_abline(slope=1, size=1)
 
-ggplot(out_p, aes(x=Rcr.S, y=Rcr.S.f, colour=SDM, group=SDM)) + 
+ggplot(out_P, aes(x=Rcr.S, y=Rcr.S.f, colour=SDM, group=SDM)) + 
   geom_point(alpha=0.5) + facet_wrap(~issue, scales="free") +
   stat_smooth(se=F, method="loess") + geom_abline(slope=1, size=1)
-ggplot(out_p, aes(x=Rcr.S.f-Rcr.S, colour=SDM)) + geom_density() + facet_wrap(~issue)
+ggplot(out_P, aes(x=Rcr.S.f-Rcr.S, colour=SDM)) + geom_density() + facet_wrap(~issue)
 
-ggplot(filter(out_p, SDM=="IPM"), aes(x=lambda, y=lambda.f)) + 
+ggplot(filter(out_P, SDM=="IPM"), aes(x=lambda, y=lambda.f)) + 
   geom_point(alpha=0.5) + facet_wrap(~issue) +
   stat_smooth(se=F, method="loess") + geom_abline(slope=1, size=1)
 
-ggplot(out_p, aes(x=lam.S, y=lam.S.f)) + geom_point(alpha=0.5) + 
+ggplot(out_P, aes(x=lam.S, y=lam.S.f)) + geom_point(alpha=0.5) + 
   facet_grid(SDM~issue) + scale_colour_manual(values=SDM_col) + 
   stat_smooth(se=F, method="loess") + geom_abline(slope=1, size=1)
 
-ggplot(filter(out_p, SDM=="IPM"), aes(x=lam.U, y=lam.U.f)) + 
+ggplot(filter(out_P, SDM=="IPM"), aes(x=lam.U, y=lam.U.f)) + 
   geom_point(alpha=0.5) + facet_wrap(~issue) +
   stat_smooth(se=F, method="loess") + geom_abline(slope=1, size=1)
 
-ggplot(filter(out_p, SDM=="IPM"), aes(x=D, y=D.f)) + geom_point(alpha=0.5) + 
+ggplot(filter(out_P, SDM=="IPM"), aes(x=D, y=D.f)) + geom_point(alpha=0.5) + 
   facet_wrap(~issue) +
   stat_smooth(se=F, method="loess") + geom_abline(slope=1, size=1)
 
-ggplot(filter(out_p, SDM=="IPM"), aes(x=nSdStay, y=nSdStay.f)) + geom_point(alpha=0.5) + 
+ggplot(filter(out_P, SDM=="IPM"), aes(x=nSdStay, y=nSdStay.f)) + geom_point(alpha=0.5) + 
   facet_wrap(~issue) +
   stat_smooth(se=F, method="loess") + geom_abline(slope=1, size=1)
