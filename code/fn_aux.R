@@ -250,11 +250,13 @@ summarize_IPM_CAi_samples <- function(U.f, S.f) {
 #' Extract the SDM method and the modeling issue from the file names
 #' @param f Vector of file names for the predicted distributions generated in 
 #' 3_fitModels.R, with the structure of 'P_SDMtype_Issue.rds'
+#' @param prefix Character prefix denoting file content type (e.g., 'P')
 #' @return List with an element for each file, where each element is a vector
 #' of c("SDMtype", "Issue")
-extract_SDM_details <- function(f) {
+extract_SDM_details <- function(f, prefix) {
   library(stringr)
-  str_split(str_remove(str_split(f, "P_", Inf, T)[,2], ".rds"), "_")
+  str_split(str_remove(str_split(f, paste0(prefix, "_"), Inf, T)[,2], 
+                       ".rds"), "_")
 }
 
 
