@@ -86,6 +86,7 @@ foreach(i=seq_along(issue_i$Issue), .packages=c("dismo", pkgs)) %dopar% {
     if(overwrite) {
       saveRDS(P_MxE$diag, here(out.dir, paste0("Diag_MxE_", issue, ".rds")))
       saveRDS(P_MxE$P_MxE, here(out.dir, paste0("P_MxE_", issue, ".rds")))
+      saveRDS(P_MxE$TSS_MxE, here(out.dir, paste0("TSS_MxE_", issue, ".rds")))
     }
   }
   # fit CA-demographic
@@ -95,6 +96,7 @@ foreach(i=seq_along(issue_i$Issue), .packages=c("dismo", pkgs)) %dopar% {
   if(overwrite) {
     saveRDS(P_CA$diag_CAd, here(out.dir, paste0("Diag_CAd_", issue, ".rds")))
     saveRDS(P_CA$P_CAd, here(out.dir, paste0("P_CAd_", issue, ".rds")))
+    saveRDS(P_CA$TSS_CAd, here(out.dir, paste0("TSS_CAd_", issue, ".rds")))
   }
   # fit IPM, CA-individual
   P_IPM <- fit_IPM(sp, sp_i, samp_iss, mod_iss, p,
@@ -104,6 +106,8 @@ foreach(i=seq_along(issue_i$Issue), .packages=c("dismo", pkgs)) %dopar% {
     saveRDS(P_IPM$diag, here(out.dir, paste0("Diag_IPM_", issue, ".rds")))
     saveRDS(P_IPM$P_CAi, here(out.dir, paste0("P_CAi_", issue, ".rds")))
     saveRDS(P_IPM$P_IPM, here(out.dir, paste0("P_IPM_", issue, ".rds")))
+    saveRDS(P_IPM$TSS_IPM, here(out.dir, paste0("TSS_IPM_", issue, ".rds")))
+    saveRDS(P_IPM$TSS_CAi, here(out.dir, paste0("TSS_CAi_", issue, ".rds")))
   }
 }
 stopCluster(p.c)

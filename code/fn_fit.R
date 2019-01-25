@@ -260,14 +260,16 @@ fit_MxE <- function(spNum, issue, samp.issue, lam.df, v) {
   }
   # munge output
   names(MxE.p) <- 1:length(MxE.p)
-  MxE.p.data <- map_dfr(MxE.p, ~.@data@values) %>% as.matrix
+  MxE.p.data <- map_dfr(MxE.p, ~na.omit(.@data@values)) %>% as.matrix
   P_MxE <- lam.df %>% 
     dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.in") %>%
-    mutate(prP=apply(na.omit(MxE.p.data), 1, mean),
-           prP.sd=apply(na.omit(MxE.p.data), 1, sd))
+    mutate(prP=apply(MxE.p.data, 1, mean),
+           prP.sd=apply(MxE.p.data, 1, sd))
   diagnostics <- NULL
+  TSS_MxE <- list(N=apply(MxE.p.data, 2, calc_TSS, S.pa=lam.df$Surv.S>0),
+                  lam=apply(MxE.p.data, 2, calc_TSS, S.pa=lam.df$lambda>1))
   # diagnostics <- map(MxE.f, ~evaluate(p=S_p, a=S_a, model=., x=rast.Mx))
-  return(list(P_MxE=P_MxE, diag=diagnostics))
+  return(list(P_MxE=P_MxE, diag=diagnostics, TSS_MxE=TSS_MxE))
 }
 
 
@@ -460,8 +462,11 @@ fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc,
   }
   stopCluster(p.c)
   
-  out <- list.files(out.dir, "CAd_fit", full.names=T) %>% map(readRDS) %>%
-    summarize_CAd_samples(., lam.df$id)
+  fits <- list.files(out.dir, "CAd_fit", full.names=T) %>% map(readRDS) 
+  PA.mx <- do.call("cbind", map(fits, ~.$P[,dim(fits[[1]]$P)[2],1]))[lam.df$id,]
+  out <- summarize_CAd_samples(fits, lam.df$id)
+  TSS_CAd <- list(N=apply(PA.mx, 2, calc_TSS, lam.df$Surv.S>0),
+                  lam=apply(PA.mx, 2, calc_TSS, lam.df$lambda>1))
   diagnostics <- list.files(out.dir, "CAd_diag", full.names=T) %>% map(readRDS)
   P_CAd <- lam.df %>% 
     dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.in") %>% 
@@ -475,7 +480,7 @@ fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc,
            nSdStay.f=nSeed.f*(1-p.CA$p_emig), 
            nSdLeave.f=nSeed.f*p.CA$p_emig)
   
-  return(list(P_CAd=P_CAd, diag=diagnostics))
+  return(list(P_CAd=P_CAd, diag=diagnostics, TSS_CAd=TSS_CAd))
 }
 
 
@@ -622,6 +627,10 @@ fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
     map(list.files(out.dir, "IPM_fit", full.names=T), readRDS),
     map(list.files(out.dir, "CAi_fit", full.names=T), readRDS)
   )
+  TSS_IPM <- list(N=apply(out$Uf.pa, 2, calc_TSS, lam.df$Surv.S>0),
+                  lam=apply(out$Uf.pa, 2, calc_TSS, lam.df$lambda>1))
+  TSS_CAi <- list(N=apply(out$Sf.pa, 2, calc_TSS, lam.df$Surv.S>0),
+                  lam=apply(out$Sf.pa, 2, calc_TSS, lam.df$lambda>1))
   diagnostics <- list.files(out.dir, "IPM_diag", full.names=T) %>% map(readRDS)
   
   P_CAi <- lam.df %>% 
@@ -640,7 +649,8 @@ fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
     mutate(prP=out$Uf$prP,
            lambda.f=out$Uf$lam.mn)
   
-  return(list(P_IPM=P_IPM, P_CAi=P_CAi, diag=diagnostics))
+  return(list(P_IPM=P_IPM, P_CAi=P_CAi, diag=diagnostics, 
+              TSS_IPM=TSS_IPM, TSS_CAi=TSS_CAi))
 }
 
 

@@ -220,7 +220,8 @@ summarize_IPM_CAi_samples <- function(U.f, S.f) {
              lam=map(U.f, ~.$lambda)) %>% 
     map(simplify2array)
   # Ua_lam <- apply(Ua$IPMs, 3:4, function(x) Re(eigen(x)$values[1]))
-  Uf <- list(prP=apply(Ua$lam>=1, 1, mean),
+  Uf.pa <- Ua$lam>=1
+  Uf <- list(prP=apply(Uf.pa, 1, mean),
              lam.mn=apply(Ua$lam, 1, mean),
              IPM.mn=apply(Ua$IPMs, 1:3, mean))
   Sa <- list(P=map(S.f, ~.$P),
@@ -240,7 +241,7 @@ summarize_IPM_CAi_samples <- function(U.f, S.f) {
              N_tot.mn=apply(Sa$N_tot, 1, mean),
              N_surv.mn=apply(Sa$N_surv, 1, mean),
              N_rcr.mn=apply(Sa$N_rcr, 1, mean))
-  return(list(Uf=Uf, Sf=Sf))
+  return(list(Uf=Uf, Sf=Sf, Uf.pa=Uf.pa, Sf.pa=Sa$P[,1,]))
 }
 
 
@@ -405,4 +406,17 @@ fit_PNAS_species <- function(sp="barberry", f, nlcd_agg, clim_X="bio10_1",
   
   return(p=params)
 }
+
+
+
+##-- calculate the true skill statistic (TSS)
+#' Given predicted presence/absence and true presence/absence, calculate the
+#' True Skill Statistic (TSS) as 'sensitivity + specificity - 1' = (correctly predicted presences)/(total presences) + (correctly predicted absences)/(total absences) - 1
+#' @param S.pa Logical vector of true presences and absences
+#' @param P.pa Logical vector of predicted presences and absences
+#' @return Scalar TSS score
+calc_TSS <- function(S.pa, P.pa) {
+  return(sum(S.pa & P.pa)/sum(S.pa) + sum(!S.pa & !P.pa)/sum(!S.pa) - 1)
+}
+
 
