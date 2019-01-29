@@ -18,6 +18,7 @@ theme_set(theme_bw())
 lam.df <- readRDS(here("vs", sp, "lam_df.rds"))
 out_P <- read.csv(here("out", sp, "out_P.csv"))
 out_TSS <- read.csv(here("out", sp, "out_TSS.csv"))
+out_LL <- read.csv(here("out", sp, "out_LL.csv"))
 out_P$issue <- factor(out_P$issue, 
                     levels=c("none", "noise", "sampBias", "nonEq",
                              "noSB", "underDisp", "overDisp", "wrongCov"),
@@ -30,7 +31,32 @@ out_TSS$issue <- factor(out_TSS$issue,
                       labels=c("None", "Measurement error", "Sampling bias", 
                                "Non-equilibrium", "No Seedbank", "Under dispersal",
                                "Over dispersal", "Incorrect covariates"))
+out_LL$issue <- factor(out_LL$issue, 
+                        levels=c("none", "noise", "sampBias", "nonEq",
+                                 "noSB", "underDisp", "overDisp", "wrongCov"),
+                        labels=c("None", "Measurement error", "Sampling bias", 
+                                 "Non-equilibrium", "No Seedbank", "Under dispersal",
+                                 "Over dispersal", "Incorrect covariates"))
+mn_TSS <- out_TSS %>% group_by(Boundary, SDM, issue) %>% summarise(TSS=mean(TSS))
 SDM_col <- c(MxE="#3f007d", IPM="#014636", CAi="#02818a", CAd="#67a9cf")
+
+ggplot(out_TSS, aes(x=TSS, fill=SDM, colour=SDM)) + 
+  geom_vline(xintercept=c(-1,0,1), colour="grey90") +
+  geom_vline(xintercept=c(-0.5,0.5), colour="grey90", linetype=3) +
+  geom_density(alpha=0.5) + 
+  geom_rug(data=mn_TSS, size=1) +
+  facet_grid(issue~Boundary, scales="free_y", 
+             labeller=labeller(issue=label_wrap_gen(12), Boundary=label_parsed)) +
+  scale_fill_manual("SDM\nMethod", values=SDM_col) + 
+  scale_colour_manual(values=SDM_col, guide=F) +
+  scale_x_continuous("TSS", c(-1,0,1)) + ylab("Density") +
+  theme(panel.grid=element_blank())
+
+ggplot(out_LL, aes(x=LogLik, y=fct_rev(issue), colour=SDM)) + 
+  facet_grid(Boundary~.) +
+  geom_point(alpha=0.7, size=5) + 
+  scale_colour_manual(values=SDM_col) +
+  labs(x="Log likelihood: S ~ Binom(prP)", y="")
 
 par(mfrow=c(3,3))
 plot(lam.df$bio10_1, log(lam.df$lambda), col=rgb(0,0,0,0.25))
@@ -50,12 +76,6 @@ ggplot(lam.df, aes(x=lon, y=lat, fill=Surv.S>0)) + geom_tile() + ggtitle(sp)
 ggplot(lam.df, aes(x=lon, y=lat, fill=log(Surv.S))) + geom_tile() + ggtitle(sp) +
   scale_fill_viridis(option="B")
 
-ggplot(out_TSS, aes(x=TSS, fill=SDM, colour=SDM)) + xlim(-1,1) +
-  geom_vline(xintercept=c(-1,0,1), colour="grey90") +
-  geom_density(alpha=0.75) + 
-  facet_grid(issue~Boundary, scales="free_y") +
-  scale_fill_manual(values=SDM_col) + scale_colour_manual(values=SDM_col) +
-  theme(panel.grid=element_blank())
 
 ggplot(out_P, aes(fill=fate_lam, x=SDM)) + geom_bar(position="fill") + 
   facet_wrap(~issue) + scale_fill_brewer(name="", type="div") + 
