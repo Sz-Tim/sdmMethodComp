@@ -129,7 +129,7 @@ legend("center", lty=c(rep(1, length(ipm.cols)), 3), col=c(ipm.cols, 1), cex=1.5
 ## Precipitation
 ########
 par(mfrow=c(2,3))
-# survival vs temp
+# survival vs precip
 plot(NA, NA, xlab="Precipitation", ylab="Survival probability", 
      ylim=c(0,1), xlim=range(x), cex.lab=1.5)
 for(i in seq_along(ipm.diag)) {
@@ -137,7 +137,7 @@ for(i in seq_along(ipm.diag)) {
 }
 lines(x, antilogit(x.mx %*% p$s_x[3:4]), lwd=2, lty=3)
 
-# growth vs temp
+# growth vs precip
 plot(NA, NA, xlab="Precipitation", ylab="Growth", 
      ylim=c(-10,5), xlim=range(x), cex.lab=1.5)
 for(i in seq_along(ipm.diag)) {
@@ -145,7 +145,7 @@ for(i in seq_along(ipm.diag)) {
 }
 lines(x, x.mx %*% p$g_x[3:4], lwd=2, lty=3)
 
-# flowering vs temp
+# flowering vs precip
 plot(NA, NA, xlab="Precipitation", ylab="Flowering probability", 
      ylim=c(0,1), xlim=range(x), cex.lab=1.5)
 for(i in seq_along(ipm.diag)) {
@@ -153,7 +153,7 @@ for(i in seq_along(ipm.diag)) {
 }
 lines(x, antilogit(x.mx %*% p$fl_x[3:4]), lwd=2, lty=3)
 
-# seeds vs temp
+# seeds vs precip
 plot(NA, NA, xlab="Precipitation", ylab="Seed production", 
      ylim=c(-2,2), xlim=range(x), cex.lab=1.5)
 for(i in seq_along(ipm.diag)) {
@@ -161,7 +161,7 @@ for(i in seq_along(ipm.diag)) {
 }
 lines(x, exp(x.mx %*% p$seed_x[3:4]), lwd=2, lty=3)
 
-# germination vs temp
+# germination vs precip
 plot(NA, NA, xlab="Precipitation", ylab="Germination", 
      ylim=c(0,1), xlim=range(x), cex.lab=1.5)
 for(i in seq_along(ipm.diag)) {
