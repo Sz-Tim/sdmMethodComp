@@ -74,6 +74,7 @@ foreach(i=seq_along(issue_i$Issue), .packages=c("dismo", pkgs)) %dopar% {
   if(!is.null(p$germ_x)) {
     n_x <- rep(list(length(v.i)), length(n_z)+1)
     names(n_x) <- c(names(n_z), "germ")
+    n_x$germ <- n_x$germ + 1
   } else {
     n_x <- rep(list(length(v.i)), length(n_z))
     names(n_x) <- names(n_z)
