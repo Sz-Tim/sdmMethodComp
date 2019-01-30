@@ -19,10 +19,10 @@ clim_X <- paste0("bio10_", c(5, "prMay"))
 habitat <- 4
 max_z_pow <- 1
 n.cores <- 24
-x_min <- 200#675#
+x_min <- 0#200#675#
 x_max <- Inf
 y_min <- 0
-y_max <- 75#250#
+y_max <- Inf#75#250#
 
 # load workspace
 pkgs <- c("gbPopMod", "tidyverse", "magrittr", "here", "doSNOW", "foreach")
@@ -41,14 +41,11 @@ n.cell <- sum(L$env.rct$inbd)
 ########
 p <- fit_PNAS_species(sp, env.f, nlcd.sp, clim_X, FALSE, max_z_pow, habitat,
                       x_min, x_max, y_min, y_max)
-# p$s_x[1] <- p$s_x[1]*50
-# p$s_x[c(2,4)] <- c(-0.8, -0.5)
-# p$g_x[c(2,4)] <- -0.1
-p$germ_x[1] <- p$germ_x[1] + 3
-# p$germ_x[2] <- p$germ_x[2]*-1
-# p$germ_x[c(3,5)] <- c(-2, -0.1)
-p$n <- 10
-p$tmax <- 70
+p$s_x <- c(-5, -1.25, 3.5, 0)
+p$g_x <- c(-1.5, -1, -1, -1)
+p$germ_x <- c(2, -3, -1.75, -4, 0)
+p$n <- 20
+p$tmax <- 100
 p$tnonEq <- floor(p$tmax/3)
 p$n0 <- 10
 p$prop_init <- 0.001
@@ -58,7 +55,7 @@ p$sdd_rate <- sp_i$sdd_rate
 p$ldd <- sp_i$ldd
 p$bird_hab <- c(.32, .36, .05, .09, .09)
 p$NDD_n <- 20  # mean number of recruits if NDD
-p$K_max <- 1e4  # max abundance for CAd
+p$K_max <- 1e3  # max abundance for CAd
 p$p_emig <- pexp(0.5, p$sdd_rate, lower.tail=F) # p(seed emigrants)
 n_z <- list(s=length(p$s_z),  # n size covariates for each vital rate
             g=length(p$g_z),
@@ -113,7 +110,7 @@ if(sp=="garlic_mustard") {
 
 # Ground Truth: generate simulated data
 S <- simulate_data(n.cell, U$lo, U$hi, p, X, n_z, sdd.ji, p.ji, N_init, sp, 
-                   save_yrs=NULL, T)
+                   save_yrs=c(p$tnonEq+(-5:0), p$tmax+(-5:0)), T)
 
 # Aggregate results
 lam.df <- L$env.in %>%
@@ -182,7 +179,6 @@ if(plots) {
     geom_tile(data=filter(lam.df, Surv.S>0), aes(x=lon, y=lat), 
               fill="red", alpha=0.5) +
     theme(axis.text=element_blank()) + labs(x="", y="") +
-    scale_fill_viridis(name="", option="B") +
     ggtitle(paste0(sp, ": 3km x 3km, favorable habitat"))
   
   lam.gg + geom_tile(aes(fill=s)) + 
