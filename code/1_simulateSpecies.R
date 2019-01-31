@@ -15,7 +15,7 @@ sp <- c("barberry", "garlic_mustard")[1]
 res <- "10km" # "3km", "5km", "10km", "50km"
 overwrite <- TRUE
 plots <- TRUE
-clim_X <- paste0("bio10_", c(5, "prMay"))
+clim_X <- paste0("bio10_", c(6, "prMay"))
 habitat <- 4
 max_z_pow <- 1
 n.cores <- 24
@@ -41,9 +41,9 @@ n.cell <- sum(L$env.rct$inbd)
 ########
 p <- fit_PNAS_species(sp, env.f, nlcd.sp, clim_X, FALSE, max_z_pow, habitat,
                       x_min, x_max, y_min, y_max)
-p$s_x <- c(-5, -1.25, 3.5, 0)
-p$g_x <- c(-1.5, -1, -1, -1)
-p$germ_x <- c(2, -3, -1.75, -4, 0)
+p$s_x <- c(-2.75, -1.25, 3.5, 0)
+p$g_x <- c(-1.25, -0.75, -0.3, -0.3)
+p$germ_x <- c(1.5, -4, -1.75, -2, 0)
 p$n <- 20
 p$tmax <- 100
 p$tnonEq <- floor(p$tmax/3)
