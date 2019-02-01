@@ -16,13 +16,13 @@
 #' @param lam.df Dataframe with covariates, generated in 1_simulateSpecies.R
 #' @param Mech.sample List of cell indices for each set of samples
 #' @param O_yr List with [["CA"]] containing the years to sample
-#' @param prop.sampled Proportion of individuals (per cell) to sample
+#' @param max_indiv Maximum number of individuals (per cell) to sample
 #' @return List with an element for each dataset, where each dataset is a list
 #'   containing a dataframe "d" with population-level statistics for each cell
 #'   and year, matrix "B" (dim=[n.cell, length(O_yr$CA)] with the size of the
 #'   seedbank, and matrix "D" (dim=dim(B)) with the number of immigrant seeds to
 #'   each cell
-sample_for_CA <- function(sp, S, lam.df, Mech.sample, O_yr, prop.sampled) {
+sample_for_CA <- function(sp, S, lam.df, Mech.sample, O_yr, max_indiv) {
   m <- ifelse(sp=="garlic_mustard", 2, 3)
   O_CA <- vector("list", length(Mech.sample))
   for(s in seq_along(O_CA)) {
@@ -33,7 +33,7 @@ sample_for_CA <- function(sp, S, lam.df, Mech.sample, O_yr, prop.sampled) {
       i <- Mech.sample[[s]][j]
       CA.d[[j]] <- data.frame(S$d[[i]]) %>% 
         filter(yr %in% O_yr$CA) %>% 
-        sample_frac(prop.sampled)
+        sample_n(min(max_indiv$CA, nrow(.)))
       if(!all(O_yr$CA %in% CA.d[[j]]$yr)) {
         missing.yr <- O_yr$CA[!O_yr$CA %in% CA.d[[j]]$yr]
         CA.d[[j]] <- CA.d[[j]] %>%
@@ -46,8 +46,8 @@ sample_for_CA <- function(sp, S, lam.df, Mech.sample, O_yr, prop.sampled) {
                   s.N.1=sum(surv[age>=m]==1, na.rm=TRUE),
                   s.M.0=sum(surv[age<m]==0, na.rm=TRUE),
                   s.M.1=sum(surv[age<m]==1, na.rm=TRUE),
-                  f.0=sum(fl==0, na.rm=TRUE),
-                  f.1=sum(fl==1, na.rm=TRUE),
+                  f.0=sum(fl[age>=m]==0, na.rm=TRUE),
+                  f.1=sum(fl[age>=m]==1, na.rm=TRUE),
                   mu=mean(seed, na.rm=TRUE) %>% round,
                   nSeed=sum(seed, na.rm=TRUE),
                   N.rcr=sum(is.na(size) & !is.na(sizeNext))) %>%
@@ -72,14 +72,15 @@ sample_for_CA <- function(sp, S, lam.df, Mech.sample, O_yr, prop.sampled) {
 
 ##-- sample for IPM and individual-based CA model
 #' Sample from S for the specified cells and years within each observed dataset
+#' @param p List of true parameters
 #' @param S True individual-level data produced in 1_simulateSpecies.R
 #' @param lam.df Dataframe with covariates, generated in 1_simulateSpecies.R
 #' @param Mech.sample List of cell indices for each set of samples
 #' @param O_yr List with [["IPM"]] containing the years to sample
-#' @param prop.sampled Proportion of individuals (per cell) to sample
+#' @param max_indiv Maximum number of individuals (per cell) to sample
 #' @return List with an element for each dataset, where each dataset is a
 #'   dataframe with individual-level statistics for each cell and year
-sample_for_IPM <- function(S, lam.df, Mech.sample, O_yr, prop.sampled) {
+sample_for_IPM <- function(p, S, lam.df, Mech.sample, O_yr, max_indiv) {
   O_IPM <- vector("list", length(Mech.sample))
   for(s in seq_along(O_IPM)) {
     IPM.d <- vector("list", length(Mech.sample[[1]]))
@@ -90,7 +91,13 @@ sample_for_IPM <- function(S, lam.df, Mech.sample, O_yr, prop.sampled) {
         mutate(size2=size^2, size3=size^3) %>%
         add_column(id.in=i) %>%
         full_join(env.in[i,], by="id.in")
-      IPM.d[[j]] <- sample_frac(IPM.d[[j]], prop.sampled)
+      z_cut <- as.numeric(cut(IPM.d[[j]]$size, 
+                              breaks=p$z.rng[1]+(0:3)*diff(p$z.rng)/3))
+      sample.i <- c(which(is.na(IPM.d[[j]]$size)),
+                    unlist(map(1:3, ~sample(which(z_cut==.), 
+                                            min(max_indiv$IPM/3, 
+                                                sum(z_cut==., na.rm=T))))))
+      IPM.d[[j]] <- IPM.d[[j]][sample.i,]
     }
     O_IPM[[s]]$d <- do.call(rbind, IPM.d)
     O_IPM[[s]]$germ.df <- lam.df[Mech.sample[[s]],-(55:74)] %>%
@@ -237,8 +244,9 @@ fit_MxE <- function(spNum, issue, samp.issue, lam.df, v) {
     MxE.f[[i]] <- dismo::maxent(x=rast.Mx, 
                                 p=as.matrix(lam.df[O_Mx[[i]], c("lon", "lat")]),
                                 args=fit.args, path=paste0(path_iss, i))
-    MxE.p[[i]] <- raster::mean(dismo::predict(MxE.f[[i]], rast.Mx, 
-                                              args="outputformat=logistic"))
+    MxE.p[[i]] <- raster::calc(dismo::predict(MxE.f[[i]], rast.Mx, 
+                                              args="outputformat=logistic"), 
+                               fun=mean, na.rm=T)
     d_j <- vector("list", 10)
     for (j in 0:9){   #loop for each replicate
       d <- read.csv(paste0(path_iss, i, "/species_", j, "_samplePredictions.csv"))
