@@ -55,7 +55,7 @@ sample_for_CA <- function(sp, S, lam.df, Mech.sample, O_yr, max_indiv) {
         ungroup() %>%
         mutate(lambda=N/lag(N,1)) %>%
         add_column(id.in=i) %>%
-        full_join(lam.df[i,-(55:74)], by="id.in")
+        full_join(lam.df[i,-(55:75)], by="id.in")
       CA.B[[j]] <- S$B[i,tail(1:dim(S$B)[2], length(O_yr$CA))]
       CA.D[[j]] <- S$D[i,tail(1:dim(S$B)[2], length(O_yr$CA))]
     }
@@ -100,7 +100,7 @@ sample_for_IPM <- function(p, S, lam.df, Mech.sample, O_yr, max_indiv) {
       IPM.d[[j]] <- IPM.d[[j]][sample.i,]
     }
     O_IPM[[s]]$d <- do.call(rbind, IPM.d)
-    O_IPM[[s]]$germ.df <- lam.df[Mech.sample[[s]],-(55:74)] %>%
+    O_IPM[[s]]$germ.df <- lam.df[Mech.sample[[s]],-(55:75)] %>%
       mutate(p.1=germ.plots, p.0=100-germ.plots)
   }
   return(O_IPM)
