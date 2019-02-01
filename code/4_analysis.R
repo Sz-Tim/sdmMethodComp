@@ -46,16 +46,24 @@ out_LL$Boundary <- factor(out_LL$Boundary, labels=c("lambda > 1", "N > 0"))
 
 f_TSS <- list.files(here("out", sp), pattern="TSS_", full.names=T)
 i_TSS <- extract_SDM_details(f_TSS, "TSS")
-out_TSS <- rbind(map(f_TSS, ~readRDS(.x)[[1]]) %>%
-                   map2_dfr(., i_TSS, ~tibble(TSS=.x, Boundary="N > 0", 
-                                              SDM=.y[1], issue=.y[2])), 
-                 map(f_TSS, ~readRDS(.x)[[2]]) %>%
-                   map2_dfr(., i_TSS, ~tibble(TSS=.x, Boundary="lambda > 1", 
-                                              SDM=.y[1], issue=.y[2])))
+out_TSS <- rbind(map(f_TSS, ~readRDS(.)[[1]]) %>%
+                   map2_dfr(., i_TSS, 
+                            ~tibble(TSS=map_dbl(.x, ~.$TSS), 
+                                    sensitivity=map_dbl(.x, ~.$sensitivity), 
+                                    specificity=map_dbl(.x, ~.$specificity), 
+                                    Boundary="N > 0", 
+                                    SDM=.y[1], issue=.y[2])), 
+                 map(f_TSS, ~readRDS(.)[[2]]) %>%
+                   map2_dfr(., i_TSS, 
+                            ~tibble(TSS=map_dbl(.x, ~.$TSS), 
+                                    sensitivity=map_dbl(.x, ~.$sensitivity), 
+                                    specificity=map_dbl(.x, ~.$specificity), 
+                                    Boundary="lambda > 1", 
+                                    SDM=.y[1], issue=.y[2])))
 
 if(overwrite) {
   write_csv(out_P, here("out", sp, "out_P.csv"))
-  write_csv(out_TSS, here("out", sp, "out_TSS.csv"))
   write_csv(out_LL, here("out", sp, "out_LL.csv"))
+  write_csv(out_TSS, here("out", sp, "out_TSS.csv"))
 }
 
