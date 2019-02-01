@@ -247,24 +247,12 @@ fit_MxE <- function(spNum, issue, samp.issue, lam.df, v) {
     MxE.p[[i]] <- raster::calc(dismo::predict(MxE.f[[i]], rast.Mx, 
                                               args="outputformat=logistic"), 
                                fun=mean, na.rm=T)
-    d_j <- vector("list", 10)
+    thresh_j <- rep(NA, 10)
     for (j in 0:9){   #loop for each replicate
       d <- read.csv(paste0(path_iss, i, "/species_", j, "_samplePredictions.csv"))
-      d$run <- j
-      dt <- d[d$Test.or.train=="train",]  # training data
-      dtest <- d[d$Test.or.train=="test",]  # testing data
-      dt <- dt[order(dt$Logistic.prediction, decreasing=T),]
-
-      d_j[[j+1]] <- data.frame(Dataset=i,
-                               Run=j,
-                               thresh_Obs=dt$Logistic.prediction[nrow(dt)],
-                               Bias=bias_type,
-                               test_n=nrow(dtest),
-                               train_n=nrow(dt))
+      thresh_j[j+1] <- min(dplyr::filter(d, Test.or.train=="train")$Logistic.prediction)
     }
-    thresh <- mean(do.call("rbind", d_j)$thresh_Obs)
-    MxE.p[[i]]@data@values <- MxE.p[[i]]@data@values >= thresh
-    gc()
+    MxE.p[[i]]@data@values <- (MxE.p[[i]]@data@values >= mean(thresh_j))
   }
   # munge output
   names(MxE.p) <- 1:length(MxE.p)

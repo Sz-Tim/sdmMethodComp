@@ -81,16 +81,15 @@ foreach(i=seq_along(issue_i$Issue), .packages=c("dismo", pkgs)) %dopar% {
   }
   
   # fit MaxEnt
-  # if("rJava" %in% rownames(installed.packages()) && 
-  #    issue %in% issue_i$Issue[c(1:4,8)]) {
-  #   library(dismo)
-  #   P_MxE <- fit_MxE(sp_i$Num, issue, samp.issue, lam.df, v$Mx)
-  #   if(overwrite) {
-  #     saveRDS(P_MxE$diag, here(out.dir, paste0("Diag_MxE_", issue, ".rds")))
-  #     saveRDS(P_MxE$P_MxE, here(out.dir, paste0("P_MxE_", issue, ".rds")))
-  #     saveRDS(P_MxE$TSS_MxE, here(out.dir, paste0("TSS_MxE_", issue, ".rds")))
-  #   }
-  # }
+  if("rJava" %in% rownames(installed.packages()) &&
+     issue %in% issue_i$Issue[c(1:4,8)]) {
+    P_MxE <- fit_MxE(sp_i$Num, issue, samp.issue, lam.df, v$Mx)
+    if(overwrite) {
+      saveRDS(P_MxE$diag, here(out.dir, paste0("Diag_MxE_", issue, ".rds")))
+      saveRDS(P_MxE$P_MxE, here(out.dir, paste0("P_MxE_", issue, ".rds")))
+      saveRDS(P_MxE$TSS_MxE, here(out.dir, paste0("TSS_MxE_", issue, ".rds")))
+    }
+  }
   # fit CA-demographic
   P_CA <- fit_CA(sp, sp_i, samp.issue, mod.issue, p,
                  L$env_rct, L$env_rct_unscaled, lam.df, v$CA, m$CA,
