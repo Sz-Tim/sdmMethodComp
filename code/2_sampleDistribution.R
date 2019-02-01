@@ -35,7 +35,7 @@ n.cell <- nrow(env.in)
 ########
 n_samp <- 50  # number of unique samples to average across
 O_n <- list(Corr=50, Mech=25)  # number of cells in sample
-prop.sampled <- 1  # proportion of individuals sampled per sampled cell 
+max_indiv <- list(CA=1e3, IPM=1e2)  # max number of individuals sampled per cell 
 O_yr_tmax <- list(Mx=p$tmax, CA=(-2:0)+p$tmax, IPM=p$tmax)  # years to sample
 P.i_tmax <- which(lam.df$Surv.S > 5)  # presences: survival past recruit stage
 P.pr_tmax <- rep(1, length(P.i_tmax))  # pr(sample cell | presence)
@@ -70,8 +70,8 @@ for(s.i in samp.issues) {
   Mech.sample <- map(1:n_samp, ~sample(P.i, O_n$Mech, replace=F, prob=P.pr))
   
   O_Mx <- map(Corr.sample, ~(1:n.cell %in% .))
-  O_CA <- sample_for_CA(sp, S, lam.df, Mech.sample, O_yr, prop.sampled)
-  O_IPM <- sample_for_IPM(S, lam.df, Mech.sample, O_yr, prop.sampled)
+  O_CA <- sample_for_CA(sp, S, lam.df, Mech.sample, O_yr, max_indiv)
+  O_IPM <- sample_for_IPM(p, S, lam.df, Mech.sample, O_yr, max_indiv)
   
   
   ########
