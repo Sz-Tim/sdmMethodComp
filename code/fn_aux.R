@@ -418,7 +418,11 @@ fit_PNAS_species <- function(sp="barberry", f, nlcd_agg, clim_X="bio10_1",
 #' @param P.pa Logical vector of predicted presences and absences
 #' @return Scalar TSS score
 calc_TSS <- function(S.pa, P.pa) {
-  return(sum(S.pa & P.pa)/sum(S.pa) + sum(!S.pa & !P.pa)/sum(!S.pa) - 1)
+  sensitivity <- sum(S.pa & P.pa)/sum(S.pa)
+  specificity <- sum(!S.pa & !P.pa)/sum(!S.pa)
+  return(list(sensitivity=sensitivity, 
+              specificity=specificity,
+              TSS=sensitivity + specificity - 1))
 }
 
 
