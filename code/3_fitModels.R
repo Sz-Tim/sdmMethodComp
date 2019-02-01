@@ -33,7 +33,7 @@ clim_X_correct <- readRDS(here(vs.dir, "clim_X.rds"))
 L <- map(dir(here(vs.dir), "env_", full.names=T), readRDS) %>%
   setNames(str_remove(dir(here(vs.dir), "env_"), ".rds"))
 n.cell <- nrow(L$env_in); n.grid <- nrow(L$env_rct)
-clim_X_wrong <- paste0("bio10_", c(1, 5, 12, "prMay")) %>%
+clim_X_wrong <- paste0("bio10_", c(1, 6, 12, "prMay")) %>%
   magrittr::extract(! . %in% clim_X_correct)
 issue_i <- read.csv("data/issues.csv", stringsAsFactors=F)
 vars_correct <- rep(0, length(clim_X_correct)*2+2)
@@ -50,12 +50,12 @@ p.c <- makeCluster(n_core_iss); registerDoSNOW(p.c)
 foreach(i=seq_along(issue_i$Issue), .packages=c("dismo", pkgs)) %dopar% {
   # load issues
   issue <- issue_i$Issue[i]
-  samp_iss <- issue_i$Sampling[i]
-  mod_iss <- issue_i$Modeling[i]
+  samp.issue <- issue_i$Sampling[i]
+  mod.issue <- issue_i$Modeling[i]
   
   # set variables & model formulas
   v <- m <- list(CA=NULL, IPM=NULL)
-  if(mod_iss=="wrongCov") {
+  if(mod.issue=="wrongCov") {
     vars <- vars_wrong
     v.size <- grep("size", names(vars))
     v.i <- grep("bio10", names(vars))
@@ -81,17 +81,18 @@ foreach(i=seq_along(issue_i$Issue), .packages=c("dismo", pkgs)) %dopar% {
   }
   
   # fit MaxEnt
-  if("rJava" %in% rownames(installed.packages()) && 
-     issue %in% issue_i$Issue[c(1:4,8)]) {
-    P_MxE <- fit_MxE(sp_i$Num, issue, samp_iss, lam.df, v$Mx)
-    if(overwrite) {
-      saveRDS(P_MxE$diag, here(out.dir, paste0("Diag_MxE_", issue, ".rds")))
-      saveRDS(P_MxE$P_MxE, here(out.dir, paste0("P_MxE_", issue, ".rds")))
-      saveRDS(P_MxE$TSS_MxE, here(out.dir, paste0("TSS_MxE_", issue, ".rds")))
-    }
-  }
+  # if("rJava" %in% rownames(installed.packages()) && 
+  #    issue %in% issue_i$Issue[c(1:4,8)]) {
+  #   library(dismo)
+  #   P_MxE <- fit_MxE(sp_i$Num, issue, samp.issue, lam.df, v$Mx)
+  #   if(overwrite) {
+  #     saveRDS(P_MxE$diag, here(out.dir, paste0("Diag_MxE_", issue, ".rds")))
+  #     saveRDS(P_MxE$P_MxE, here(out.dir, paste0("P_MxE_", issue, ".rds")))
+  #     saveRDS(P_MxE$TSS_MxE, here(out.dir, paste0("TSS_MxE_", issue, ".rds")))
+  #   }
+  # }
   # fit CA-demographic
-  P_CA <- fit_CA(sp, sp_i, samp_iss, mod_iss, p,
+  P_CA <- fit_CA(sp, sp_i, samp.issue, mod.issue, p,
                  L$env_rct, L$env_rct_unscaled, lam.df, v$CA, m$CA,
                  N_init, sdd.pr, sdd.ji, p.ji, n_sim, n_core_obs)
   if(overwrite) {
@@ -100,7 +101,7 @@ foreach(i=seq_along(issue_i$Issue), .packages=c("dismo", pkgs)) %dopar% {
     saveRDS(P_CA$TSS_CAd, here(out.dir, paste0("TSS_CAd_", issue, ".rds")))
   }
   # fit IPM, CA-individual
-  P_IPM <- fit_IPM(sp, sp_i, samp_iss, mod_iss, p,
+  P_IPM <- fit_IPM(sp, sp_i, samp.issue, mod.issue, p,
                    L$env_rct_unscaled, lam.df, v$IPM, m$IPM, n_z, n_x,
                    N_init, sdd.ji, p.ji, n_sim, n_core_obs)
   if(overwrite) {
