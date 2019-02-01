@@ -23,7 +23,7 @@
 #'   seedbank, and matrix "D" (dim=dim(B)) with the number of immigrant seeds to
 #'   each cell
 sample_for_CA <- function(sp, S, lam.df, Mech.sample, O_yr, max_indiv) {
-  m <- ifelse(sp=="garlic_mustard", 2, 3)
+  m <- ifelse(sp=="garlic_mustard", 2, 4)
   O_CA <- vector("list", length(Mech.sample))
   for(s in seq_along(O_CA)) {
     CA.d <- CA.B <- CA.D <- vector("list", length(Mech.sample[[1]]))
@@ -46,8 +46,8 @@ sample_for_CA <- function(sp, S, lam.df, Mech.sample, O_yr, max_indiv) {
                   s.N.1=sum(surv[age>=m]==1, na.rm=TRUE),
                   s.M.0=sum(surv[age<m]==0, na.rm=TRUE),
                   s.M.1=sum(surv[age<m]==1, na.rm=TRUE),
-                  f.0=sum(fl[age>=m]==0, na.rm=TRUE),
-                  f.1=sum(fl[age>=m]==1, na.rm=TRUE),
+                  f.0=sum(fl==0, na.rm=TRUE),
+                  f.1=sum(fl==1, na.rm=TRUE),
                   mu=mean(seed, na.rm=TRUE) %>% round,
                   nSeed=sum(seed, na.rm=TRUE),
                   N.rcr=sum(is.na(size) & !is.na(sizeNext))) %>%
@@ -252,7 +252,7 @@ fit_MxE <- function(spNum, issue, samp.issue, lam.df, v) {
       d <- read.csv(paste0(path_iss, i, "/species_", j, "_samplePredictions.csv"))
       thresh_j[j+1] <- min(dplyr::filter(d, Test.or.train=="train")$Logistic.prediction)
     }
-    MxE.p[[i]]@data@values <- (MxE.p[[i]]@data@values >= mean(thresh_j))
+    MxE.p[[i]]@data@values <- as.logical(MxE.p[[i]]@data@values >= mean(thresh_j))
   }
   # munge output
   names(MxE.p) <- 1:length(MxE.p)
