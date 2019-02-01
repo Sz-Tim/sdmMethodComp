@@ -15,8 +15,10 @@ ipm.cols <- apply(col2rgb(ipm.cols)/255, 2, function(x) rgb(x[1],x[2],x[3],0.5))
 
 z.seq <- seq(p$z.rng[1], p$z.rng[2], length.out=200)
 z.mx <- cbind(1, z.seq)
-x <- seq(min(lam.df$bio10_5), max(lam.df$bio10_5), length.out=200)
-x.mx <- cbind(x, x^2)
+x1 <- seq(min(lam.df$bio10_6), max(lam.df$bio10_6), length.out=200)
+x1.mx <- cbind(x1, x1^2)
+x2 <- seq(min(lam.df$bio10_prMay), max(lam.df$bio10_prMay), length.out=200)
+x2.mx <- cbind(x2, x2^2)
 
 ########-------------------------------
 ## Size
@@ -77,44 +79,44 @@ legend("center", lty=c(rep(1, length(ipm.cols)), 3), col=c(ipm.cols, 1), cex=1.5
 par(mfrow=c(2,3))
 # survival vs temp
 plot(NA, NA, xlab="Temperature", ylab="Survival probability", 
-     ylim=c(0,1), xlim=range(x), cex.lab=1.5)
+     ylim=c(0,1), xlim=range(x1), cex.lab=1.5)
 for(i in seq_along(ipm.diag)) {
-  walk(ipm.diag[[i]], ~lines(x, antilogit(x.mx %*% .$s_x[1:2]), col=ipm.cols[i]))
+  walk(ipm.diag[[i]], ~lines(x1, antilogit(x1.mx %*% .$s_x[1:2]), col=ipm.cols[i]))
 }
-lines(x, antilogit(x.mx %*% p$s_x[1:2]), lwd=2, lty=3)
+lines(x1, antilogit(x1.mx %*% p$s_x[1:2]), lwd=2, lty=3)
 
 # growth vs temp
 plot(NA, NA, xlab="Temperature", ylab="Growth", 
-     ylim=c(-2,2), xlim=range(x), cex.lab=1.5)
+     ylim=c(-2,2), xlim=range(x1), cex.lab=1.5)
 for(i in seq_along(ipm.diag)) {
-  walk(ipm.diag[[i]], ~lines(x, x.mx %*% .$g_x[1:2], col=ipm.cols[i]))
+  walk(ipm.diag[[i]], ~lines(x1, x1.mx %*% .$g_x[1:2], col=ipm.cols[i]))
 }
-lines(x, x.mx %*% p$g_x[1:2], lwd=2, lty=3)
+lines(x1, x1.mx %*% p$g_x[1:2], lwd=2, lty=3)
 
 # flowering vs temp
 plot(NA, NA, xlab="Temperature", ylab="Flowering probability", 
-     ylim=c(0,1), xlim=range(x), cex.lab=1.5)
+     ylim=c(0,1), xlim=range(x1), cex.lab=1.5)
 for(i in seq_along(ipm.diag)) {
-  walk(ipm.diag[[i]], ~lines(x, antilogit(x.mx %*% .$fl_x[1:2]), col=ipm.cols[i]))
+  walk(ipm.diag[[i]], ~lines(x1, antilogit(x1.mx %*% .$fl_x[1:2]), col=ipm.cols[i]))
 }
-lines(x, antilogit(x.mx %*% p$fl_x[1:2]), lwd=2, lty=3)
+lines(x1, antilogit(x1.mx %*% p$fl_x[1:2]), lwd=2, lty=3)
 
 # seeds vs temp
 plot(NA, NA, xlab="Temperature", ylab="Seed production", 
-     ylim=c(-2,2), xlim=range(x), cex.lab=1.5)
+     ylim=c(-2,2), xlim=range(x1), cex.lab=1.5)
 for(i in seq_along(ipm.diag)) {
-  walk(ipm.diag[[i]], ~lines(x, exp(x.mx %*% .$seed_x[1:2]), col=ipm.cols[i]))
+  walk(ipm.diag[[i]], ~lines(x1, exp(x1.mx %*% .$seed_x[1:2]), col=ipm.cols[i]))
 }
-lines(x, exp(x.mx %*% p$seed_x[1:2]), lwd=2, lty=3)
+lines(x1, exp(x1.mx %*% p$seed_x[1:2]), lwd=2, lty=3)
 
 # germination vs temp
 plot(NA, NA, xlab="Temperature", ylab="Germination", 
-     ylim=c(0,1), xlim=range(x), cex.lab=1.5)
+     ylim=c(0,1), xlim=range(x1), cex.lab=1.5)
 for(i in seq_along(ipm.diag)) {
-  walk(ipm.diag[[i]], ~lines(x, antilogit(cbind(1, x.mx) %*% .$germ_x[1:3]), 
+  walk(ipm.diag[[i]], ~lines(x1, antilogit(cbind(1, x1.mx) %*% .$germ_x[1:3]), 
                              col=ipm.cols[i]))
 }
-lines(x, antilogit(cbind(1, x.mx) %*% p$germ_x[1:3]), lwd=2, lty=3)
+lines(x1, antilogit(cbind(1, x1.mx) %*% p$germ_x[1:3]), lwd=2, lty=3)
 
 # legend
 plot(NA, NA, xlab="", ylab="", xlim=c(-1,1), ylim=c(-1,1), axes=F)
@@ -131,44 +133,44 @@ legend("center", lty=c(rep(1, length(ipm.cols)), 3), col=c(ipm.cols, 1), cex=1.5
 par(mfrow=c(2,3))
 # survival vs precip
 plot(NA, NA, xlab="Precipitation", ylab="Survival probability", 
-     ylim=c(0,1), xlim=range(x), cex.lab=1.5)
+     ylim=c(0,1), xlim=range(x2), cex.lab=1.5)
 for(i in seq_along(ipm.diag)) {
-  walk(ipm.diag[[i]], ~lines(x, antilogit(x.mx %*% .$s_x[3:4]), col=ipm.cols[i]))
+  walk(ipm.diag[[i]], ~lines(x2, antilogit(x2.mx %*% .$s_x[3:4]), col=ipm.cols[i]))
 }
-lines(x, antilogit(x.mx %*% p$s_x[3:4]), lwd=2, lty=3)
+lines(x2, antilogit(x2.mx %*% p$s_x[3:4]), lwd=2, lty=3)
 
 # growth vs precip
 plot(NA, NA, xlab="Precipitation", ylab="Growth", 
-     ylim=c(-10,5), xlim=range(x), cex.lab=1.5)
+     ylim=c(-10,5), xlim=range(x2), cex.lab=1.5)
 for(i in seq_along(ipm.diag)) {
-  walk(ipm.diag[[i]], ~lines(x, x.mx %*% .$g_x[3:4], col=ipm.cols[i]))
+  walk(ipm.diag[[i]], ~lines(x2, x2.mx %*% .$g_x[3:4], col=ipm.cols[i]))
 }
-lines(x, x.mx %*% p$g_x[3:4], lwd=2, lty=3)
+lines(x2, x2.mx %*% p$g_x[3:4], lwd=2, lty=3)
 
 # flowering vs precip
 plot(NA, NA, xlab="Precipitation", ylab="Flowering probability", 
-     ylim=c(0,1), xlim=range(x), cex.lab=1.5)
+     ylim=c(0,1), xlim=range(x2), cex.lab=1.5)
 for(i in seq_along(ipm.diag)) {
-  walk(ipm.diag[[i]], ~lines(x, antilogit(x.mx %*% .$fl_x[3:4]), col=ipm.cols[i]))
+  walk(ipm.diag[[i]], ~lines(x2, antilogit(x2.mx %*% .$fl_x[3:4]), col=ipm.cols[i]))
 }
-lines(x, antilogit(x.mx %*% p$fl_x[3:4]), lwd=2, lty=3)
+lines(x2, antilogit(x2.mx %*% p$fl_x[3:4]), lwd=2, lty=3)
 
 # seeds vs precip
 plot(NA, NA, xlab="Precipitation", ylab="Seed production", 
-     ylim=c(-2,2), xlim=range(x), cex.lab=1.5)
+     ylim=c(-2,2), xlim=range(x2), cex.lab=1.5)
 for(i in seq_along(ipm.diag)) {
-  walk(ipm.diag[[i]], ~lines(x, exp(x.mx %*% .$seed_x[3:4]), col=ipm.cols[i]))
+  walk(ipm.diag[[i]], ~lines(x2, exp(x2.mx %*% .$seed_x[3:4]), col=ipm.cols[i]))
 }
-lines(x, exp(x.mx %*% p$seed_x[3:4]), lwd=2, lty=3)
+lines(x2, exp(x2.mx %*% p$seed_x[3:4]), lwd=2, lty=3)
 
 # germination vs precip
 plot(NA, NA, xlab="Precipitation", ylab="Germination", 
-     ylim=c(0,1), xlim=range(x), cex.lab=1.5)
+     ylim=c(0,1), xlim=range(x2), cex.lab=1.5)
 for(i in seq_along(ipm.diag)) {
-  walk(ipm.diag[[i]], ~lines(x, antilogit(cbind(1, x.mx) %*% .$germ_x[c(1,4:5)]), 
+  walk(ipm.diag[[i]], ~lines(x2, antilogit(cbind(1, x2.mx) %*% .$germ_x[c(1,4:5)]), 
                              col=ipm.cols[i]))
 }
-lines(x, antilogit(cbind(1, x.mx) %*% p$germ_x[c(1,4:5)]), lwd=2, lty=3)
+lines(x2, antilogit(cbind(1, x2.mx) %*% p$germ_x[c(1,4:5)]), lwd=2, lty=3)
 
 # legend
 plot(NA, NA, xlab="", ylab="", xlim=c(-1,1), ylim=c(-1,1), axes=F)
