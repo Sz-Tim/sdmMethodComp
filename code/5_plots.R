@@ -37,7 +37,10 @@ out_LL$issue <- factor(out_LL$issue,
                         labels=c("None", "Measurement error", "Sampling bias", 
                                  "Non-equilibrium", "No Seedbank", "Under dispersal",
                                  "Over dispersal", "Incorrect covariates"))
-mn_TSS <- out_TSS %>% group_by(Boundary, SDM, issue) %>% summarise(TSS=mean(TSS))
+mn_TSS <- out_TSS %>% group_by(Boundary, SDM, issue) %>% 
+  summarise(TSS=mean(TSS), 
+            sensitivity=mean(sensitivity), 
+            specificity=mean(specificity))
 SDM_col <- c(MxE="#3f007d", IPM="#014636", CAi="#02818a", CAd="#67a9cf")
 
 ggplot(out_TSS, aes(x=TSS, fill=SDM, colour=SDM)) + 
@@ -46,10 +49,32 @@ ggplot(out_TSS, aes(x=TSS, fill=SDM, colour=SDM)) +
   geom_density(alpha=0.5) + 
   geom_rug(data=mn_TSS, size=1) +
   facet_grid(issue~Boundary, scales="free_y", 
-             labeller=labeller(issue=label_wrap_gen(12), Boundary=label_parsed)) +
+             labeller=labeller(issue=label_wrap_gen(10), Boundary=label_parsed)) +
   scale_fill_manual("SDM\nMethod", values=SDM_col) + 
   scale_colour_manual(values=SDM_col, guide=F) +
   scale_x_continuous("TSS", c(-1,0,1)) + ylab("Density") +
+  theme(panel.grid=element_blank())
+ggplot(out_TSS, aes(x=sensitivity, fill=SDM, colour=SDM)) + 
+  geom_vline(xintercept=c(0,1), colour="grey90") +
+  geom_vline(xintercept=0.5, colour="grey90", linetype=3) +
+  geom_density(alpha=0.5) + 
+  geom_rug(data=mn_TSS, size=1) +
+  facet_grid(issue~Boundary, scales="free_y", 
+             labeller=labeller(issue=label_wrap_gen(10), Boundary=label_parsed)) +
+  scale_fill_manual("SDM\nMethod", values=SDM_col) + 
+  scale_colour_manual(values=SDM_col, guide=F) +
+  scale_x_continuous("Sensitivity", c(0,0.5,1)) + ylab("Density") +
+  theme(panel.grid=element_blank())
+ggplot(out_TSS, aes(x=specificity, fill=SDM, colour=SDM)) + 
+  geom_vline(xintercept=c(0,1), colour="grey90") +
+  geom_vline(xintercept=0.5, colour="grey90", linetype=3) +
+  geom_density(alpha=0.5) + 
+  geom_rug(data=mn_TSS, size=1) +
+  facet_grid(issue~Boundary, scales="free_y", 
+             labeller=labeller(issue=label_wrap_gen(10), Boundary=label_parsed)) +
+  scale_fill_manual("SDM\nMethod", values=SDM_col) + 
+  scale_colour_manual(values=SDM_col, guide=F) +
+  scale_x_continuous("Specificity", c(0,0.5,1)) + ylab("Density") +
   theme(panel.grid=element_blank())
 
 ggplot(out_LL, aes(x=LogLik, y=fct_rev(issue), colour=SDM)) + 
@@ -61,18 +86,19 @@ ggplot(out_LL, aes(x=LogLik, y=fct_rev(issue), colour=SDM)) +
 par(mfrow=c(3,3))
 plot(lam.df$bio10_1, log(lam.df$lambda), col=rgb(0,0,0,0.25))
 plot(lam.df$bio10_12, log(lam.df$lambda), col=rgb(0,0,0,0.25))
-plot(lam.df$bio10_5, log(lam.df$lambda), col=rgb(0,0,0,0.25))
+plot(lam.df$bio10_6, log(lam.df$lambda), col=rgb(0,0,0,0.25))
 plot(lam.df$bio10_prMay, log(lam.df$lambda), col=rgb(0,0,0,0.25))
 hist(log(lam.df$lambda))
 plot(lam.df$bio10_1, log(lam.df$Surv.S), col=rgb(0,0,0,0.25))
 plot(lam.df$bio10_12, log(lam.df$Surv.S), col=rgb(0,0,0,0.25))
-plot(lam.df$bio10_5, log(lam.df$Surv.S), col=rgb(0,0,0,0.25))
+plot(lam.df$bio10_6, log(lam.df$Surv.S), col=rgb(0,0,0,0.25))
 plot(lam.df$bio10_prMay, log(lam.df$Surv.S), col=rgb(0,0,0,0.25))
 
-ggplot(lam.df, aes(x=lon, y=lat, fill=lambda>1)) + geom_tile() + ggtitle(sp)
+ggplot() + geom_tile(data=lam.df, aes(lon, lat), fill="gray30") +
+  geom_tile(data=filter(lam.df, lambda>1), aes(lon, lat, fill=lambda)) +
+  scale_fill_viridis(option="B")
 ggplot(lam.df, aes(x=lon, y=lat, fill=log(lambda))) + geom_tile() + ggtitle(sp) +
   scale_fill_viridis(option="B")
-ggplot(lam.df, aes(x=lon, y=lat, fill=Surv.S>0)) + geom_tile() + ggtitle(sp)
 ggplot(lam.df, aes(x=lon, y=lat, fill=log(Surv.S))) + geom_tile() + ggtitle(sp) +
   scale_fill_viridis(option="B")
 
@@ -129,35 +155,6 @@ ggplot(out_P, aes(x=lon, y=lat, fill=log(nSdStay.f + nSdLeave.f))) +
   geom_tile() + facet_grid(SDM~issue) + 
   scale_fill_viridis("log(Sd)", option="B") +
   theme(axis.text=element_blank())
-
-lam.sum <- out_P %>% group_by(SDM, issue, fate_lam) %>%
-  summarise(ct=n()) %>%
-  mutate(rate=case_when(fate_lam=="S:0 P:0" ~ ct/sum(lam.df$lambda<1),
-                            fate_lam=="S:0 P:1" ~ ct/sum(lam.df$lambda<1),
-                            fate_lam=="S:1 P:0" ~ ct/sum(lam.df$lambda>=1),
-                            fate_lam=="S:1 P:1" ~ ct/sum(lam.df$lambda>=1)))
-S.sum <- out_P %>% group_by(SDM, issue, fate_S) %>%
-  summarise(ct=n()) %>%
-  mutate(rate=case_when(fate_S=="S:0 P:0" ~ ct/sum(lam.df$Surv.S==0),
-                            fate_S=="S:0 P:1" ~ ct/sum(lam.df$Surv.S==0),
-                            fate_S=="S:1 P:0" ~ ct/sum(lam.df$Surv.S>0),
-                            fate_S=="S:1 P:1" ~ ct/sum(lam.df$Surv.S>0)))
-tss.lam <- lam.sum %>% ungroup %>% group_by(SDM, issue) %>%
-  summarise(TSS=sum(rate[fate_lam %in% c("S:0 P:0", "S:1 P:1")])-1) %>%
-  ungroup %>% mutate(issue=fct_rev(issue), metric="lambda > 1")
-tss.S <- S.sum %>% ungroup %>% group_by(SDM, issue) %>%
-  summarise(TSS=sum(rate[fate_S %in% c("S:0 P:0", "S:1 P:1")])-1) %>%
-  ungroup %>% mutate(issue=fct_rev(issue), metric="N > 0")
-tss.df <- rbind(tss.lam, tss.S)
-ggplot(tss.df, aes(x=TSS, y=issue, shape=metric)) +
-  labs(title=sp, y="") + xlim(0,1) + 
-  geom_point(size=5, alpha=0.9, fill=NA, colour="black") +
-  geom_point(size=5, alpha=0.7, aes(fill=SDM, colour=SDM)) +
-  geom_vline(xintercept=1, colour="gray") + 
-  geom_vline(xintercept=0, colour="gray", linetype=2) +
-  theme(panel.grid.major.y=element_line(colour="gray")) +
-  scale_fill_manual(values=SDM_col) + scale_colour_manual(values=SDM_col) +
-  scale_shape_manual(values=c(21, 23))
 
 
 par(mfrow=c(5,6))
