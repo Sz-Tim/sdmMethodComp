@@ -413,7 +413,9 @@ fit_PNAS_species <- function(sp="barberry", f, nlcd_agg, clim_X="bio10_1",
 
 ##-- calculate the true skill statistic (TSS)
 #' Given predicted presence/absence and true presence/absence, calculate the
-#' True Skill Statistic (TSS) as 'sensitivity + specificity - 1' = (correctly predicted presences)/(total presences) + (correctly predicted absences)/(total absences) - 1
+#' True Skill Statistic (TSS) as 'sensitivity + specificity - 1' = (correctly 
+#' predicted presences)/(total presences) + (correctly predicted absences)/
+#' (total absences) - 1
 #' @param S.pa Logical vector of true presences and absences
 #' @param P.pa Logical vector of predicted presences and absences
 #' @return Scalar TSS score
@@ -424,5 +426,65 @@ calc_TSS <- function(S.pa, P.pa) {
               specificity=specificity,
               TSS=sensitivity + specificity - 1))
 }
+
+
+
+##-- plot predicted regression lines for IPM & CAd
+#' Compare vital rate regression lines for fitted models vs. true values
+#' @param p True parameters
+#' @param sdm.diag List of diagnostic outputs
+#' @param pars Parameter to plot
+#' @param par.v Indexes of parameters
+#' @param X Vector for the x-axis
+#' @param X.mx Design matrix
+#' @param cols Color for each element in \code{ipm.diag}
+#' @param xlab x-axis label
+#' @param ylab y-axis label
+#' @param xlim x-axis limits
+#' @param ylim y-axis limits
+plot_sdm_reg <- function(p, sdm.diag, pars, par.v, X, X.mx, cols, 
+                         xlab, ylab, xlim, ylim) {
+  
+  # plot structure
+  plot(NA, NA, xlab=xlab, ylab=ylab, ylim=ylim, xlim=xlim, cex.lab=1.5)
+  
+  if(grepl("s_|fl_|germ_|p.f|s.M|s.N|p", pars)) {
+    # antilogit
+    for(i in seq_along(sdm.diag)) {
+      walk(sdm.diag[[i]], 
+           ~lines(X, antilogit(X.mx %*% .[[pars]][par.v]), col=cols[i]))
+    }
+    if(!is.null(p[[pars]])) {
+      lines(X, antilogit(X.mx %*% p[[pars]][par.v]), lwd=2, lty=3)
+    }
+  } else if(grepl("seed_|K|mu", pars)) {
+    # exponential
+    for(i in seq_along(sdm.diag)) {
+      walk(sdm.diag[[i]], 
+           ~lines(X, exp(X.mx %*% .[[pars]][par.v]), col=cols[i]))
+    }
+    if(!is.null(p[[pars]])) {
+      lines(X, exp(X.mx %*% p[[pars]][par.v]), lwd=2, lty=3)
+    }
+  } else if(grepl("g_", pars)) {
+    # linear
+    for(i in seq_along(sdm.diag)) {
+      walk(sdm.diag[[i]], ~lines(X, X.mx %*% .[[pars]][par.v], col=cols[i]))
+    }
+    if(!is.null(p[[pars]])) {
+      lines(X, X.mx %*% p[[pars]][par.v], lwd=2, lty=3)
+    }
+  } else {
+    # recruit size distribution
+    for(i in seq_along(sdm.diag)) {
+      walk(sdm.diag[[i]], ~curve(dnorm(x, .[[pars]][1], .[[pars]][2]), add=T, 
+                                 from=xlim[1], to=xlim[2], col=cols[i]))
+    }
+    curve(dnorm(x, p[[pars]][1], p[[pars]][2]), from=xlim[1], to=xlim[2], 
+          add=T, lwd=2, lty=3)
+  }
+}
+
+
 
 

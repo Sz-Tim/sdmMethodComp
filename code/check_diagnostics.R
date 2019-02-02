@@ -9,9 +9,13 @@ p <- readRDS(here(vs.dir, "p.rds"))
 lam.df <- readRDS(here(vs.dir, "lam_df.rds"))
 
 ipm.diag <- setNames(dir("out/sp1", "Diag_IPM", full.names=T) %>% map(readRDS),
-                     str_remove(str_remove(dir("out/sp1", "Diag_IPM"), ".rds"), "Diag_IPM_"))
-ipm.cols <- RColorBrewer::brewer.pal(length(ipm.diag), "Dark2")
-ipm.cols <- apply(col2rgb(ipm.cols)/255, 2, function(x) rgb(x[1],x[2],x[3],0.5)) 
+                     str_remove(str_remove(dir("out/sp1", "Diag_IPM"), ".rds"),
+                                "Diag_IPM_"))
+cad.diag <- setNames(dir("out/sp1", "Diag_CAd", full.names=T) %>% map(readRDS),
+                     str_remove(str_remove(dir("out/sp1", "Diag_CAd"), ".rds"),
+                                "Diag_CAd_"))
+iss.col <- RColorBrewer::brewer.pal(length(ipm.diag), "Dark2")
+iss.col <- apply(col2rgb(iss.col)/255, 2, function(x) rgb(x[1],x[2],x[3],0.5)) 
 
 z.seq <- seq(p$z.rng[1], p$z.rng[2], length.out=200)
 z.mx <- cbind(1, z.seq)
@@ -20,160 +24,130 @@ x1.mx <- cbind(x1, x1^2)
 x2 <- seq(min(lam.df$bio10_prMay), max(lam.df$bio10_prMay), length.out=200)
 x2.mx <- cbind(x2, x2^2)
 
+
+
 ########-------------------------------
-## Size
+## IPM: Size
 ########
 par(mfrow=c(2,3))
-# survival vs size
-plot(NA, NA, xlab="Size (t)", ylab="Survival probability", 
-     ylim=c(0,1), xlim=p$z.rng, cex.lab=1.5)
-for(i in seq_along(ipm.diag)) {
-  walk(ipm.diag[[i]], ~lines(z.seq, antilogit(z.mx %*% .$s_z), col=ipm.cols[i]))
-}
-lines(z.seq, antilogit(z.mx %*% p$s_z), lwd=2, lty=3)
-  
-# growth vs size
-plot(NA, NA, xlab="Size (t)", ylab="Size (t+1)", 
-     ylim=p$z.rng, xlim=p$z.rng, cex.lab=1.5)
-for(i in seq_along(ipm.diag)) {
-  walk(ipm.diag[[i]], ~lines(z.seq, z.mx %*% .$g_z, col=ipm.cols[i]))
-}
-lines(z.seq, z.mx %*% p$g_z, lwd=2, lty=3)
-
-# flowering vs size
-plot(NA, NA, xlab="Size (t)", ylab="Flowering probability", 
-     ylim=c(0,1), xlim=p$z.rng, cex.lab=1.5)
-for(i in seq_along(ipm.diag)) {
-  walk(ipm.diag[[i]], ~lines(z.seq, antilogit(z.mx %*% .$fl_z), col=ipm.cols[i]), cex.lab=1.5)
-}
-lines(z.seq, antilogit(z.mx %*% p$fl_z), lwd=2, lty=3)
-
-# seeds vs size
-plot(NA, NA, xlab="Size (t)", ylab="Seed production", 
-     ylim=c(0,6e3), xlim=p$z.rng, cex.lab=1.5)
-for(i in seq_along(ipm.diag)) {
-  walk(ipm.diag[[i]], ~lines(z.seq, exp(z.mx %*% .$seed_z), col=ipm.cols[i]))
-}
-lines(z.seq, exp(z.mx %*% p$seed_z), lwd=2, lty=3)
-
-# recruit size distribution
-plot(NA, NA, xlab="Recruit size", ylab="density", 
-     xlim=p$z.rng, ylim=c(0, 0.4), cex.lab=1.5)
-for(i in seq_along(ipm.diag)) {
-  walk(ipm.diag[[i]], ~curve(dnorm(x, .$rcr_z[1], .$rcr_z[2]), add=T, 
-                             from=p$z.rng[1], to=p$z.rng[2], col=ipm.cols[i]))
-}
-curve(dnorm(x, p$rcr_z[1], p$rcr_z[2]), from=p$z.rng[1], to=p$z.rng[2], 
-      add=T, lwd=2, lty=3)
-
-# legend
+plot_sdm_reg(p, ipm.diag, "s_z", 1:length(p$s_z), z.seq, z.mx, iss.col, 
+             xlab="Size (t)", ylab="Survival probability", 
+             xlim=p$z.rng, ylim=c(0,1))
+plot_sdm_reg(p, ipm.diag, "g_z", 1:length(p$g_z), z.seq, z.mx, iss.col, 
+             xlab="Size (t)", ylab="Size (t+1)", xlim=p$z.rng, ylim=p$z.rng)
+plot_sdm_reg(p, ipm.diag, "fl_z", 1:length(p$fl_z), z.seq, z.mx, iss.col, 
+             xlab="Size (t)", ylab="Flowering probability", 
+             xlim=p$z.rng, ylim=c(0,1))
+plot_sdm_reg(p, ipm.diag, "seed_z", 1:length(p$seed_z), z.seq, z.mx, iss.col, 
+             xlab="Size (t)", ylab="Seed production", 
+             xlim=p$z.rng, ylim=c(0,6e3))
+plot_sdm_reg(p, ipm.diag, "rcr_z", 1:length(p$rcr_z), z.seq, z.mx, iss.col, 
+             xlab="Recruit size", ylab="Density", xlim=p$z.rng, ylim=c(0,0.4))
 plot(NA, NA, xlab="", ylab="", xlim=c(-1,1), ylim=c(-1,1), axes=F)
-legend("center", lty=c(rep(1, length(ipm.cols)), 3), col=c(ipm.cols, 1), cex=1.5,
-       lwd=c(rep(3, length(ipm.cols)+1)), legend=c(names(ipm.diag), "True"))
+legend("center", lty=c(rep(1, length(iss.col)), 3), col=c(iss.col, 1), cex=1.5,
+       lwd=c(rep(3, length(iss.col)+1)), legend=c(names(ipm.diag), "True"))
 
 
 
 ########-------------------------------
-## Temperature
+## IPM: Temperature
 ########
 par(mfrow=c(2,3))
-# survival vs temp
-plot(NA, NA, xlab="Temperature", ylab="Survival probability", 
-     ylim=c(0,1), xlim=range(x1), cex.lab=1.5)
-for(i in seq_along(ipm.diag)) {
-  walk(ipm.diag[[i]], ~lines(x1, antilogit(x1.mx %*% .$s_x[1:2]), col=ipm.cols[i]))
-}
-lines(x1, antilogit(x1.mx %*% p$s_x[1:2]), lwd=2, lty=3)
-
-# growth vs temp
-plot(NA, NA, xlab="Temperature", ylab="Growth", 
-     ylim=c(-2,2), xlim=range(x1), cex.lab=1.5)
-for(i in seq_along(ipm.diag)) {
-  walk(ipm.diag[[i]], ~lines(x1, x1.mx %*% .$g_x[1:2], col=ipm.cols[i]))
-}
-lines(x1, x1.mx %*% p$g_x[1:2], lwd=2, lty=3)
-
-# flowering vs temp
-plot(NA, NA, xlab="Temperature", ylab="Flowering probability", 
-     ylim=c(0,1), xlim=range(x1), cex.lab=1.5)
-for(i in seq_along(ipm.diag)) {
-  walk(ipm.diag[[i]], ~lines(x1, antilogit(x1.mx %*% .$fl_x[1:2]), col=ipm.cols[i]))
-}
-lines(x1, antilogit(x1.mx %*% p$fl_x[1:2]), lwd=2, lty=3)
-
-# seeds vs temp
-plot(NA, NA, xlab="Temperature", ylab="Seed production", 
-     ylim=c(-2,2), xlim=range(x1), cex.lab=1.5)
-for(i in seq_along(ipm.diag)) {
-  walk(ipm.diag[[i]], ~lines(x1, exp(x1.mx %*% .$seed_x[1:2]), col=ipm.cols[i]))
-}
-lines(x1, exp(x1.mx %*% p$seed_x[1:2]), lwd=2, lty=3)
-
-# germination vs temp
-plot(NA, NA, xlab="Temperature", ylab="Germination", 
-     ylim=c(0,1), xlim=range(x1), cex.lab=1.5)
-for(i in seq_along(ipm.diag)) {
-  walk(ipm.diag[[i]], ~lines(x1, antilogit(cbind(1, x1.mx) %*% .$germ_x[1:3]), 
-                             col=ipm.cols[i]))
-}
-lines(x1, antilogit(cbind(1, x1.mx) %*% p$germ_x[1:3]), lwd=2, lty=3)
-
-# legend
+plot_sdm_reg(p, ipm.diag, "s_x", 1:2, x1, x1.mx, iss.col, xlab="Temperature", 
+             ylab="Survival probability", xlim=range(x1), ylim=c(0,1))
+plot_sdm_reg(p, ipm.diag, "g_x", 1:2, x1, x1.mx, iss.col, xlab="Temperature", 
+             ylab="Size (t+1)", xlim=range(x1), ylim=c(-8,1))
+plot_sdm_reg(p, ipm.diag, "fl_x", 1:2, x1, x1.mx, iss.col, xlab="Temperature", 
+             ylab="Flowering probability", xlim=range(x1), ylim=c(0,1))
+plot_sdm_reg(p, ipm.diag, "seed_x", 1:2, x1, x1.mx, iss.col, xlab="Temperature", 
+             ylab="Seed production", xlim=range(x1), ylim=c(-2,2))
+plot_sdm_reg(p, ipm.diag, "germ_x", 1:3, x1, cbind(1, x1.mx), iss.col, 
+             xlab="Temperature", ylab="Germination probability", 
+             xlim=range(x1), ylim=c(0,1))
 plot(NA, NA, xlab="", ylab="", xlim=c(-1,1), ylim=c(-1,1), axes=F)
-legend("center", lty=c(rep(1, length(ipm.cols)), 3), col=c(ipm.cols, 1), cex=1.5,
-       lwd=c(rep(3, length(ipm.cols)+1)), legend=c(names(ipm.diag), "True"))
-
-
+legend("center", lty=c(rep(1, length(iss.col)), 3), col=c(iss.col, 1), cex=1.5,
+       lwd=c(rep(3, length(iss.col)+1)), legend=c(names(ipm.diag), "True"))
 
 
 
 ########-------------------------------
-## Precipitation
+## IPM: Precipitation
 ########
 par(mfrow=c(2,3))
-# survival vs precip
-plot(NA, NA, xlab="Precipitation", ylab="Survival probability", 
-     ylim=c(0,1), xlim=range(x2), cex.lab=1.5)
-for(i in seq_along(ipm.diag)) {
-  walk(ipm.diag[[i]], ~lines(x2, antilogit(x2.mx %*% .$s_x[3:4]), col=ipm.cols[i]))
-}
-lines(x2, antilogit(x2.mx %*% p$s_x[3:4]), lwd=2, lty=3)
-
-# growth vs precip
-plot(NA, NA, xlab="Precipitation", ylab="Growth", 
-     ylim=c(-10,5), xlim=range(x2), cex.lab=1.5)
-for(i in seq_along(ipm.diag)) {
-  walk(ipm.diag[[i]], ~lines(x2, x2.mx %*% .$g_x[3:4], col=ipm.cols[i]))
-}
-lines(x2, x2.mx %*% p$g_x[3:4], lwd=2, lty=3)
-
-# flowering vs precip
-plot(NA, NA, xlab="Precipitation", ylab="Flowering probability", 
-     ylim=c(0,1), xlim=range(x2), cex.lab=1.5)
-for(i in seq_along(ipm.diag)) {
-  walk(ipm.diag[[i]], ~lines(x2, antilogit(x2.mx %*% .$fl_x[3:4]), col=ipm.cols[i]))
-}
-lines(x2, antilogit(x2.mx %*% p$fl_x[3:4]), lwd=2, lty=3)
-
-# seeds vs precip
-plot(NA, NA, xlab="Precipitation", ylab="Seed production", 
-     ylim=c(-2,2), xlim=range(x2), cex.lab=1.5)
-for(i in seq_along(ipm.diag)) {
-  walk(ipm.diag[[i]], ~lines(x2, exp(x2.mx %*% .$seed_x[3:4]), col=ipm.cols[i]))
-}
-lines(x2, exp(x2.mx %*% p$seed_x[3:4]), lwd=2, lty=3)
-
-# germination vs precip
-plot(NA, NA, xlab="Precipitation", ylab="Germination", 
-     ylim=c(0,1), xlim=range(x2), cex.lab=1.5)
-for(i in seq_along(ipm.diag)) {
-  walk(ipm.diag[[i]], ~lines(x2, antilogit(cbind(1, x2.mx) %*% .$germ_x[c(1,4:5)]), 
-                             col=ipm.cols[i]))
-}
-lines(x2, antilogit(cbind(1, x2.mx) %*% p$germ_x[c(1,4:5)]), lwd=2, lty=3)
-
-# legend
+plot_sdm_reg(p, ipm.diag, "s_x", 3:4, x2, x2.mx, iss.col, xlab="Precipitation", 
+             ylab="Survival probability", xlim=range(x2), ylim=c(0,1))
+plot_sdm_reg(p, ipm.diag, "g_x", 3:4, x2, x2.mx, iss.col, xlab="Precipitation", 
+             ylab="Size (t+1)", xlim=range(x2), ylim=c(-8,1))
+plot_sdm_reg(p, ipm.diag, "fl_x", 3:4, x2, x2.mx, iss.col, xlab="Precipitation", 
+             ylab="Flowering probability", xlim=range(x2), ylim=c(0,1))
+plot_sdm_reg(p, ipm.diag, "seed_x", 3:4, x2, x2.mx, iss.col, xlab="Precipitation", 
+             ylab="Seed production", xlim=range(x2), ylim=c(-2,2))
+plot_sdm_reg(p, ipm.diag, "germ_x", c(1,4,5), x2, cbind(1, x2.mx), iss.col, 
+             xlab="Precipitation", ylab="Germination probability", 
+             xlim=range(x2), ylim=c(0,1))
 plot(NA, NA, xlab="", ylab="", xlim=c(-1,1), ylim=c(-1,1), axes=F)
-legend("center", lty=c(rep(1, length(ipm.cols)), 3), col=c(ipm.cols, 1), cex=1.5,
-       lwd=c(rep(3, length(ipm.cols)+1)), legend=c(names(ipm.diag), "True"))
+legend("center", lty=c(rep(1, length(iss.col)), 3), col=c(iss.col, 1), cex=1.5,
+       lwd=c(rep(3, length(iss.col)+1)), legend=c(names(ipm.diag), "True"))
+
+
+
+########-------------------------------
+## CAd: Temperature
+########
+par(mfrow=c(2,4))
+plot_sdm_reg(p, cad.diag, "p.f", 1:3, x1, cbind(1, x1.mx), iss.col, 
+             xlab="Temperature", ylab="Flowering probability", 
+             xlim=range(x1), ylim=c(0,1))
+plot_sdm_reg(p, cad.diag, "s.M", 1:3, x1, cbind(1, x1.mx), iss.col, 
+             xlab="Temperature", ylab="Juvenile survival", 
+             xlim=range(x1), ylim=c(0,1))
+plot_sdm_reg(p, cad.diag, "s.N", 1:3, x1, cbind(1, x1.mx), iss.col, 
+             xlab="Temperature", ylab="Adult survival", 
+             xlim=range(x1), ylim=c(0,1))
+plot_sdm_reg(p, cad.diag, "mu", 1:3, x1, cbind(1, x1.mx), iss.col, 
+             xlab="Temperature", ylab="Seed production", 
+             xlim=range(x1), ylim=c(0,6e3))
+plot_sdm_reg(p, cad.diag, "K", 1:3, x1, cbind(1, x1.mx), iss.col, 
+             xlab="Temperature", ylab="Carrying capacity", 
+             xlim=range(x1), ylim=c(0,1e3))
+plot_sdm_reg(p, cad.diag, "p", 1:3, x1, cbind(1, x1.mx), iss.col, 
+             xlab="Temperature", ylab="Establishment probability", 
+             xlim=range(x1), ylim=c(0,1))
+plot(NA, NA, xlab="", ylab="", xlim=c(-1,1), ylim=c(-1,1), axes=F)
+legend("center", lty=rep(1, length(iss.col)), col=iss.col, cex=1.5,
+       lwd=rep(3, length(iss.col)), legend=names(ipm.diag))
+
+
+
+########-------------------------------
+## CAd: Precipitation
+########
+par(mfrow=c(2,4))
+plot_sdm_reg(p, cad.diag, "p.f", c(1,4,5), x2, cbind(1, x2.mx), iss.col, 
+             xlab="Precipitation", ylab="Flowering probability", 
+             xlim=range(x2), ylim=c(0,1))
+plot_sdm_reg(p, cad.diag, "s.M", c(1,4,5), x2, cbind(1, x2.mx), iss.col, 
+             xlab="Precipitation", ylab="Juvenile survival", 
+             xlim=range(x2), ylim=c(0,1))
+plot_sdm_reg(p, cad.diag, "s.N", c(1,4,5), x2, cbind(1, x2.mx), iss.col, 
+             xlab="Precipitation", ylab="Adult survival", 
+             xlim=range(x2), ylim=c(0,1))
+plot_sdm_reg(p, cad.diag, "mu", c(1,4,5), x2, cbind(1, x2.mx), iss.col, 
+             xlab="Precipitation", ylab="Seed production", 
+             xlim=range(x2), ylim=c(0,6e3))
+plot_sdm_reg(p, cad.diag, "K", c(1,4,5), x2, cbind(1, x2.mx), iss.col, 
+             xlab="Precipitation", ylab="Carrying capacity", 
+             xlim=range(x2), ylim=c(0,1e3))
+plot_sdm_reg(p, cad.diag, "p", c(1,4,5), x2, cbind(1, x2.mx), iss.col, 
+             xlab="Precipitation", ylab="Establishment probability", 
+             xlim=range(x2), ylim=c(0,1))
+plot(NA, NA, xlab="", ylab="", xlim=c(-1,1), ylim=c(-1,1), axes=F)
+legend("center", lty=rep(1, length(iss.col)), col=iss.col, cex=1.5,
+       lwd=rep(3, length(iss.col)), legend=names(cad.diag))
+
+
+
+
+
+
 
