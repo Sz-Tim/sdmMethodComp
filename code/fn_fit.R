@@ -28,7 +28,7 @@ sample_for_CA <- function(sp, S, lam.df, Mech.sample, O_yr, max_indiv) {
   for(s in seq_along(O_CA)) {
     CA.d <- CA.B <- CA.D <- vector("list", length(Mech.sample[[1]]))
     germ.plots <- rbinom(length(Mech.sample[[s]]), 100, 
-                         rep(lam.df$germ[Mech.sample[[s]]], each=length(O_yr$CA)))
+                         lam.df$germ[Mech.sample[[s]]])
     for(j in seq_along(Mech.sample[[s]])) {
       i <- Mech.sample[[s]][j]
       CA.d[[j]] <- data.frame(S$d[[i]]) %>% 
@@ -62,8 +62,9 @@ sample_for_CA <- function(sp, S, lam.df, Mech.sample, O_yr, max_indiv) {
     O_CA[[s]] <- list(d=do.call(rbind, CA.d),
                       B=do.call(rbind, CA.B),
                       D=do.call(rbind, CA.D))
-    O_CA[[s]]$d$p.est.1 <- germ.plots
-    O_CA[[s]]$d$p.est.0 <- 100-germ.plots
+    O_CA[[s]]$p_est <- lam.df[Mech.sample[[s]], -(55:75)]
+    O_CA[[s]]$p_est$p.est.1 <- germ.plots
+    O_CA[[s]]$p_est$p.est.0 <- 100-germ.plots
   }
   return(O_CA)
 }
@@ -389,6 +390,7 @@ fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc,
     walk(dir("code", "fn", full.names=T), source)
     i_pad <- str_pad(i, 2, pad="0")
     O_CA.i <- O_CA[[i]]$d 
+    O_CA.p_est <- O_CA[[i]]$p_est
     O_CA.K <- O_CA.i %>% filter(id %in% O_CA.i$id[abs(O_CA.i$lambda-1)<0.05])
     sim.ls <- vector("list", n_sim)
     
@@ -411,8 +413,10 @@ fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc,
                         data=O_CA.i, family="binomial")
     full.m$mu <- glmer(as.formula(paste("mu ~", m, collapse="")), 
                        data=O_CA.i, family="poisson")
-    full.m$p.est <- glmer(as.formula(paste("cbind(p.est.1, p.est.0) ~", m, collapse="")), 
-                        data=O_CA.i, family="binomial")
+    full.m$p.est <- glm(as.formula(paste("cbind(p.est.1, p.est.0) ~", 
+                                         substr(m, 1, nchar(m)-9), 
+                                         collapse="")), 
+                        data=O_CA.p_est, family="binomial")
     
     # store coefficients from optimal models
     vars.ls <- rep(list(v), length(full.m)); names(vars.ls) <- names(opt.m)
@@ -425,7 +429,11 @@ fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc,
         }
       } else {
         opt.m[[j]] <- get.models(dredge(full.m[[j]], m.max=6), subset=1)[[1]]
-        vars.opt[[j]] <- colMeans(coef(opt.m[[j]])$yr)
+        if(class(coef(opt.m[[j]]))=="numeric") {
+          vars.opt[[j]] <- coef(opt.m[[j]])
+        } else {
+          vars.opt[[j]] <- colMeans(coef(opt.m[[j]])$yr)
+        }
       }
       vars.ls[[j]][names(vars.opt[[j]])] <- vars.opt[[j]]
     }
