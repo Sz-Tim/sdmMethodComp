@@ -95,7 +95,7 @@ foreach(i=seq_along(issue_i$Issue), .packages=c("dismo", pkgs)) %dopar% {
                  L$env_rct, L$env_rct_unscaled, lam.df, v$CA, m$CA,
                  N_init, sdd.pr, sdd.ji, p.ji, n_sim, n_core_obs)
   if(overwrite) {
-    saveRDS(P_CA$diag_CAd, here(out.dir, paste0("Diag_CAd_", issue, ".rds")))
+    saveRDS(P_CA$diag, here(out.dir, paste0("Diag_CAd_", issue, ".rds")))
     saveRDS(P_CA$P_CAd, here(out.dir, paste0("P_CAd_", issue, ".rds")))
     saveRDS(P_CA$TSS_CAd, here(out.dir, paste0("TSS_CAd_", issue, ".rds")))
   }
