@@ -16,7 +16,8 @@
 #' @param lam.df Dataframe with covariates, generated in 1_simulateSpecies.R
 #' @param Mech.sample List of cell indices for each set of samples
 #' @param O_yr List with [["CA"]] containing the years to sample
-#' @param max_indiv Maximum number of individuals (per cell) to sample
+#' @param max_indiv Maximum number of individuals (per cell) to sample. A
+#'   maximum of max_indiv/2 juveniles and max_indiv/2 adults are sampled
 #' @return List with an element for each dataset, where each dataset is a list
 #'   containing a dataframe "d" with population-level statistics for each cell
 #'   and year, matrix "B" (dim=[n.cell, length(O_yr$CA)] with the size of the
@@ -32,8 +33,11 @@ sample_for_CA <- function(sp, S, lam.df, Mech.sample, O_yr, max_indiv) {
     for(j in seq_along(Mech.sample[[s]])) {
       i <- Mech.sample[[s]][j]
       CA.d[[j]] <- data.frame(S$d[[i]]) %>% 
-        filter(yr %in% O_yr$CA) %>% 
-        sample_n(min(max_indiv$CA, nrow(.)))
+        filter(yr %in% O_yr$CA) %>%
+        mutate(juv=age<m & age>0,
+               adult=age>=m) %>%
+        rbind(sample_n(filter(., juv), min(max_indiv$CA/2, sum(.$juv))),
+              sample_n(filter(., adult), min(max_indiv$CA/2, sum(.$adult))))
       if(!all(O_yr$CA %in% CA.d[[j]]$yr)) {
         missing.yr <- O_yr$CA[!O_yr$CA %in% CA.d[[j]]$yr]
         CA.d[[j]] <- CA.d[[j]] %>%
@@ -42,10 +46,10 @@ sample_for_CA <- function(sp, S, lam.df, Mech.sample, O_yr, max_indiv) {
       }
       CA.d[[j]] <- CA.d[[j]] %>% group_by(yr) %>% 
         summarise(N=sum(!is.na(size)), 
-                  s.N.0=sum(surv[age>=m]==0, na.rm=TRUE),
-                  s.N.1=sum(surv[age>=m]==1, na.rm=TRUE),
-                  s.M.0=sum(surv[age<m]==0, na.rm=TRUE),
-                  s.M.1=sum(surv[age<m]==1, na.rm=TRUE),
+                  s.N.0=sum(surv[adult]==0, na.rm=TRUE),
+                  s.N.1=sum(surv[adult]==1, na.rm=TRUE),
+                  s.M.0=sum(surv[juv]==0, na.rm=TRUE),
+                  s.M.1=sum(surv[juv]==1, na.rm=TRUE),
                   f.0=sum(fl==0, na.rm=TRUE),
                   f.1=sum(fl==1, na.rm=TRUE),
                   mu=mean(seed, na.rm=TRUE) %>% round,
@@ -78,7 +82,8 @@ sample_for_CA <- function(sp, S, lam.df, Mech.sample, O_yr, max_indiv) {
 #' @param lam.df Dataframe with covariates, generated in 1_simulateSpecies.R
 #' @param Mech.sample List of cell indices for each set of samples
 #' @param O_yr List with [["IPM"]] containing the years to sample
-#' @param max_indiv Maximum number of individuals (per cell) to sample
+#' @param max_indiv Maximum number of individuals (per cell) to sample. A
+#'   maximum of max_indiv/3 each of small, medium, and large are sampled
 #' @return List with an element for each dataset, where each dataset is a
 #'   dataframe with individual-level statistics for each cell and year
 sample_for_IPM <- function(p, S, lam.df, Mech.sample, O_yr, max_indiv) {
