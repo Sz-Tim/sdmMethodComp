@@ -41,11 +41,24 @@ n.cell <- sum(L$env.rct$inbd)
 ########
 p <- fit_PNAS_species(sp, env.f, nlcd.sp, clim_X, FALSE, max_z_pow, habitat,
                       x_min, x_max, y_min, y_max)
-p$s_x <- c(-2.75, -1.25, 3.5, 0)
-p$g_x <- c(-1.25, -0.75, -0.3, -0.3)
-p$germ_x <- c(1.5, -4, -1.75, -2, 0)
+if(sp=="garlic_mustard") {
+  p$s_x <- c(-2.75, -1.25, 3.5, 0)
+  p$g_x <- c(-1.25, -0.75, -0.5, -0.3)
+  p$germ_x <- c(1.5, -4, -1.75, -2.5, 0)
+  p$tmax <- 75
+  p$bird_hab <- rep(1, 5)
+  p$NDD_n <- 20  # mean number of recruits if NDD
+  p$K_max <- 1e3  # max abundance for CAd
+} else {
+  p$s_x <- c(-2.75, -1.25, 3.5, 0)
+  p$g_x <- c(-1.25, -0.75, -0.5, -0.3)
+  p$germ_x <- c(1.5, -4, -1.75, -2.5, 0)
+  p$tmax <- 75
+  p$bird_hab <- c(.32, .36, .05, .09, .09)
+  p$NDD_n <- 20  # mean number of recruits if NDD
+  p$K_max <- 1e3  # max abundance for CAd
+}
 p$n <- 20
-p$tmax <- 100
 p$tnonEq <- floor(p$tmax/3)
 p$n0 <- 10
 p$prop_init <- 0.001
@@ -53,9 +66,6 @@ p$NDD <- T
 p$sdd_max <- sp_i$sdd_max
 p$sdd_rate <- sp_i$sdd_rate
 p$ldd <- sp_i$ldd
-p$bird_hab <- c(.32, .36, .05, .09, .09)
-p$NDD_n <- 20  # mean number of recruits if NDD
-p$K_max <- 1e3  # max abundance for CAd
 p$p_emig <- pexp(0.5, p$sdd_rate, lower.tail=F) # p(seed emigrants)
 n_z <- list(s=length(p$s_z),  # n size covariates for each vital rate
             g=length(p$g_z),
