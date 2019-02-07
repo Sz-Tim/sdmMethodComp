@@ -158,30 +158,38 @@ lam.gg <- ggplot(lam.df, aes(x=lon, y=lat)) + theme_bw() +
   ggtitle(paste0(sp, ": 3km x 3km, favorable habitat"))
 
 if(plots) {
-  lam.gg + geom_tile(aes(fill=log(lambda))) + 
-    labs(subtitle="log(lambda)") +
+  lam.gg + geom_tile(fill="gray50") +
+    geom_tile(data=filter(lam.df, lambda>1), aes(fill=lambda)) + 
+    labs(subtitle="lambda") +
     geom_point(data=lam.df[which(N_init>0),], colour="white", shape=1)
-  lam.gg + geom_tile(aes(fill=log(Surv.S))) + 
-    labs(subtitle=paste("log(N): year", p$tmax)) +
+  lam.gg + geom_tile(fill="gray50") +
+    geom_tile(data=filter(lam.df, Surv.S>0), aes(fill=Surv.S)) + 
+    labs(subtitle=paste("N: year", p$tmax)) +
     geom_point(data=lam.df[which(N_init>0),], colour="white", shape=1)
-  lam.gg + geom_tile(aes(fill=log(Surv.S_nonEq))) + 
-    labs(subtitle=paste("log(N): year", p$tnonEq)) +
+  lam.gg + geom_tile(fill="gray50") +
+    geom_tile(data=filter(lam.df, Surv.S_nonEq>0), aes(fill=Surv.S_nonEq)) + 
+    labs(subtitle=paste("N: year", p$tnonEq)) +
     geom_point(data=lam.df[which(N_init>0),], colour="white", shape=1)
   
-  lam.gg + geom_tile(aes(fill=log(nSeed))) + 
-    labs(subtitle="log(Seed production)") +
+  lam.gg + geom_tile(fill="gray50") +
+    geom_tile(data=filter(lam.df, nSeed>0), aes(fill=nSeed)) +
+    labs(subtitle="Seed production") +
     geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
-  lam.gg + geom_tile(aes(fill=nSeed/nRepro)) + 
+  lam.gg + geom_tile(fill="gray50") +
+    geom_tile(data=filter(lam.df, nRepro>0), aes(fill=nSeed/nRepro)) +
     labs(subtitle="Per capita seed production") +
     geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
-  lam.gg + geom_tile(aes(fill=log(round(D)))) + 
-    labs(subtitle="log(Immigrant seeds)") +
+  lam.gg + geom_tile(fill="gray50") +
+    geom_tile(data=filter(lam.df, D>0), aes(fill=round(D))) + 
+    labs(subtitle="Immigrant seeds") +
     geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
-  lam.gg + geom_tile(aes(fill=log(nSdStay+round(D)))) + 
-    labs(subtitle="log(Propagule pressure)") +
+  lam.gg + geom_tile(fill="gray50") +
+    geom_tile(data=filter(lam.df, D>0 | nSdStay>0), aes(fill=nSdStay+round(D))) + 
+    labs(subtitle="Propagule pressure") +
     geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
-  lam.gg + geom_tile(aes(fill=log(B))) + 
-    labs(subtitle="log(Seed bank)") +
+  lam.gg + geom_tile(fill="gray50") +
+    geom_tile(data=filter(lam.df, B>0), aes(fill=B)) + 
+    labs(subtitle="Seed bank") +
     geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
   
   ggplot() + theme_bw() +
