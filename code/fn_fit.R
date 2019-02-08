@@ -258,7 +258,8 @@ fit_MxE <- function(spNum, issue, samp.issue, lam.df, v) {
       d <- read.csv(paste0(path_iss, i, "/species_", j, "_samplePredictions.csv"))
       thresh_j[j+1] <- min(dplyr::filter(d, Test.or.train=="train")$Logistic.prediction)
     }
-    MxE.p[[i]]@data@values <- as.logical(MxE.p[[i]]@data@values >= mean(thresh_j))
+    MxE.p[[i]] <- raster::setValues(MxE.p[[i]],
+                                    raster::values(MxE.p[[i]]) > mean(thresh_j))
   }
   # munge output
   names(MxE.p) <- 1:length(MxE.p)
