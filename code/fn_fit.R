@@ -52,7 +52,7 @@ sample_for_CA <- function(sp, S, lam.df, Mech.sample, O_yr, max_indiv) {
                   s.M.1=sum(surv[juv]==1, na.rm=TRUE),
                   f.0=sum(fl[adult]==0, na.rm=TRUE),
                   f.1=sum(fl[adult]==1, na.rm=TRUE),
-                  mu=exp(mean(log(seed+1), na.rm=TRUE)) %>% round,
+                  mu=median(seed, na.rm=TRUE) %>% round,
                   nSeed=sum(seed, na.rm=TRUE),
                   N.rcr=sum(is.na(size) & !is.na(sizeNext))) %>%
         mutate(mu=ifelse(is.nan(mu), 0, mu)) %>%
