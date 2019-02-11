@@ -363,11 +363,11 @@ fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc,
   # initialize CA parameters
   p.CA <- set_g_p(tmax=p$tmax, 
                   lc.r=diff(range(lam.df$y)), lc.c=diff(range(lam.df$x)),
-                  n.lc=5, N.p.t0=n.cell, 
+                  n.lc=5, N.p.t0=n.cell, sdd.st=F,
                   m=sp_i$m, gamma=1, 
                   s.B=p$s_SB, g.D=p$rcr_dir, g.B=p$rcr_SB,
                   sdd.max=p$sdd_max, sdd.rate=p$sdd_rate, n.ldd=p$ldd,
-                  p.c=matrix(1), bird.hab=p$bird_hab, s.c=1, method="lm")
+                  p.c=matrix(1), bird.hab=p$bird_hab, s.c=0.6, method="lm")
   p.CA$p_emig <- p$p_emig
   
   # impose dispersal issues
@@ -453,7 +453,7 @@ fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc,
     p.CA$p <- vars.ls$p.est
     
     # impose seed bank issue
-    if(mod.issue=="noSB") p.CA$s.sb <- 0
+    if(mod.issue=="noSB") {p.CA$s.B <- 0; p.CA$bank=F}
     
     # save parameters to diagnostic file
     saveRDS(p.CA, paste0(out.dir, "/CAd_diag_", i_pad, ".rds"))
