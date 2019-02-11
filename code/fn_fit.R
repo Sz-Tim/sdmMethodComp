@@ -52,7 +52,7 @@ sample_for_CA <- function(sp, S, lam.df, Mech.sample, O_yr, max_indiv) {
                   s.M.1=sum(surv[juv]==1, na.rm=TRUE),
                   f.0=sum(fl[adult]==0, na.rm=TRUE),
                   f.1=sum(fl[adult]==1, na.rm=TRUE),
-                  mu=median(seed, na.rm=TRUE) %>% round,
+                  mu=exp(mean(log(seed+1), na.rm=TRUE)) %>% round,
                   nSeed=sum(seed, na.rm=TRUE),
                   N.rcr=sum(is.na(size) & !is.na(sizeNext))) %>%
         mutate(mu=ifelse(is.nan(mu), 0, mu)) %>%
@@ -363,7 +363,7 @@ fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc,
   # initialize CA parameters
   p.CA <- set_g_p(tmax=p$tmax, 
                   lc.r=diff(range(lam.df$y)), lc.c=diff(range(lam.df$x)),
-                  n.lc=5, N.p.t0=n.cell, sdd.st=F,
+                  n.lc=5, N.p.t0=n.cell, 
                   m=sp_i$m, gamma=1, 
                   s.B=p$s_SB, g.D=p$rcr_dir, g.B=p$rcr_SB,
                   sdd.max=p$sdd_max, sdd.rate=p$sdd_rate, n.ldd=p$ldd,
