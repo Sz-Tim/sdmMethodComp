@@ -43,6 +43,7 @@ mn_TSS <- out_TSS %>% group_by(Boundary, SDM, issue) %>%
             specificity=mean(specificity))
 SDM_col <- c(MxE="#3f007d", IPM="#014636", CAi="#02818a", CAd="#67a9cf")
 
+
 ggplot(out_TSS, aes(x=TSS, fill=SDM, colour=SDM)) + 
   geom_vline(xintercept=c(-1,0,1), colour="grey90") +
   geom_vline(xintercept=c(-0.5,0.5), colour="grey90", linetype=3) +
@@ -77,11 +78,13 @@ ggplot(out_TSS, aes(x=specificity, fill=SDM, colour=SDM)) +
   scale_x_continuous("Specificity", c(0,0.5,1)) + ylab("Density") +
   theme(panel.grid=element_blank())
 
+
 ggplot(out_LL, aes(x=LogLik, y=fct_rev(issue), colour=SDM)) + 
   facet_grid(Boundary~.) +
   geom_point(alpha=0.7, size=5) + 
   scale_colour_manual(values=SDM_col) +
   labs(x="Log likelihood: S ~ Binom(prP)", y="")
+
 
 par(mfrow=c(3,3))
 plot(lam.df$bio10_1, log(lam.df$lambda), col=rgb(0,0,0,0.25))
@@ -94,27 +97,25 @@ plot(lam.df$bio10_12, log(lam.df$Surv.S), col=rgb(0,0,0,0.25))
 plot(lam.df$bio10_6, log(lam.df$Surv.S), col=rgb(0,0,0,0.25))
 plot(lam.df$bio10_prMay, log(lam.df$Surv.S), col=rgb(0,0,0,0.25))
 
+
 ggplot() + geom_tile(data=lam.df, aes(lon, lat), fill="gray30") +
   geom_tile(data=filter(lam.df, lambda>1), aes(lon, lat, fill=lambda)) +
   scale_fill_viridis(option="B")
-ggplot(lam.df, aes(x=lon, y=lat, fill=log(lambda))) + geom_tile() + ggtitle(sp) +
+ggplot() + geom_tile(data=lam.df, aes(lon, lat), fill="gray30") +
+  geom_tile(data=filter(lam.df, Surv.S>0), aes(lon, lat, fill=Surv.S)) +
   scale_fill_viridis(option="B")
-ggplot(lam.df, aes(x=lon, y=lat, fill=log(Surv.S))) + geom_tile() + ggtitle(sp) +
+ggplot() + geom_tile(data=lam.df, aes(lon, lat), fill="gray30") +
+  geom_tile(data=filter(lam.df, Surv.S_nonEq>0), aes(lon, lat, fill=Surv.S_nonEq)) +
   scale_fill_viridis(option="B")
 
 
-ggplot(out_P, aes(fill=fate_lam, x=SDM)) + geom_bar(position="fill") + 
-  facet_wrap(~issue) + scale_fill_brewer(name="", type="div") + 
-  ylab("Proportion of cells") + ggtitle(sp, "lambda-based range")
-ggplot(out_P, aes(fill=fate_S, x=SDM)) + geom_bar(position="fill") + 
-  facet_wrap(~issue) + scale_fill_brewer(name="", type="div") + 
-  ylab("Proportion of cells") + ggtitle(sp, "abundance-based range")
 ggplot(out_P, aes(fill=fate_lam, x=issue)) + geom_bar(position="fill") + 
   facet_wrap(~SDM) + scale_fill_brewer(name="", type="div") + 
   ylab("Proportion of cells") + coord_flip() + ggtitle(sp, "lambda-based range")
 ggplot(out_P, aes(fill=fate_S, x=issue)) + geom_bar(position="fill") + 
   facet_wrap(~SDM) + scale_fill_brewer(name="", type="div") + 
   ylab("Proportion of cells") + coord_flip() + ggtitle(sp, "abundance-based range")
+
 
 ggplot(out_P, aes(x=lon, y=lat, fill=fate_lam)) +
   geom_tile() + facet_grid(SDM~issue) + 
@@ -125,6 +126,7 @@ ggplot(out_P, aes(x=lon, y=lat, fill=fate_S)) +
   scale_fill_brewer(name="Boundary:\nN > 0", type="div") +
   theme(axis.text=element_blank()) + ggtitle(sp)
 
+
 ggplot(out_P, aes(x=lon, y=lat, fill=prP)) +
   geom_tile() + facet_grid(SDM~issue) + 
   scale_fill_viridis("prob(P)", option="B") +
@@ -132,29 +134,69 @@ ggplot(out_P, aes(x=lon, y=lat, fill=prP)) +
 ggplot(out_P, aes(x=lon, y=lat, fill=prP>0.5)) +
   geom_tile() + facet_grid(SDM~issue) + 
   theme(axis.text=element_blank())
-ggplot(out_P, aes(x=lon, y=lat, fill=lambda.f>=1)) +
-  geom_tile() + facet_grid(SDM~issue) + 
+ggplot() + geom_tile(data=filter(out_P, SDM=="IPM"), 
+                     aes(lon, lat), fill="gray30") +
+  geom_tile(data=filter(out_P, SDM=="IPM" & lambda.f>1), 
+            aes(lon, lat, fill=lambda.f)) +
+  facet_grid(SDM~issue) + 
+  scale_fill_viridis("lambda", option="B") +
   theme(axis.text=element_blank())
-ggplot(out_P, aes(x=lon, y=lat, fill=log(Surv.S.f))) +
-  geom_tile() + facet_grid(SDM~issue) + 
-  scale_fill_viridis("log(N)", option="B") +
+ggplot() + geom_tile(data=filter(out_P, grepl("CA", SDM)), 
+                     aes(x=lon, y=lat), fill="gray30") +
+  geom_tile(data=filter(out_P, grepl("CA", SDM) & Surv.S.f>0.5), 
+            aes(lon, lat, fill=Surv.S.f)) +
+  facet_grid(SDM~issue) + 
+  scale_fill_viridis("N", option="B") +
   theme(axis.text=element_blank())
-ggplot(out_P, aes(x=lon, y=lat, fill=log(lambda.f))) +
-  geom_tile() + facet_grid(SDM~issue) + 
-  scale_fill_viridis("log(lambda)", option="B") +
+ggplot() + geom_tile(data=filter(out_P, grepl("CA", SDM)), 
+                     aes(x=lon, y=lat), fill="gray30") +
+  geom_tile(data=filter(out_P, grepl("CA", SDM) & (Rcr.S.f)>0.5), 
+            aes(lon, lat, fill=Rcr.S.f)) +
+  facet_grid(SDM~issue) + 
+  scale_fill_viridis("Recruits", option="B") +
   theme(axis.text=element_blank())
-ggplot(out_P, aes(x=lon, y=lat, fill=log(B.f))) +
-  geom_tile() + facet_grid(SDM~issue) + 
-  scale_fill_viridis("log(B)", option="B") +
+ggplot() + geom_tile(data=filter(out_P, grepl("CA", SDM)), 
+                     aes(x=lon, y=lat), fill="gray30") +
+  geom_tile(data=filter(out_P, grepl("CA", SDM) & B.f>0.5), 
+            aes(lon, lat, fill=B.f)) +
+  facet_grid(SDM~issue) + 
+  scale_fill_viridis("B", option="B") +
   theme(axis.text=element_blank())
-ggplot(out_P, aes(x=lon, y=lat, fill=log(D.f))) +
-  geom_tile() + facet_grid(SDM~issue) + 
-  scale_fill_viridis("log(D)", option="B") +
+ggplot() +
+  geom_tile(data=filter(out_P, grepl("CA", SDM)), 
+            aes(x=lon, y=lat), fill="gray30") +
+  geom_tile(data=filter(out_P, grepl("CA", SDM) & D.f>0.5), 
+            aes(lon, lat, fill=D.f)) +
+  facet_grid(SDM~issue) + 
+  scale_fill_viridis("D", option="B") +
   theme(axis.text=element_blank())
-ggplot(out_P, aes(x=lon, y=lat, fill=log(nSdStay.f + nSdLeave.f))) +
-  geom_tile() + facet_grid(SDM~issue) + 
-  scale_fill_viridis("log(Sd)", option="B") +
+ggplot() +
+  geom_tile(data=filter(out_P, grepl("CA", SDM)), 
+            aes(x=lon, y=lat), fill="gray30") +
+  geom_tile(data=filter(out_P, grepl("CA", SDM) & (nSdStay.f+nSdLeave.f)>0.5), 
+            aes(lon, lat, fill=nSdStay.f+nSdLeave.f)) +
+  facet_grid(SDM~issue) + 
+  scale_fill_viridis("SdTot", option="B") +
   theme(axis.text=element_blank())
+ggplot() +
+  geom_tile(data=filter(out_P, grepl("CA", SDM)), 
+            aes(x=lon, y=lat), fill="gray30") +
+  geom_tile(data=filter(out_P, grepl("CA", SDM) & (nSdStay.f)>0.5), 
+            aes(lon, lat, fill=nSdStay.f)) +
+  facet_grid(SDM~issue) + 
+  scale_fill_viridis("SdStay", option="B") +
+  theme(axis.text=element_blank())
+
+
+ggplot(filter(out_P, grepl("CA", SDM))) + 
+  geom_tile(aes(lon, lat, fill=Surv.S.f - Surv.S)) + 
+  scale_fill_gradient2(midpoint=0) + facet_grid(SDM~issue)
+ggplot(filter(out_P, grepl("CA", SDM))) + 
+  geom_tile(aes(lon, lat, fill=nSeed.f - nSeed)) + 
+  scale_fill_gradient2(midpoint=0) + facet_grid(SDM~issue)
+ggplot(filter(out_P, SDM=="IPM")) + 
+  geom_tile(aes(lon, lat, fill=lambda.f - lambda)) + 
+  scale_fill_gradient2(midpoint=0) + facet_grid(SDM~issue)
 
 
 par(mfrow=c(5,6))
@@ -162,22 +204,8 @@ map(list.files("out", "Diag_Mx", full.names=T), readRDS) %>%
   walk(~walk(., ~plot(., 'ROC')))
 ggplot(out_P, aes(x=prP, y=1*(Surv.S>0))) + geom_point(alpha=0.05) + 
   facet_grid(SDM~issue)
-  
 
 
-out_P %>% filter(fate_lam == "S:0 P:1") %>% group_by(SDM, issue) %>% 
-  summarise(prop=round(n()/1084, 3)) %>% 
-  ggplot(aes(x=issue, y=prop, colour=SDM)) + geom_point(size=3) +
-  ggtitle("Commission Rate") + ylim(0,1) + ylab("Prop P=1 | S=0")
-out_P %>% filter(fate_lam == "S:1 P:0") %>%  group_by(SDM, issue) %>% 
-  summarise(prop=round(n()/1354, 3)) %>%
-  ggplot(aes(x=issue, y=prop, colour=SDM)) + geom_point(size=3) + 
-  ggtitle("Ommission Rate") + ylim(0, 1) + ylab("Prop P=0 | S=1")
-out_P %>% filter(fate_lam %in% c("S:1 P:1", "S:0 P:0")) %>% 
-  group_by(SDM, issue) %>% 
-  summarise(prop=round(n()/2438, 3)) %>% 
-  ggplot(aes(x=issue, y=prop, colour=SDM)) + geom_point(size=3) + 
-  ggtitle("TSS") + ylim(0, 1) + ylab("Prop P=S")
 
 ggplot(out_P, aes(fill=sign(log(lambda.f))==sign(log(lambda)), x=SDM)) + 
   geom_bar(position="fill") + facet_wrap(~issue)
