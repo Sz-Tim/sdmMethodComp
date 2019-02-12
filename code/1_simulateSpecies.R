@@ -48,7 +48,6 @@ if(sp=="garlic_mustard") {
   p$tmax <- 75
   p$bird_hab <- rep(1, 5)
   p$NDD_n <- 20  # mean number of recruits if NDD
-  p$K_max <- 1e3  # max abundance for CAd
 } else {
   p$s_x <- c(-2.75, -1.25, 3.5, 0)
   p$g_x <- c(-1.25, -0.75, -0.5, -0.3)
@@ -56,7 +55,6 @@ if(sp=="garlic_mustard") {
   p$tmax <- 75
   p$bird_hab <- c(.32, .36, .05, .09, .09)
   p$NDD_n <- 20  # mean number of recruits if NDD
-  p$K_max <- 1e3  # max abundance for CAd
 }
 p$n <- 20
 p$tnonEq <- floor(p$tmax/3)
@@ -150,6 +148,7 @@ lam.df <- L$env.in %>%
          s.max=antilogit(c(cbind(1, max(p$z.rng), X$s) %*% c(p$s_z, p$s_x))),
          g=c(cbind(1, mean(p$z.rng), X$g) %*% c(p$g_z, p$g_x)),
          germ=antilogit(c(X$germ %*% p$germ_x)))
+p$K_max <- max(lam.df$Surv.S)  # max abundance for CAd
 
 library(viridis)
 lam.gg <- ggplot(lam.df, aes(x=lon, y=lat)) + theme_bw() +
