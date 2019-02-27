@@ -12,7 +12,7 @@
 ########
 # file specifications
 sp <- c("barberry", "garlic_mustard")[1]
-res <- "10km" # "3km", "5km", "10km", "50km"
+res <- "5km" # "3km", "5km", "10km", "50km"
 overwrite <- TRUE
 plots <- TRUE
 clim_X <- paste0("bio10_", c(6, "prMay"))
@@ -52,14 +52,14 @@ if(sp=="garlic_mustard") {
   p$s_x <- c(-2.75, -1.25, 3.5, 0)
   p$g_x <- c(-1.25, -0.75, -0.5, -0.3)
   p$germ_x <- c(1.5, -4, -1.75, -2.5, 0)
-  p$tmax <- 75
+  p$tmax <- 250
   p$bird_hab <- c(.32, .36, .05, .09, .09)
   p$NDD_n <- 20  # mean number of recruits if NDD
 }
 p$n <- 20
 p$tnonEq <- floor(p$tmax/3)
 p$n0 <- 10
-p$prop_init <- 0.001
+p$prop_init <- 0.0001
 p$NDD <- T
 p$sdd_max <- sp_i$sdd_max
 p$sdd_rate <- sp_i$sdd_rate
@@ -104,7 +104,7 @@ p.ji <- lapply(sdd.ji.rows, function(x) sdd.pr$sp.df$pr[x])
 N_init <- rep(0, n.cell)
 # 725 765 200
 # N_init[sample(filter(L$env.in, x>200 & y<100)$id.in,
-N_init[sample(filter(L$env.in, x>215 & x<230 & y>50 & y<75)$id.in,
+N_init[sample(filter(L$env.in, x>425 & y>100 & y<200)$id.in,
               p$prop_init*n.cell, replace=F)] <- p$n0
 
 # Use assigned slopes to fill IPM matrix
@@ -118,7 +118,7 @@ if(sp=="garlic_mustard") {
 
 # Ground Truth: generate simulated data
 S <- simulate_data(n.cell, U$lo, U$hi, p, X, n_z, sdd.ji, p.ji, N_init, sp, 
-                   save_yrs=c(p$tnonEq+(-5:0), p$tmax+(-5:0)), T)
+                   save_yrs=c(p$tnonEq+(-3:0), p$tmax+(-3:0)), T)
 
 # Aggregate results
 lam.df <- L$env.in %>%
