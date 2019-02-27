@@ -3,10 +3,10 @@
 # Tim Szewczyk
 
 
-library(maptools); library(raster); library(rgeos); library(rgdal)
+library(maptools); library(raster); library(rgeos); library(rgdal); 
 library(spatialEco); library(tidyverse); library(doSNOW); library(foreach)
 n_core <- 8
-cell_side <- 10000  # cell dimensions in meters; cell_area = cell_side^2
+cell_side <- 5000  # cell dimensions in meters; cell_area = cell_side^2
 
 
 
@@ -35,11 +35,15 @@ states <- gBuffer(states, byid=T, width=0)
 ## <ftp://newftp.epa.gov/EPADataCommons/ORD/Ecoregions/cec_na/na_cec_eco_l1.zip>
 ##------
 # All ecoregions in North America
+# Ecoregions <- st_read("data/ecoregions/NA_CEC_Eco_Level1.shp") %>%
+#   st_transform(., alb_CRS@projargs)
 Ecoregions <- readOGR(dsn="data/ecoregions", layer="NA_CEC_Eco_Level1") %>%
   spTransform(alb_CRS)
 # Eastern Temperate Forest & Northern Forest
+# ENF <- Ecoregions %>% filter(NA_L1CODE %in% c(5,8))
+# ENF.us <- st_intersection(states, ENF)
 ENF <- subset(Ecoregions, NA_L1CODE %in% c(5,8))
-ENF.us <- gIntersection(states, ENF, byid=F)
+ENF.us <- gIntersection(states, ENF, byid=F) %>% remove.holes
 ENF.wgs <- spTransform(ENF.us, wgs_CRS)
 ENF.ext <- extent(as.vector(t(bbox(ENF.us))))
 ENF.box <- as(ENF.ext, "SpatialPolygons")
@@ -57,9 +61,7 @@ grd.wgs <- spTransform(grd, wgs_CRS)
 grd.df <- as.data.frame(coordinates(grd))
 names(grd.df) <- c("long", "lat")
 
-clim.rast <- raster("data/climate/CHELSA_prec_5_V1.2_land.tif")
-# run crop(), projectRaster() below
-clim.df <- zonal.stats(grd, clim.rast, mean, trace=F, plot=F)
+
 
 ##------ Climate data
 ## Climate raster files are stored in climate/ with no other files. Each file
@@ -85,6 +87,7 @@ stopCluster(p.c)
 names(clim.df) <- clim.var
 grd.df <- cbind(grd.df, clim.df)
 rm(clim.rast); removeTmpFiles(0)
+write_csv(grd.df, paste0("data/ENF_", cell_side/1000, "km.csv"))
 
 
 
@@ -127,6 +130,7 @@ nlcd.df <- nlcd.df/rowSums(nlcd.df)
 names(nlcd.df) <- paste0("nlcd_", nlcd.val)
 grd.df <- cbind(grd.df, nlcd.df)
 removeTmpFiles(0)
+write_csv(grd.df, paste0("data/ENF_", cell_side/1000, "km.csv"))
 
 
 
@@ -147,6 +151,7 @@ rd.grd <- lapply(road.f, st_read) %>%
   summarise(length=sum(length))
 grd.df$rd_len <- 0
 grd.df$rd_len[rd.grd$layer] <- rd.grd$length
+write_csv(grd.df, paste0("data/ENF_", cell_side/1000, "km.csv"))
 
 
 
@@ -174,6 +179,7 @@ for(f in seq_along(pop.f)) {
     st_transform(., alb_CRS@projargs) %>%
     left_join(., pop.data, by="GISJOIN") %>%
     mutate(block.density=H7V001/st_area(.)) %>%
+    st_buffer(0) %>%
     st_intersection(x=st_as_sf(grd), y=.) %>%
     mutate(polygon.pop=block.density * st_area(.)) %>%
     group_by(layer) %>%

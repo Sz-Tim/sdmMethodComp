@@ -42,9 +42,11 @@ n.cell <- sum(L$env.rct$inbd)
 p <- fit_PNAS_species(sp, env.f, nlcd.sp, clim_X, FALSE, max_z_pow, habitat,
                       x_min, x_max, y_min, y_max)
 if(sp=="garlic_mustard") {
-  p$s_x <- c(-2.75, -1.25, 3.5, 0)
-  p$g_x <- c(-1.25, -0.75, -0.5, -0.3)
-  p$germ_x <- c(1.5, -4, -1.75, -2.5, 0)
+  p$s_x <- c(-3.75, -1.25, -2.5, -1)
+  p$g_x <- c(-3, -0.5, -1, -0.1)
+  p$germ_x <- c(-1, -2, -1, -1, -0.5)
+  p$fl_x <- c(-1.5, -0.1, 0.25, -0.1)
+  p$seed_x <- c(-2, -0.5, -0.25, -0.5)
   p$tmax <- 75
   p$bird_hab <- rep(1, 5)
   p$NDD_n <- 20  # mean number of recruits if NDD

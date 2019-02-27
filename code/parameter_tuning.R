@@ -1,5 +1,5 @@
 
-sp <- c("barberry", "garlic_mustard")[1]
+sp <- c("barberry", "garlic_mustard")[2]
 res <- "10km"
 clim_X <- paste0("bio10_", c(6, "prMay"))
 habitat <- 4
@@ -34,6 +34,15 @@ em_ids <- unique(em.id)
 em_ord <- map_dbl(em_ids, ~mean(em.df$ord[which(em.id==.)]))
 abund.pred <- dir("data/eddmaps", ".asc", full.names=T) %>% 
   map(raster::raster) 
+hs.df <- read.csv("data/AllenBradley2016/IAS_occurences_final_analysis.csv") %>%
+  filter(PLANT_CODE==ifelse(sp=="barberry", "BETH", "ALPE4")) %>% 
+  st_as_sf(coords=c("LONGITUDE_DECIMAL", "LATITUDE_DECIMAL")) %>%
+  st_set_crs(4326) %>% 
+  st_transform(., CRS(paste("+proj=aea", "+lat_1=29.5", "+lat_2=45.5", "+lat_0=23",
+                            "+lon_0=-96", "+x_0=0", "+y_0=0", "+ellps=GRS80",
+                            "+towgs84=0,0,0,-0,-0,-0,0", "+units=m", "+no_defs",  
+                            collapse=" "))@projargs) %>%
+  st_coordinates %>% as.data.frame %>% rename(lon=X, lat=Y)
   
 
 
@@ -45,11 +54,13 @@ p$s_x <- c(p$s_x[1], p$s_x[2], p$s_x[3], p$s_x[4])
 p$g_x <- c(p$g_x[1], p$g_x[2], p$g_x[3], p$g_x[4])
 p$germ_x <- c(p$germ_x[1], p$germ_x[2], p$germ_x[3], p$germ_x[4], p$germ_x[5])
 
-p$s_x <- c(-2.75, -1.25, 3.5, 0)
-p$g_x <- c(-1.25, -0.75, -0.5, -0.3)
-p$germ_x <- c(1.5, -4, -1.75, -2.5, 0)
+p$s_x <- c(-3.75, -1.25, -2.5, -1)
+p$g_x <- c(-3, -0.5, -1, -0.1)
+p$germ_x <- c(-1, -2, -1, -1, -0.5)
+p$fl_x <- c(-1.5, -0.1, 0.25, -0.1)
+p$seed_x <- c(-2, -0.5, -0.25, -0.5)
 
-p$n <- 20
+p$n <- 10
 p$p_emig <- 0
 n_z <- list(s=length(p$s_z), g=length(p$g_z), 
             fl=length(p$fl_z), seed=length(p$seed_z))
@@ -61,17 +72,25 @@ if(!is.null(X$germ)) X$germ <- cbind(1, X$germ[,-n_x$germ])
 U <- fill_IPM_matrices(n.cell, buffer=0, discrete=1, p, n_z, n_x, 
                        X, sdd.ji, p.ji, sp, verbose=T)
 if(sp=="garlic_mustard") {
-  U$lambda <- mclapply(1:n.cell, 
-                       function(x) iter_lambda(p, U$Ps[,,x], U$Fs[,,x]),
-                       mc.cores=4) %>% simplify2array()
+  library(doSNOW); library(foreach)
+  p.c <- makeCluster(8); registerDoSNOW(p.c)
+  U$lambda <- foreach(i=1:n.cell, .combine="c") %dopar% {
+    iter_lambda(p, U$Ps[,,i], U$Fs[,,i], tol=0.5)
+  }
+  stopCluster(p.c)
 } else {
   U$lambda <- apply(U$IPMs, 3, function(x) Re(eigen(x)$values[1]))
 }
 lam.df <- L$env.in %>% mutate(lambda=U$lambda)
+# lam.df <- readRDS("vs/sp2/lam_test.rds")
 lam.df$em <- FALSE
 lam.df$em[lam.df$id %in% em_ids] <- TRUE
 lam.df$em_ord <- NA
 lam.df$em_ord[match(em_ids, lam.df$id)] <- em_ord
+lam.df$s <- antilogit(as.matrix(lam.df[,c(11,12,39,40)]) %*% p$s_x)
+lam.df$g <- as.matrix(lam.df[,c(11,12,39,40)]) %*% p$g_x
+lam.df$germ <- antilogit(cbind(1, as.matrix(lam.df[,c(11,12,39,40)])) %*% p$germ_x)
+lam.df$seed <- exp(as.matrix(lam.df[,c(11,12,39,40)]) %*% p$seed_x)
 x1 <- seq(min(lam.df$bio10_6), max(lam.df$bio10_6), length.out=200)
 x1.mx <- cbind(x1, x1^2)
 x2 <- seq(min(lam.df$bio10_prMay), max(lam.df$bio10_prMay), length.out=200)
@@ -82,6 +101,7 @@ ggplot() + geom_tile(data=lam.df, aes(lon, lat), fill="gray30") +
   geom_tile(data=filter(lam.df, lambda>1), aes(lon, lat, fill=lambda)) +
   scale_fill_viridis(option="B") +
   geom_point(data=filter(lam.df, em & lambda<1), aes(lon, lat), colour="white", shape=1)
+
 par(mfrow=c(1,1)); plot(abund.pred[[3]], main="Barberry")
 
 par(mfrow=c(2,3))
@@ -106,6 +126,14 @@ ggplot(lam.df) + geom_tile(aes(lon, lat, fill=bio10_6)) +
   scale_fill_viridis()
 ggplot(lam.df) + geom_tile(aes(lon, lat, fill=bio10_prMay)) +
   scale_fill_viridis()
+ggplot(lam.df) + geom_tile(aes(lon, lat, fill=s)) +
+  scale_fill_viridis(limits=c(0,1))
+ggplot(lam.df) + geom_tile(aes(lon, lat, fill=g)) +
+  scale_fill_viridis()
+ggplot(lam.df) + geom_tile(aes(lon, lat, fill=seed)) +
+  scale_fill_viridis()
+ggplot(lam.df) + geom_tile(aes(lon, lat, fill=germ)) +
+  scale_fill_viridis(limits=c(0,1))
 
 
 
