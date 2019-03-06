@@ -8,13 +8,16 @@ vs.dir <- paste0("vs/", sp_i$Num, "/")
 p <- readRDS(here(vs.dir, "p.rds"))
 p$p <- p$germ_x
 lam.df <- readRDS(here(vs.dir, "lam_df.rds"))
+issues <- c("none", "noise", "nonEq", "sampBias", "wrongCov")
 
 ipm.diag <- setNames(dir("out/sp1", "Diag_IPM", full.names=T) %>% map(readRDS),
                      str_remove(str_remove(dir("out/sp1", "Diag_IPM"), ".rds"),
                                 "Diag_IPM_"))
+ipm.diag <- ipm.diag[issues]
 cad.diag <- setNames(dir("out/sp1", "Diag_CAd", full.names=T) %>% map(readRDS),
                      str_remove(str_remove(dir("out/sp1", "Diag_CAd"), ".rds"),
                                 "Diag_CAd_"))
+cad.diag <- cad.diag[issues]
 iss.col <- RColorBrewer::brewer.pal(max(length(ipm.diag), length(cad.diag)), "Dark2")
 iss.col <- apply(col2rgb(iss.col)/255, 2, function(x) rgb(x[1],x[2],x[3],0.5)) 
 
@@ -104,7 +107,7 @@ plot_sdm_reg(p, cad.diag, "s.M", 1:3, x1, cbind(1, x1.mx), iss.col,
 #              xlim=range(x1), ylim=c(0,1))
 plot_sdm_reg(p, cad.diag, "K", 1:3, x1, cbind(1, x1.mx), iss.col, 
              xlab="Temperature", ylab="Carrying capacity", 
-             xlim=range(x1), ylim=c(0,3e3))
+             xlim=range(x1), ylim=c(0,5e3))
 plot_sdm_reg(p, cad.diag, "p.f", 1:3, x1, cbind(1, x1.mx), iss.col, 
              xlab="Temperature", ylab="Flowering probability", 
              xlim=range(x1), ylim=c(0,1))
@@ -115,7 +118,7 @@ plot_sdm_reg(p, cad.diag, "p", 1:3, x1, cbind(1, x1.mx), iss.col,
              xlab="Temperature", ylab="Establishment probability", 
              xlim=range(x1), ylim=c(0,1))
 plot(NA, NA, xlab="", ylab="", xlim=c(-1,1), ylim=c(-1,1), axes=F)
-legend("center", lty=rep(1, length(iss.col)), col=iss.col, cex=1.2,
+legend("center", lty=rep(1, length(iss.col)), col=iss.col, cex=1.5,
        lwd=rep(3, length(iss.col)), legend=names(cad.diag))
 
 
@@ -132,7 +135,7 @@ plot_sdm_reg(p, cad.diag, "s.M", c(1,4,5), x2, cbind(1, x2.mx), iss.col,
 #              xlim=range(x2), ylim=c(0,1))
 plot_sdm_reg(p, cad.diag, "K", c(1,4,5), x2, cbind(1, x2.mx), iss.col, 
              xlab="Precipitation", ylab="Carrying capacity", 
-             xlim=range(x2), ylim=c(0,3e3))
+             xlim=range(x2), ylim=c(0,5e3))
 plot_sdm_reg(p, cad.diag, "p.f", c(1,4,5), x2, cbind(1, x2.mx), iss.col, 
              xlab="Precipitation", ylab="Flowering probability", 
              xlim=range(x2), ylim=c(0,1))
@@ -143,7 +146,7 @@ plot_sdm_reg(p, cad.diag, "p", c(1,4,5), x2, cbind(1, x2.mx), iss.col,
              xlab="Precipitation", ylab="Establishment probability", 
              xlim=range(x2), ylim=c(0,1))
 plot(NA, NA, xlab="", ylab="", xlim=c(-1,1), ylim=c(-1,1), axes=F)
-legend("center", lty=rep(1, length(iss.col)), col=iss.col, cex=1.2,
+legend("center", lty=rep(1, length(iss.col)), col=iss.col, cex=1.5,
        lwd=rep(3, length(iss.col)), legend=names(cad.diag))
 
 
