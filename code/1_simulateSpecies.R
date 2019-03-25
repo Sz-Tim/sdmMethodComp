@@ -49,7 +49,7 @@ if(sp=="garlic_mustard") {
   p$seed_x <- c(-0.75, -0.4, -0.1, -0.1)
   p$tmax <- 75
   p$bird_hab <- rep(1, 5)
-  p$NDD_n <- 2000  # mean number of recruits if NDD
+  p$NDD_n <- 750  # mean number of recruits if NDD
   p$max_age <- 2
 } else {
   p$s_x <- c(-2.25, -1.4, 3.5, 0)
