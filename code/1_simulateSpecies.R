@@ -50,6 +50,7 @@ if(sp=="garlic_mustard") {
   p$tmax <- 75
   p$bird_hab <- rep(1, 5)
   p$NDD_n <- 2000  # mean number of recruits if NDD
+  p$max_age <- 2
 } else {
   p$s_x <- c(-2.25, -1.4, 3.5, 0)
   p$g_x <- c(-1.5, -0.3, -0.1, -0.1)
@@ -57,6 +58,7 @@ if(sp=="garlic_mustard") {
   p$tmax <- 250
   p$bird_hab <- c(.32, .36, .05, .09, .09)
   p$NDD_n <- 20  # mean number of recruits if NDD
+  p$max_age <- 100
 }
 p$n <- 20
 p$tnonEq <- floor(p$tmax/3)
@@ -113,7 +115,12 @@ N_init[sample(filter(L$env.in, x>425 & y>100 & y<200)$id.in,
 U <- fill_IPM_matrices(n.cell, buffer=0, discrete=1, p, n_z, n_x, 
                        X, sdd.ji, p.ji, sp, verbose=T)
 if(sp=="garlic_mustard") {
-  U$lambda <- sapply(1:n.cell, function(x) iter_lambda(p, U$Ps[,,x], U$Fs[,,x]))
+  library(doSNOW); library(foreach)
+  p.c <- makeCluster(n.cores); registerDoSNOW(p.c)
+  U$lambda <- foreach(i=1:n.cell, .combine="c") %dopar% {
+    iter_lambda(p, U$Ps[,,i], U$Fs[,,i], tol=0.5)
+  }
+  stopCluster(p.c)
 } else {
   U$lambda <- apply(U$IPMs, 3, function(x) Re(eigen(x)$values[1]))
 }
@@ -156,7 +163,7 @@ library(viridis)
 lam.gg <- ggplot(lam.df, aes(x=lon, y=lat)) + theme_bw() +
   theme(axis.text=element_blank()) + labs(x="", y="") +
   scale_fill_viridis(name="", option="B") +
-  ggtitle(paste0(sp, ": 3km x 3km, favorable habitat"))
+  ggtitle(paste0(sp, ": 5km x 5km, favorable habitat"))
 
 if(plots) {
   lam.gg + geom_tile(fill="gray50") +
@@ -204,7 +211,7 @@ if(plots) {
     geom_tile(data=filter(lam.df, Surv.S>0), aes(x=lon, y=lat), 
               fill="red", alpha=0.5) +
     theme(axis.text=element_blank()) + labs(x="", y="") +
-    ggtitle(paste0(sp, ": 3km x 3km, favorable habitat"))
+    ggtitle(paste0(sp, ": 5km x 5km, favorable habitat"))
   
   lam.gg + geom_tile(aes(fill=s)) + 
     labs(subtitle="s: mean(z.rng)/2") +

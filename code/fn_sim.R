@@ -61,7 +61,7 @@ sim_realized <- function(k, z.ik, E_ik, p, age.ik, sp, lo, hi) {
     d_ik$sizeNext <- pmax(d_ik$sizeNext, lo)
     d_ik$sizeNext <- pmin(d_ik$sizeNext, hi)
   } else {
-    d_ik$surv <- rbinom(n.ik, 1, E_ik$s)
+    d_ik$surv <- rbinom(n.ik, 1, E_ik$s) * (age.ik <= p$max_age)
     surv.ik <- ifelse(d_ik$surv, 1, NA)
     d_ik$sizeNext <- rnorm(n.ik, E_ik$g, p$g_sig) * surv.ik
     d_ik$sizeNext <- pmax(d_ik$sizeNext, lo)
