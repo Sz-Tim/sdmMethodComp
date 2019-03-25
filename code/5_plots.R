@@ -42,13 +42,13 @@ mn_TSS <- out_TSS %>% group_by(Boundary, SDM, issue) %>%
   summarise(TSS=mean(TSS), 
             sensitivity=mean(sensitivity), 
             specificity=mean(specificity))
-SDM_col <- c(MxE="#3f007d", IPM="#014636", CAi="#02818a", CAd="#67a9cf")
+SDM_col <- c(MxE="#7b3294", IPM="#00441b", CAi="#045a8d", CAd="#74a9cf")
 
 
 ggplot(out_TSS, aes(x=TSS, fill=SDM, colour=SDM)) + 
   geom_vline(xintercept=c(-1,0,1), colour="grey90") +
   geom_vline(xintercept=c(-0.5,0.5), colour="grey90", linetype=3) +
-  geom_density(alpha=0.5) + 
+  geom_density(alpha=0.75) + 
   geom_rug(data=mn_TSS, size=1) +
   facet_grid(issue~Boundary, scales="free_y", 
              labeller=labeller(issue=label_wrap_gen(10), Boundary=label_parsed)) +
@@ -60,7 +60,7 @@ if(plots) ggsave(paste0("figs/", sp, "_TSS.jpg"), width=6, height=8)
 ggplot(out_TSS, aes(x=sensitivity, fill=SDM, colour=SDM)) + 
   geom_vline(xintercept=c(0,1), colour="grey90") +
   geom_vline(xintercept=0.5, colour="grey90", linetype=3) +
-  geom_density(alpha=0.5) + 
+  geom_density(alpha=0.75) + 
   geom_rug(data=mn_TSS, size=1) +
   facet_grid(issue~Boundary, scales="free_y", 
              labeller=labeller(issue=label_wrap_gen(10), Boundary=label_parsed)) +
@@ -72,7 +72,7 @@ if(plots) ggsave(paste0("figs/", sp, "_Sensitivity.jpg"), width=6, height=8)
 ggplot(out_TSS, aes(x=specificity, fill=SDM, colour=SDM)) + 
   geom_vline(xintercept=c(0,1), colour="grey90") +
   geom_vline(xintercept=0.5, colour="grey90", linetype=3) +
-  geom_density(alpha=0.5) + 
+  geom_density(alpha=0.75) + 
   geom_rug(data=mn_TSS, size=1) +
   facet_grid(issue~Boundary, scales="free_y", 
              labeller=labeller(issue=label_wrap_gen(10), Boundary=label_parsed)) +
@@ -85,13 +85,13 @@ if(plots) ggsave(paste0("figs/", sp, "_Specificity.jpg"), width=6, height=8)
 
 ggplot(out_LL, aes(x=LogLik, y=fct_rev(issue), colour=SDM)) + 
   facet_grid(Boundary~.) +
-  geom_point(alpha=0.7, size=3) + 
+  geom_point(alpha=0.75, size=3) + 
   scale_colour_manual(values=SDM_col) +
   labs(x="Log likelihood: S ~ Binom(prP)", y="")
 if(plots) ggsave(paste0("figs/", sp, "_LogLikelihood.jpg"), width=5, height=4)
 
 
-if(plots) jpeg(paste0("figs/", sp, "S.jpg"), width=8, height=8, units="in", res=300)
+if(plots) jpeg(paste0("figs/", sp, "_S.jpg"), width=8, height=8, units="in", res=300)
 par(mfrow=c(3,3))
 plot(lam.df$bio10_1, log(lam.df$lambda), col=rgb(0,0,0,0.25))
 plot(lam.df$bio10_12, log(lam.df$lambda), col=rgb(0,0,0,0.25))
