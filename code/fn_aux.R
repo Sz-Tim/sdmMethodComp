@@ -62,7 +62,7 @@ build_landscape <- function(f, nlcd_agg, x_min=0, x_max=Inf, y_min=0, y_max=Inf,
                    sc_sd=attributes(l.scale)$`scaled:scale`)
   rownames(scale.i) <- colnames(l.scale)
   # establish rectangular grid with x=1:ncol, y=1:nrow
-  rct <- as.tibble(expand.grid(x=1:max(l.df$x), y=1:max(l.df$y))) %>%
+  rct <- as_tibble(expand.grid(x=1:max(l.df$x), y=1:max(l.df$y))) %>%
     mutate(x_y=paste(x, y, sep="_")) 
   match_id <- match(rct$x_y, l.df$x_y)
   # pair scaled environmental variables with rectangular grid
