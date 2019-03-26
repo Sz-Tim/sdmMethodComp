@@ -45,10 +45,11 @@
 #' @return Vector of survival probabilities for the size distribution
 calc_surv <- function(z.v, p, n_sz, X.s) {
   z <- z_pow(z.v, n_sz)
-  u <- exp(z %*% p$s_z + c(t(X.s) %*% p$s_x))
-  u[u<0] <- 0  # in case -Inf
-  u[u>1] <- 1  # in case Inf
-  return(u / (1+u))
+  return(antilogit(z %*% p$s_z + c(X.s %*% p$s_x)))
+  # u <- exp(z %*% p$s_z + c(X.s %*% p$s_x))
+  # u[u<0] <- 0  # in case -Inf
+  # u[u>1] <- 1  # in case Inf
+  # return(u / (1+u))
 }
 
 
@@ -64,7 +65,7 @@ calc_surv <- function(z.v, p, n_sz, X.s) {
 #' @return Vector of size probabilities for next year for the size distribution
 calc_grow <- function(z1, z.v, p, n_gz, X.g) {
   z <- z_pow(z.v, n_gz)
-  g <- dnorm(z1, mean=z %*% p$g_z + c(t(X.g) %*% p$g_x), sd=p$g_sig)
+  g <- dnorm(z1, mean=z %*% p$g_z + c(X.g %*% p$g_x), sd=p$g_sig)
   return(g)
 }
 
@@ -80,7 +81,7 @@ calc_grow <- function(z1, z.v, p, n_gz, X.g) {
 #' @return Vector of flowering probabilities for the size distribution
 calc_flwr <- function(z.v, p, n_flz, X.fl) {
   z <- z_pow(z.v, n_flz)
-  u <- exp(z %*% p$fl_z + c(t(X.fl) %*% p$fl_x))
+  u <- exp(z %*% p$fl_z + c(X.fl %*% p$fl_x))
   u[u<0] <- 0  # in case -Inf
   u[u>1] <- 1  # in case Inf
   return(u / (1+u))
@@ -98,7 +99,7 @@ calc_flwr <- function(z.v, p, n_flz, X.fl) {
 #' @return Vector of theoretical seed production for the size distribution
 calc_seeds <- function(z.v, p, n_seedz, X.seed) {
   z <- z_pow(z.v, n_seedz)
-  exp(z %*% p$seed_z + c(t(X.seed) %*% p$seed_x))
+  exp(z %*% p$seed_z + c(X.seed %*% p$seed_x))
 }
 
 
@@ -230,9 +231,9 @@ fill_P <- function(h, y, z.i, p, n_z, n_x, X_s, X_g) {
 #' @param X_germ Matrix of environmental covariates for germination regression
 #' @param sp Either 'barberry' or 'garlic_mustard'
 #' @return F matrix with fecundity kernel
-fill_F <- function(h, y, z.i, p, n_z, n_x, X_fl, X_seed, X_germ=NULL) {
+fill_F <- function(h, y, z.i, p, n_z, n_x, X_fl, X_seed, X_germ) {
   F.mx <- matrix(0, nrow=p$n+1, ncol=p$n+1)
-  if(!is.null(X_germ)) p$rcr_dir <- p$rcr_SB <- antilogit(c(X_germ %*% p$germ_x))
+  p$rcr_dir <- p$rcr_SB <- antilogit(c(X_germ %*% p$germ_x))
   F.mx[z.i,z.i] <- outer(y, y, calc_rcrDir, p=p, n_seedz=n_z$seed, n_flz=n_z$fl, 
                          X.seed=X_seed, X.fl=X_fl) * h * p$p_est
   F.mx[1,z.i] <- calc_addSB(y, p=p, n_seedz=n_z$seed, n_flz=n_z$fl, 
@@ -255,7 +256,6 @@ fill_F <- function(h, y, z.i, p, n_z, n_x, X_fl, X_seed, X_germ=NULL) {
 #' @param X List of covariates, with elements \code{.$s, .$g, .$fl, .$seed}
 #' @param sdd.ji Short distance dispersal immigrant neighborhoods TO each cell j
 #' @param p.ji Dispersal probabilities TO each target cell j
-#' @param sp Either 'barberry' or 'garlic_mustard'
 #' @param verbose \code{FALSE} Give status updates?
 #' @return List of IPMs = IPM matrix for each cell, Ps = P matrix for each cell,
 #' Fs = F matrix for each cell, lo = minimum allowable size, hi = maximum 
@@ -263,7 +263,7 @@ fill_F <- function(h, y, z.i, p, n_z, n_x, X_fl, X_seed, X_germ=NULL) {
 #' matrix step size, sdd.j = Short distance dispersal immigrant neighborhoods to 
 #' each cell (perspective is the dispersal TO each target cell j)
 fill_IPM_matrices <- function(n.cell, buffer, discrete, p, n_z, n_x, 
-                              X, sdd.ji, p.ji, sp, verbose=F) {
+                              X, sdd.ji, p.ji, verbose=F) {
   library(tidyverse)
   i <- 1:n.cell
   
