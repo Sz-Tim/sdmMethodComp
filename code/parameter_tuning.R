@@ -1,5 +1,5 @@
 
-sp <- c("barberry", "garlic_mustard")[2]
+sp <- c("barberry", "garlic_mustard")[1]
 res <- "5km"
 clim_X <- paste0("bio10_", c(6, "prMay"))
 habitat <- 4
@@ -64,9 +64,9 @@ if(sp=="garlic_mustard") {
   p$fl_x <- c(-0.3, -0.05, 0.25, -0.1)
   p$seed_x <- c(-0.75, -0.4, -0.1, -0.1)
 } else {
-  p$s_x <- c(-2.25, -1.4, 3.5, 0)
-  p$g_x <- c(-1.5, -0.3, -0.1, -0.1)
-  p$germ_x <- c(3.5, -2, -0.5, -1.1, -0.05)
+  p$s_x <- c(-5, -2.75, 1, -2.5)
+  p$g_x <- c(-1.5, -0.4, -0.2, -0.5)
+  p$germ_x <- c(-1.25, -4, -2, -2, -0.75)
 }
 
 p$n <- 10
@@ -79,7 +79,7 @@ X <- map(n_x, ~as.matrix(L$env.in[,grep(paste(clim_X, collapse="|"), names(L$env
 if(!is.null(X$germ)) X$germ <- cbind(1, X$germ[,-n_x$germ])
 
 U <- fill_IPM_matrices(n.cell, buffer=0, discrete=1, p, n_z, n_x, 
-                       X, sdd.ji, p.ji, sp, verbose=T)
+                       X, sdd.ji, p.ji, verbose=T)
 if(sp=="garlic_mustard") {
   library(doSNOW); library(foreach)
   p.c <- makeCluster(8); registerDoSNOW(p.c)
@@ -90,13 +90,14 @@ if(sp=="garlic_mustard") {
 } else {
   U$lambda <- apply(U$IPMs, 3, function(x) Re(eigen(x)$values[1]))
 }
-lam.df <- L$env.in %>% mutate(lambda=U$lambda)
+#lam.df <- L$env.in %>% mutate(lambda=U$lambda)
+lam.df <- lam.df %>% mutate(lambda.new=U$lambda)
 
 
-lam.df$em <- FALSE
-lam.df$em[lam.df$id %in% em_ids] <- TRUE
-lam.df$em_ord <- NA
-lam.df$em_ord[match(em_ids, lam.df$id)] <- em_ord
+# lam.df$em <- FALSE
+# lam.df$em[lam.df$id %in% em_ids] <- TRUE
+# lam.df$em_ord <- NA
+# lam.df$em_ord[match(em_ids, lam.df$id)] <- em_ord
 lam.df$hs <- FALSE
 lam.df$hs[lam.df$id %in% hs_ids] <- TRUE
 lam.df$s <- antilogit(as.matrix(lam.df[,c(11,12,39,40)]) %*% p$s_x)
@@ -108,11 +109,11 @@ x1.mx <- cbind(x1, x1^2)
 x2 <- seq(min(lam.df$bio10_prMay), max(lam.df$bio10_prMay), length.out=200)
 x2.mx <- cbind(x2, x2^2)
 
-summary(filter(lam.df, hs)$lambda>1)
+with(filter(lam.df, hs), sum(lambda.new>1)/sum(hs))
 ggplot() + geom_tile(data=lam.df, aes(lon, lat), fill="gray30") +
-  geom_tile(data=filter(lam.df, lambda>1), aes(lon, lat, fill=lambda)) +
+  geom_tile(data=filter(lam.df, lambda.new>1), aes(lon, lat, fill=lambda.new)) +
   scale_fill_viridis(option="B") +
-  geom_point(data=filter(lam.df, hs & lambda<1), aes(lon, lat), colour="white", shape=1)
+  geom_point(data=filter(lam.df, hs & lambda.new<1), aes(lon, lat), colour="white", shape=1)
 
 summary(filter(lam.df, em)$lambda>1)
 ggplot() + geom_tile(data=lam.df, aes(lon, lat), fill="gray30") +
@@ -139,28 +140,32 @@ par(mfrow=c(2,3))
 plot(x1, antilogit(x1.mx %*% p$s_x[1:2]), xlab="Temp", ylab="Survival", type="l",
      ylim=c(0,1))
 lines(x1, antilogit(x1.mx %*% p.pnas$s_x[1:2]), col="red")
-plot(x1, exp(x1.mx %*% p$seed_x[1:2]), xlab="Temp", ylab="Seeds", type="l")
-lines(x1, exp(x1.mx %*% p.pnas$seed_x[1:2]), col="red")
+# plot(x1, exp(x1.mx %*% p$seed_x[1:2]), xlab="Temp", ylab="Seeds", type="l")
+# lines(x1, exp(x1.mx %*% p.pnas$seed_x[1:2]), col="red")
+plot(x1, x1.mx %*% p$g_x[1:2], xlab="Temp", ylab="Growth", type="l")
+lines(x1, x1.mx %*% p.pnas$g_x[1:2], col="red")
 plot(x1, antilogit(cbind(1, x1.mx) %*% p$germ_x[1:3]), xlab="Temp", 
      ylab="Germination", type="l", ylim=c(0,1))
 lines(x1, antilogit(cbind(1, x1.mx) %*% p.pnas$germ_x[1:3]), col="red")
 plot(x2, antilogit(x2.mx %*% p$s_x[3:4]), xlab="Precip", ylab="Survival", type="l",
      ylim=c(0,1))
 lines(x2, antilogit(x2.mx %*% p.pnas$s_x[3:4]), col="red")
-plot(x2, exp(x2.mx %*% p$seed_x[3:4]), xlab="Precip", ylab="Seeds", type="l")
-lines(x2, exp(x2.mx %*% p.pnas$seed_x[3:4]), col="red")
+# plot(x2, exp(x2.mx %*% p$seed_x[3:4]), xlab="Precip", ylab="Seeds", type="l")
+# lines(x2, exp(x2.mx %*% p.pnas$seed_x[3:4]), col="red")
+plot(x2, x2.mx %*% p$g_x[3:4], xlab="Precip", ylab="Growth", type="l")
+lines(x2, x2.mx %*% p.pnas$g_x[3:4], col="red")
 plot(x2, antilogit(x2.mx %*% p$germ_x[4:5]), xlab="Precip", 
      ylab="Germination", type="l", ylim=c(0,1))
 lines(x2, antilogit(x2.mx %*% p.pnas$germ_x[4:5]), col="red")
 
 ggplot(lam.df) + geom_tile(aes(lon, lat, fill=bio10_6)) +
   scale_fill_viridis() +
-  geom_point(data=filter(lam.df, hs & lambda<1), 
+  geom_point(data=filter(lam.df, hs), 
              aes(lon, lat), colour="white", shape=1)
 
 ggplot(lam.df) + geom_tile(aes(lon, lat, fill=bio10_prMay)) +
   scale_fill_viridis() +
-  geom_point(data=filter(lam.df, hs & lambda<1), 
+  geom_point(data=filter(lam.df, hs), 
              aes(lon, lat), colour="white", shape=1)
 
 ggplot(lam.df) + geom_tile(aes(lon, lat, fill=s)) +
@@ -182,16 +187,11 @@ ggplot(lam.df) + geom_tile(aes(lon, lat, fill=germ)) +
 
 
 ggplot() + geom_tile(data=lam.df, aes(lon, lat), fill="gray30") +
-  geom_tile(data=filter(lam.df, lambda>1), aes(lon, lat, fill=lambda)) +
+  geom_tile(data=filter(lam.df, lambda.new>1), aes(lon, lat, fill=lambda.new)) +
   scale_fill_viridis(option="B") + ggtitle("hotspots data") +
   geom_point(data=filter(lam.df, hs), aes(lon, lat), colour="white", 
              shape=1, alpha=0.7)
 
-ggplot() + geom_tile(data=lam.df, aes(lon, lat), fill="gray30") +
-  geom_tile(data=filter(lam.df, lambda>1), aes(lon, lat, fill=lambda)) +
-  scale_fill_viridis(option="B") + ggtitle("eddmaps") +
-  geom_point(data=filter(lam.df, em), aes(lon, lat), colour="white", 
-             shape=1, alpha=0.3)
 
 
 
