@@ -614,7 +614,7 @@ fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
     
     # use estimated slopes to fill IPM matrix
     U.f <- fill_IPM_matrices(n.cell, buffer=0, discrete=1, p.IPM, n_z,
-                                  n_x, X.IPM, sdd.ji, p.ji, sp)
+                                  n_x, X.IPM, sdd.ji, p.ji)
     if(sp=="garlic_mustard") {
       U.f$lambda <- sapply(1:n.cell, 
                          function(x) iter_lambda(p.IPM, U.f$Ps[,,x], U.f$Fs[,,x]))

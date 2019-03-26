@@ -86,12 +86,12 @@ sim_realized <- function(k, z.ik, E_ik, p, age.ik, sp, lo, hi) {
 #' @param B_ik Number of seeds in the seed bank in cell i in year k
 #' @param D_ik Nmuber of immigrant seeds to cell i in year k
 #' @param p List of parameters
-#' @param pr_germ Germination probability, if environmentally variable; if not
-#'   \code{NULL}, it replaces both \code{p$rcr_SB} and \code{p$rcr_dir}
+#' @param pr_germ Germination probability; it replaces both \code{p$rcr_SB} 
+#'   and \code{p$rcr_dir}
 #' @param ldd \code{FALSE} Is this to implement a long distance dispersal event?
 #' @return List d_i with new recruits appended
 sim_recruits <- function(k, d_i, p_est_ik, nSd_ik, B_ik, D_ik, p, pr_germ, ldd=F) {
-  if(!is.null(pr_germ)) p$rcr_SB <- p$rcr_dir <- pr_germ
+  p$rcr_SB <- p$rcr_dir <- pr_germ
   if(ldd) {
     n <- 1
   } else {
@@ -122,7 +122,7 @@ sim_recruits <- function(k, d_i, p_est_ik, nSd_ik, B_ik, D_ik, p, pr_germ, ldd=F
 #'   \code{NULL}, it replaces both \code{p$rcr_SB} and \code{p$rcr_dir}
 #' @return Integer abundance of the seed bank in the next year
 sim_seedbank <- function(nSd_ik, B_ik, D_ik, p, pr_germ) {
-  if(!is.null(pr_germ)) p$rcr_SB <- p$rcr_dir <- pr_germ
+  p$rcr_SB <- p$rcr_dir <- pr_germ
   round(p$s_SB * (B_ik * (1-p$rcr_SB) + 
                     nSd_ik * (1-p$p_emig) * (1-p$rcr_dir) + 
                     D_ik * (1-p$rcr_dir)))
@@ -165,12 +165,8 @@ simulate_data <- function(n.cell, lo, hi, p, X, n_z, sdd.ji, p.ji, N_init, sp,
     yrs <- setNames(1:length(save_yrs), save_yrs)
   }
   
-  # does germination probability vary with environment?
-  if(is.null(X$germ)) { 
-    pr_germ <- NULL 
-  } else { 
-    pr_germ <- c(antilogit(X$germ %*% p$germ_x))
-  }
+  # calculate germination probability - constant across years
+  pr_germ <- c(antilogit(X$germ %*% p$germ_x))
   
   # storage objects
   E <- E_null <- map(i, ~map(1:6, ~numeric(0L)) %>% 
@@ -205,7 +201,7 @@ simulate_data <- function(n.cell, lo, hi, p, X, n_z, sdd.ji, p.ji, N_init, sp,
     
     ## dispersal & density dependence
     D1 <- sapply(i, function(x) sum(nSd1[sdd.ji[[x]]] * p$p_emig * p.ji[[x]]))
-    p_est1 <- pmin(p$NDD_n/(nSd1+D1+B1), p$p_est)
+    p_est1 <- pmin(p$NDD_n/((nSd1+D1+B1)*pr_germ), p$p_est)
     d1 <- lapply(i, function(x) sim_recruits(k, d1[[x]], p_est1[x], nSd1[x], 
                                              B1[x], D1[x], p, pr_germ[x], F))
     ldd_k <- sample.int(n.cell, p$ldd)
