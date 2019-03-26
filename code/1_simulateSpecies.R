@@ -19,10 +19,10 @@ clim_X <- paste0("bio10_", c(6, "prMay"))
 habitat <- 4
 max_z_pow <- 1
 n.cores <- 24
-x_min <- 0#200#675#
+x_min <- 0
 x_max <- Inf
 y_min <- 0
-y_max <- Inf#75#250#
+y_max <- Inf
 
 # load workspace
 pkgs <- c("gbPopMod", "tidyverse", "magrittr", "here", "doSNOW", "foreach")
@@ -52,15 +52,15 @@ if(sp=="garlic_mustard") {
   p$NDD_n <- 750  # mean number of recruits if NDD
   p$max_age <- 2
 } else {
-  p$s_x <- c(-2.25, -1.4, 3.5, 0)
-  p$g_x <- c(-1.5, -0.3, -0.1, -0.1)
-  p$germ_x <- c(3.5, -2, -0.5, -1.1, -0.05)
-  p$tmax <- 250
+  p$s_x <- c(-5, -2.75, 1, -2.5)
+  p$g_x <- c(-1.5, -0.4, -0.2, -0.5)
+  p$germ_x <- c(-1.25, -4, -2, -2, -0.75)
+  p$tmax <- 150
   p$bird_hab <- c(.32, .36, .05, .09, .09)
   p$NDD_n <- 20  # mean number of recruits if NDD
   p$max_age <- 100
 }
-p$n <- 20
+p$n <- 30
 p$tnonEq <- floor(p$tmax/3)
 p$n0 <- 10
 p$prop_init <- 0.0001
@@ -80,8 +80,8 @@ n_x <- list(s=length(p$s_x), # n env covariates for each vital rate
             germ=length(p$germ_x))
 X <- map(n_x, ~as.matrix(L$env.in[,grep(paste(clim_X, collapse="|"), 
                                         names(L$env.in))]))  # env covs
-if(!is.null(X$germ)) X$germ <- cbind(1, X$germ[,-n_x$germ])
-# p$p_emig <- 0
+X$germ <- cbind(1, X$germ[,-n_x$germ])
+
 sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=L$env.rct.unscaled,
                         lc.col=tail(1:ncol(L$env.rct.unscaled),
                                     n_distinct(nlcd.sp$agg)),
@@ -106,14 +106,12 @@ p.ji <- lapply(sdd.ji.rows, function(x) sdd.pr$sp.df$pr[x])
 ########
 # Initial populations
 N_init <- rep(0, n.cell)
-# 725 765 200
-# N_init[sample(filter(L$env.in, x>200 & y<100)$id.in,
 N_init[sample(filter(L$env.in, x>425 & y>100 & y<200)$id.in,
               p$prop_init*n.cell, replace=F)] <- p$n0
 
 # Use assigned slopes to fill IPM matrix
 U <- fill_IPM_matrices(n.cell, buffer=0, discrete=1, p, n_z, n_x, 
-                       X, sdd.ji, p.ji, sp, verbose=T)
+                       X, sdd.ji, p.ji, verbose=T)
 if(sp=="garlic_mustard") {
   library(doSNOW); library(foreach)
   p.c <- makeCluster(n.cores); registerDoSNOW(p.c)
