@@ -128,12 +128,15 @@ S <- simulate_data(n.cell, U$lo, U$hi, p, X, n_z, sdd.ji, p.ji, N_init, sp,
                    save_yrs=c(p$tnonEq+(-3:0), p$tmax+(-3:0)), T)
 
 # Aggregate results
+z.seq <- seq(p$z.rng[1], p$z.rng[2], length.out=5)
 lam.df <- L$env.in %>%
   mutate(lambda=U$lambda,
          nSeed=S$nSd[,dim(S$nSd)[2]], 
          D=S$D[,dim(S$D)[2]], 
          B=S$B[,dim(S$B)[2]], 
          Surv.S=map_dbl(S$d, ~sum(.$surv[.$yr==p$tmax], na.rm=T)),
+         Surv.S.t0=map_dbl(S$d, ~sum(.$surv[.$yr==p$tmax-1], na.rm=T)),
+         Surv.lam=(Surv.S)/(Surv.S.t0),
          Surv.S_nonEq=map_dbl(S$d, ~sum(.$surv[.$yr==p$tnonEq], na.rm=T)),
          nRepro=map_dbl(S$d, ~sum(.$fl[.$yr==p$tmax], na.rm=T)),
          Rcr.S=map_dbl(S$d, ~sum(is.na(.$size[.$yr==p$tmax]))),
@@ -151,8 +154,12 @@ lam.df <- L$env.in %>%
          med.age=map_dbl(S$d, ~median(.$age[.$yr==p$tmax])),
          max.age=map_dbl(S$d, ~max(.$age)),
          pr_Immigrant=map_dbl(p.ji, sum),
-         s=antilogit(c(cbind(1, mean(p$z.rng)/2, X$s) %*% c(p$s_z, p$s_x))),
-         s.max=antilogit(c(cbind(1, max(p$z.rng), X$s) %*% c(p$s_z, p$s_x))),
+         p_est.tmax=S$p_est.i[,dim(S$p_est.i)[2]],
+         s.1=antilogit(c(cbind(1, z.seq[1], X$s) %*% c(p$s_z, p$s_x))),
+         s.2=antilogit(c(cbind(1, z.seq[2], X$s) %*% c(p$s_z, p$s_x))),
+         s.3=antilogit(c(cbind(1, z.seq[3], X$s) %*% c(p$s_z, p$s_x))),
+         s.4=antilogit(c(cbind(1, z.seq[4], X$s) %*% c(p$s_z, p$s_x))),
+         s.5=antilogit(c(cbind(1, z.seq[5], X$s) %*% c(p$s_z, p$s_x))),
          g=c(cbind(1, mean(p$z.rng), X$g) %*% c(p$g_z, p$g_x)),
          germ=antilogit(c(X$germ %*% p$germ_x)))
 p$K_max <- max(lam.df$Surv.S)  # max abundance for CAd
