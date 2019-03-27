@@ -30,6 +30,7 @@ suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
 walk(dir("code", "fn", full.names=T), source)
 env.f <- paste0("data/ENF_", res, ".csv")
 sp_i <- read.csv(paste0("data/species_", res, ".csv")) %>% filter(Name==sp)
+vs.dir <- paste0("vs/", sp_i$Num)
 nlcd.sp <- read.csv(here("data/PNAS_2017/", sp_i$LC_f))
 L <- build_landscape(env.f, nlcd.sp, x_min, x_max, y_min, y_max) 
 n.cell <- sum(L$env.rct$inbd)
@@ -82,23 +83,32 @@ X <- map(n_x, ~as.matrix(L$env.in[,grep(paste(clim_X, collapse="|"),
                                         names(L$env.in))]))  # env covs
 X$germ <- cbind(1, X$germ[,-n_x$germ])
 
-sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=L$env.rct.unscaled,
-                        lc.col=tail(1:ncol(L$env.rct.unscaled),
-                                    n_distinct(nlcd.sp$agg)),
-                        g.p=list(sdd.max=p$sdd_max,
-                                 sdd.rate=p$sdd_rate,
-                                 bird.hab=p$bird_hab))
-# df row indexes for all cells dispersing to each [[j]]
-p.c <- makeCluster(n.cores); registerDoSNOW(p.c)
-sdd.ji.rows <- foreach(x=1:n.cell) %dopar% { which(sdd.pr$sp.df$j.idin==x) }
-stopCluster(p.c)
-# id.in indexes & probabilities for all cells dispersing INTO [[j]]
-sdd.ji <- lapply(sdd.ji.rows, function(x) sdd.pr$sp.df$i.idin[x]) 
-p.ji <- lapply(sdd.ji.rows, function(x) sdd.pr$sp.df$pr[x]) 
-# NOTE: sdd.pr[,,2,] indexes based on `id` (id for each cell in grid) instead  
-# of `id.in` (id for inbound cells only), but sdd.pr[,,,i] includes only
-# inbound cells, so the layer index aligns with `id.in`. This makes 
-# identifying much simpler, but requires looking up the corresponding id's
+if(!all(file.exists(here(vs.dir, "sdd.rds")), 
+        file.exists(here(vs.dir, "sdd_ji.rds")), 
+        file.exists(here(vs.dir, "p_ji.rds")))) {
+  sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=L$env.rct.unscaled,
+                          lc.col=tail(1:ncol(L$env.rct.unscaled),
+                                      n_distinct(nlcd.sp$agg)),
+                          g.p=list(sdd.max=p$sdd_max,
+                                   sdd.rate=p$sdd_rate,
+                                   bird.hab=p$bird_hab))
+  # df row indexes for all cells dispersing to each [[j]]
+  p.c <- makeCluster(n.cores); registerDoSNOW(p.c)
+  sdd.ji.rows <- foreach(x=1:n.cell) %dopar% { which(sdd.pr$sp.df$j.idin==x) }
+  stopCluster(p.c)
+  # id.in indexes & probabilities for all cells dispersing INTO [[j]]
+  sdd.ji <- lapply(sdd.ji.rows, function(x) sdd.pr$sp.df$i.idin[x]) 
+  p.ji <- lapply(sdd.ji.rows, function(x) sdd.pr$sp.df$pr[x]) 
+  # NOTE: sdd.pr[,,2,] indexes based on `id` (id for each cell in grid) instead  
+  # of `id.in` (id for inbound cells only), but sdd.pr[,,,i] includes only
+  # inbound cells, so the layer index aligns with `id.in`. This makes 
+  # identifying much simpler, but requires looking up the corresponding id's
+} else {
+  sdd.pr <- readRDS(here(vs.dir, "sdd.rds"))
+  sdd.ji <- readRDS(here(vs.dir, "sdd_ji.rds"))
+  p.ji <- readRDS(here(vs.dir, "p_ji.rds"))
+}
+
 
 
 ########
@@ -218,11 +228,8 @@ if(plots) {
     theme(axis.text=element_blank()) + labs(x="", y="") +
     ggtitle(paste0(sp, ": 5km x 5km, favorable habitat"))
   
-  lam.gg + geom_tile(aes(fill=s)) + 
-    labs(subtitle="s: mean(z.rng)/2") +
-    geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
-  lam.gg + geom_tile(aes(fill=s.max)) + 
-    labs(subtitle="s: max(z.rng)") +
+  lam.gg + geom_tile(aes(fill=s.1)) + 
+    labs(subtitle="s: min(z.rng)") +
     geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
   lam.gg + geom_tile(aes(fill=g)) + 
     labs(subtitle="g = mn(growth): mean(z.rng)") +
@@ -239,7 +246,6 @@ if(plots) {
 ## Store true species distribution
 ########
 if(overwrite) {
-  vs.dir <- paste0("vs/", sp_i$Num)
   if(!dir.exists(here(vs.dir))) dir.create(here(vs.dir), recursive=T)
   saveRDS(L$scale.i, here(vs.dir, "cov_scale.rds"))
   saveRDS(L$env.rct, here(vs.dir, "env_rct.rds"))
