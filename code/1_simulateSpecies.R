@@ -58,7 +58,7 @@ if(sp=="garlic_mustard") {
   p$germ_x <- c(-1.25, -4, -2, -2, -0.75)
   p$tmax <- 150
   p$bird_hab <- c(.32, .36, .05, .09, .09)
-  p$NDD_n <- 20  # mean number of recruits if NDD
+  p$NDD_n <- 10  # mean number of recruits if NDD
   p$max_age <- 100
 }
 p$n <- 30
@@ -86,6 +86,7 @@ X$germ <- cbind(1, X$germ[,-n_x$germ])
 if(!all(file.exists(here(vs.dir, "sdd.rds")), 
         file.exists(here(vs.dir, "sdd_ji.rds")), 
         file.exists(here(vs.dir, "p_ji.rds")))) {
+  cat("SDD neighborhoods not found. Calculating...\n")
   sdd.pr <- sdd_set_probs(ncell=n.cell, lc.df=L$env.rct.unscaled,
                           lc.col=tail(1:ncol(L$env.rct.unscaled),
                                       n_distinct(nlcd.sp$agg)),
@@ -104,6 +105,7 @@ if(!all(file.exists(here(vs.dir, "sdd.rds")),
   # inbound cells, so the layer index aligns with `id.in`. This makes 
   # identifying much simpler, but requires looking up the corresponding id's
 } else {
+  cat("SDD neighborhoods found.\n")
   sdd.pr <- readRDS(here(vs.dir, "sdd.rds"))
   sdd.ji <- readRDS(here(vs.dir, "sdd_ji.rds"))
   p.ji <- readRDS(here(vs.dir, "p_ji.rds"))
@@ -132,10 +134,12 @@ if(sp=="garlic_mustard") {
 } else {
   U$lambda <- apply(U$IPMs, 3, function(x) Re(eigen(x)$values[1]))
 }
+cat("Finished calculating U.\n")
 
 # Ground Truth: generate simulated data
 S <- simulate_data(n.cell, U$lo, U$hi, p, X, n_z, sdd.ji, p.ji, N_init, sp, 
                    save_yrs=c(p$tnonEq+(-3:0), p$tmax+(-3:0)), T)
+cat("Finished calculating S.\n")
 
 # Aggregate results
 z.seq <- seq(p$z.rng[1], p$z.rng[2], length.out=5)
