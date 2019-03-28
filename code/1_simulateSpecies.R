@@ -48,7 +48,7 @@ if(sp=="garlic_mustard") {
   p$germ_x <- c(0.7, -0.5, -0.9, -0.2, -0.1)
   p$fl_x <- c(-0.3, -0.05, 0.25, -0.1)
   p$seed_x <- c(-0.5, -0.5, -0.1, -0.2)
-  p$tmax <- 75
+  p$tmax <- 150
   p$bird_hab <- rep(1, 5)
   p$NDD_n <- 750  # mean number of recruits if NDD
   p$max_age <- 2
@@ -56,9 +56,9 @@ if(sp=="garlic_mustard") {
   p$s_x <- c(-5, -2.75, 1, -2.5)
   p$g_x <- c(-1.5, -0.4, -0.2, -0.5)
   p$germ_x <- c(-1.25, -4, -2, -2, -0.75)
-  p$tmax <- 150
+  p$tmax <- 250
   p$bird_hab <- c(.32, .36, .05, .09, .09)
-  p$NDD_n <- 10  # mean number of recruits if NDD
+  p$NDD_n <- 30  # mean number of recruits if NDD
   p$max_age <- 100
 }
 p$n <- 30
