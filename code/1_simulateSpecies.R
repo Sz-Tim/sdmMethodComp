@@ -43,11 +43,11 @@ n.cell <- sum(L$env.rct$inbd)
 p <- fit_PNAS_species(sp, env.f, nlcd.sp, clim_X, FALSE, max_z_pow, habitat,
                       x_min, x_max, y_min, y_max)
 if(sp=="garlic_mustard") {
-  p$s_x <- c(-1.5, -0.5, -0.1, -0.2)
-  p$g_x <- c(-3, -0.5, -1, -0.1)
-  p$germ_x <- c(0.7, -0.75, -0.5, -0.2, -0.1)
+  p$s_x <- c(-2, -0.9, -0.3, -0.6)
+  p$g_x <- c(-3, -0.5, -1, -0.2)
+  p$germ_x <- c(0.7, -0.5, -0.9, -0.2, -0.1)
   p$fl_x <- c(-0.3, -0.05, 0.25, -0.1)
-  p$seed_x <- c(-0.75, -0.4, -0.1, -0.1)
+  p$seed_x <- c(-0.5, -0.5, -0.1, -0.2)
   p$tmax <- 75
   p$bird_hab <- rep(1, 5)
   p$NDD_n <- 750  # mean number of recruits if NDD
@@ -105,7 +105,7 @@ if(!all(file.exists(here(vs.dir, "sdd.rds")),
   # inbound cells, so the layer index aligns with `id.in`. This makes 
   # identifying much simpler, but requires looking up the corresponding id's
 } else {
-  cat("SDD neighborhoods found.\n")
+  cat("SDD neighborhoods found\n")
   sdd.pr <- readRDS(here(vs.dir, "sdd.rds"))
   sdd.ji <- readRDS(here(vs.dir, "sdd_ji.rds"))
   p.ji <- readRDS(here(vs.dir, "p_ji.rds"))
@@ -134,12 +134,12 @@ if(sp=="garlic_mustard") {
 } else {
   U$lambda <- apply(U$IPMs, 3, function(x) Re(eigen(x)$values[1]))
 }
-cat("Finished calculating U.\n")
+cat("Finished calculating U\n")
 
 # Ground Truth: generate simulated data
 S <- simulate_data(n.cell, U$lo, U$hi, p, X, n_z, sdd.ji, p.ji, N_init, sp, 
                    save_yrs=c(p$tnonEq+(-3:0), p$tmax+(-3:0)), T)
-cat("Finished calculating S.\n")
+cat("Finished calculating S\n")
 
 # Aggregate results
 z.seq <- seq(p$z.rng[1], p$z.rng[2], length.out=5)
