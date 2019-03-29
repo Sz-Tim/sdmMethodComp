@@ -19,10 +19,10 @@ clim_X <- paste0("bio10_", c(6, "prMay"))
 habitat <- 4
 max_z_pow <- 1
 n.cores <- 24
-x_min <- 200
+x_min <- 0
 x_max <- Inf
 y_min <- 0
-y_max <- 85
+y_max <- Inf
 
 # load workspace
 pkgs <- c("gbPopMod", "tidyverse", "magrittr", "here", "doSNOW", "foreach")
