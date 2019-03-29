@@ -1,5 +1,5 @@
 
-sp <- c("barberry", "garlic_mustard")[2]
+sp <- c("barberry", "garlic_mustard")[1]
 res <- "5km"
 clim_X <- paste0("bio10_", c(6, "prMay"))
 habitat <- 4
@@ -50,6 +50,8 @@ hs_ids <- unique(hs.id)
 
 lam.df <- readRDS(paste0("vs/sp", ifelse(sp=="barberry", 1, 2), "/lam_df.rds"))
 p <- readRDS(paste0("vs/sp", ifelse(sp=="barberry", 1, 2), "/p.rds"))
+sdd.ji <- readRDS(paste0("vs/sp", ifelse(sp=="barberry", 1, 2), "/sdd_ji.rds"))
+p.ji <- readRDS(paste0("vs/sp", ifelse(sp=="barberry", 1, 2), "/p_ji.rds"))
 
 
 p.pnas <- fit_PNAS_species(sp, env.f, nlcd.sp, clim_X, FALSE, max_z_pow, habitat,
@@ -58,24 +60,23 @@ p.pnas <- fit_PNAS_species(sp, env.f, nlcd.sp, clim_X, FALSE, max_z_pow, habitat
 
 if(sp=="garlic_mustard") {
   p$s_x <- c(-2, -0.9, -0.3, -0.6)
-  p$g_x <- c(-3, -0.5, -1, -0.2)
+  p$g_x <- c(-4, -1.1, -1, -0.4)
   p$germ_x <- c(0.7, -0.5, -0.9, -0.2, -0.1)
   p$fl_x <- c(-0.3, -0.05, 0.25, -0.1)
-  p$seed_x <- c(-0.5, -0.5, -0.1, -0.2)
+  p$seed_x <- c(-1.3, -1, -0.3, -0.3)
 } else {
   p$s_x <- c(-5, -2.75, 1, -2.5)
   p$g_x <- c(-1.5, -0.4, -0.2, -0.5)
   p$germ_x <- c(-1.25, -4, -2, -2, -0.75)
 }
 
-p$n <- 10
-p$p_emig <- 0
+p$n <- 20
 n_z <- list(s=length(p$s_z), g=length(p$g_z), 
             fl=length(p$fl_z), seed=length(p$seed_z))
 n_x <- list(s=length(p$s_x), g=length(p$g_x), 
             fl=length(p$fl_x), seed=length(p$seed_x), germ=length(p$germ_x))
 X <- map(n_x, ~as.matrix(L$env.in[,grep(paste(clim_X, collapse="|"), names(L$env.in))]))
-if(!is.null(X$germ)) X$germ <- cbind(1, X$germ[,-n_x$germ])
+X$germ <- cbind(1, X$germ[,-n_x$germ])
 
 U <- fill_IPM_matrices(n.cell, buffer=0, discrete=1, p, n_z, n_x, 
                        X, sdd.ji, p.ji, verbose=T)
@@ -139,23 +140,23 @@ par(mfrow=c(2,3))
 plot(x1, antilogit(x1.mx %*% p$s_x[1:2]), xlab="Temp", ylab="Survival", type="l",
      ylim=c(0,1))
 lines(x1, antilogit(x1.mx %*% p.pnas$s_x[1:2]), col="red")
-# plot(x1, exp(x1.mx %*% p$seed_x[1:2]), xlab="Temp", ylab="Seeds", type="l")
-# lines(x1, exp(x1.mx %*% p.pnas$seed_x[1:2]), col="red")
+plot(x1, exp(x1.mx %*% p$seed_x[1:2]), xlab="Temp", ylab="Seeds", type="l")
+lines(x1, exp(x1.mx %*% p.pnas$seed_x[1:2]), col="red")
 plot(x1, x1.mx %*% p$g_x[1:2], xlab="Temp", ylab="Growth", type="l")
 lines(x1, x1.mx %*% p.pnas$g_x[1:2], col="red")
-plot(x1, antilogit(cbind(1, x1.mx) %*% p$germ_x[1:3]), xlab="Temp", 
-     ylab="Germination", type="l", ylim=c(0,1))
-lines(x1, antilogit(cbind(1, x1.mx) %*% p.pnas$germ_x[1:3]), col="red")
+# plot(x1, antilogit(cbind(1, x1.mx) %*% p$germ_x[1:3]), xlab="Temp", 
+#      ylab="Germination", type="l", ylim=c(0,1))
+# lines(x1, antilogit(cbind(1, x1.mx) %*% p.pnas$germ_x[1:3]), col="red")
 plot(x2, antilogit(x2.mx %*% p$s_x[3:4]), xlab="Precip", ylab="Survival", type="l",
      ylim=c(0,1))
 lines(x2, antilogit(x2.mx %*% p.pnas$s_x[3:4]), col="red")
-# plot(x2, exp(x2.mx %*% p$seed_x[3:4]), xlab="Precip", ylab="Seeds", type="l")
-# lines(x2, exp(x2.mx %*% p.pnas$seed_x[3:4]), col="red")
+plot(x2, exp(x2.mx %*% p$seed_x[3:4]), xlab="Precip", ylab="Seeds", type="l")
+lines(x2, exp(x2.mx %*% p.pnas$seed_x[3:4]), col="red")
 plot(x2, x2.mx %*% p$g_x[3:4], xlab="Precip", ylab="Growth", type="l")
 lines(x2, x2.mx %*% p.pnas$g_x[3:4], col="red")
-plot(x2, antilogit(x2.mx %*% p$germ_x[4:5]), xlab="Precip", 
-     ylab="Germination", type="l", ylim=c(0,1))
-lines(x2, antilogit(x2.mx %*% p.pnas$germ_x[4:5]), col="red")
+# plot(x2, antilogit(x2.mx %*% p$germ_x[4:5]), xlab="Precip", 
+#      ylab="Germination", type="l", ylim=c(0,1))
+# lines(x2, antilogit(x2.mx %*% p.pnas$germ_x[4:5]), col="red")
 
 ggplot(lam.df) + geom_tile(aes(lon, lat, fill=bio10_6)) +
   scale_fill_viridis() +

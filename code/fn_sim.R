@@ -201,7 +201,10 @@ simulate_data <- function(n.cell, lo, hi, p, X, n_z, sdd.ji, p.ji, N_init, sp,
     
     ## dispersal & density dependence
     D1 <- sapply(i, function(x) sum(nSd1[sdd.ji[[x]]] * p$p_emig * p.ji[[x]]))
-    p_est1 <- pmin(p$NDD_n/((nSd1+D1+B1)*pr_germ), p$p_est)
+    p_est1 <- rep(p$p_est, n.cell)
+    p_est1[occupied] <- pmin(p$NDD_rcr/((nSd1[occupied] + D1[occupied] +
+                                           B1[occupied]) * pr_germ[occupied]),
+                          p$p_est)
     d1 <- lapply(i, function(x) sim_recruits(k, d1[[x]], p_est1[x], nSd1[x], 
                                              B1[x], D1[x], p, pr_germ[x], F))
     ldd_k <- sample.int(n.cell, p$ldd)
@@ -225,6 +228,7 @@ simulate_data <- function(n.cell, lo, hi, p, X, n_z, sdd.ji, p.ji, N_init, sp,
     # debug
     # k <- k+1
     # length(occupied)
+    # summary(N)
     # sum(p_est1 < p$p_est)
     # map_int(d1, ~sum(is.na(.$size))) %>% extract(.>0)
     # map(d1, ~.$seed[!is.na(.$seed)]) %>% unlist

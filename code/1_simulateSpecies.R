@@ -12,17 +12,17 @@
 ########
 # file specifications
 sp <- c("barberry", "garlic_mustard")[1]
-res <- "5km" # "3km", "5km", "10km", "50km"
+res <- "10km" # "3km", "5km", "10km", "50km"
 overwrite <- TRUE
 plots <- TRUE
 clim_X <- paste0("bio10_", c(6, "prMay"))
 habitat <- 4
 max_z_pow <- 1
 n.cores <- 24
-x_min <- 0
+x_min <- 200
 x_max <- Inf
 y_min <- 0
-y_max <- Inf
+y_max <- 85
 
 # load workspace
 pkgs <- c("gbPopMod", "tidyverse", "magrittr", "here", "doSNOW", "foreach")
@@ -44,22 +44,22 @@ p <- fit_PNAS_species(sp, env.f, nlcd.sp, clim_X, FALSE, max_z_pow, habitat,
                       x_min, x_max, y_min, y_max)
 if(sp=="garlic_mustard") {
   p$s_x <- c(-2, -0.9, -0.3, -0.6)
-  p$g_x <- c(-3, -0.5, -1, -0.2)
+  p$g_x <- c(-4, -1.1, -1, -0.4)
   p$germ_x <- c(0.7, -0.5, -0.9, -0.2, -0.1)
   p$fl_x <- c(-0.3, -0.05, 0.25, -0.1)
-  p$seed_x <- c(-0.5, -0.5, -0.1, -0.2)
+  p$seed_x <- c(-1.3, -1, -0.3, -0.3)
   p$tmax <- 150
   p$bird_hab <- rep(1, 5)
-  p$NDD_n <- 750  # mean number of recruits if NDD
+  p$NDD_rcr <- 1  # mean number of recruits for NDD
   p$max_age <- 2
 } else {
   p$s_x <- c(-5, -2.75, 1, -2.5)
   p$g_x <- c(-1.5, -0.4, -0.2, -0.5)
   p$germ_x <- c(-1.25, -4, -2, -2, -0.75)
-  p$tmax <- 250
+  p$tmax <- 200
   p$bird_hab <- c(.32, .36, .05, .09, .09)
-  p$NDD_n <- 30  # mean number of recruits if NDD
-  p$max_age <- 100
+  p$NDD_rcr <- 40 # mean number of recruits for NDD
+  p$max_age <- 50
 }
 p$n <- 30
 p$tnonEq <- floor(p$tmax/3)
@@ -118,7 +118,9 @@ if(!all(file.exists(here(vs.dir, "sdd.rds")),
 ########
 # Initial populations
 N_init <- rep(0, n.cell)
-N_init[sample(filter(L$env.in, x>425 & y>100 & y<200)$id.in,
+# N_init[sample(filter(L$env.in, x>425 & y>100 & y<200)$id.in,
+#               p$prop_init*n.cell, replace=F)] <- p$n0
+N_init[sample(filter(L$env.in, x>200 & y>40 & y<80)$id.in,
               p$prop_init*n.cell, replace=F)] <- p$n0
 
 # Use assigned slopes to fill IPM matrix
@@ -233,7 +235,19 @@ if(plots) {
     ggtitle(paste0(sp, ": 5km x 5km, favorable habitat"))
   
   lam.gg + geom_tile(aes(fill=s.1)) + 
-    labs(subtitle="s: min(z.rng)") +
+    labs(subtitle="s.1") +
+    geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
+  lam.gg + geom_tile(aes(fill=s.2)) + 
+    labs(subtitle="s.2") +
+    geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
+  lam.gg + geom_tile(aes(fill=s.3)) + 
+    labs(subtitle="s.3") +
+    geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
+  lam.gg + geom_tile(aes(fill=s.4)) + 
+    labs(subtitle="s.4") +
+    geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
+  lam.gg + geom_tile(aes(fill=s.5)) + 
+    labs(subtitle="s.5") +
     geom_point(data=lam.df[N_init>0,], colour="white", shape=1)
   lam.gg + geom_tile(aes(fill=g)) + 
     labs(subtitle="g = mn(growth): mean(z.rng)") +
