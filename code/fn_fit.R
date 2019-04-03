@@ -66,9 +66,9 @@ sample_for_CA <- function(sp, S, lam.df, Mech.sample, O_yr, max_indiv) {
     O_CA[[s]] <- list(d=do.call(rbind, CA.d),
                       B=do.call(rbind, CA.B),
                       D=do.call(rbind, CA.D))
-    O_CA[[s]]$p_est <- lam.df[Mech.sample[[s]], -(55:75)]
-    O_CA[[s]]$p_est$p.est.1 <- germ.plots
-    O_CA[[s]]$p_est$p.est.0 <- 100-germ.plots
+    O_CA[[s]]$germ <- lam.df[Mech.sample[[s]], -(55:75)]
+    O_CA[[s]]$germ$g.1 <- germ.plots
+    O_CA[[s]]$germ$g.0 <- 100-germ.plots
   }
   return(O_CA)
 }
@@ -365,7 +365,7 @@ fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc,
                   lc.r=diff(range(lam.df$y)), lc.c=diff(range(lam.df$x)),
                   n.lc=5, N.p.t0=n.cell, 
                   m=sp_i$m, gamma=1, 
-                  s.B=p$s_SB, g.D=p$rcr_dir, g.B=p$rcr_SB,
+                  s.B=p$s_SB, p=p$p_est,
                   sdd.max=p$sdd_max, sdd.rate=p$sdd_rate, n.ldd=p$ldd,
                   p.c=matrix(1), bird.hab=p$bird_hab, s.c=0.6, method="lm")
   p.CA$p_emig <- p$p_emig
@@ -396,14 +396,14 @@ fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc,
     walk(dir("code", "fn", full.names=T), source)
     i_pad <- str_pad(i, 2, pad="0")
     O_CA.i <- O_CA[[i]]$d 
-    O_CA.p_est <- O_CA[[i]]$p_est
+    O_CA.germ <- O_CA[[i]]$germ
     O_CA.K <- O_CA.i %>% filter(id %in% O_CA.i$id[abs(O_CA.i$lambda-1)<0.05])
     sim.ls <- vector("list", n_sim)
     
     # global models
     options(na.action="na.fail")
     full.m <- opt.m <- vars.opt <- setNames(vector("list", 6), 
-                                            c("K", "s.M", "s.N", "p.f", "mu", "p.est"))
+                                            c("K", "s.M", "s.N", "p.f", "mu", "germ"))
     
     full.m$K <- glmer(as.formula(paste("N ~", m, collapse="")),
                       data=O_CA.K, family="poisson")
@@ -419,10 +419,10 @@ fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc,
                         data=O_CA.i, family="binomial")
     full.m$mu <- glmer(as.formula(paste("mu ~", m, collapse="")), 
                        data=O_CA.i, family="poisson")
-    full.m$p.est <- glm(as.formula(paste("cbind(p.est.1, p.est.0) ~", 
+    full.m$germ <- glm(as.formula(paste("cbind(g.1, g.0) ~", 
                                          substr(m, 1, nchar(m)-9), 
                                          collapse="")), 
-                        data=O_CA.p_est, family="binomial")
+                        data=O_CA.germ, family="binomial")
     
     # store coefficients from optimal models
     vars.ls <- rep(list(v), length(full.m)); names(vars.ls) <- names(opt.m)
@@ -450,7 +450,7 @@ fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc,
     p.CA$s.N <- vars.ls$s.N
     p.CA$p.f <- vars.ls$p.f
     p.CA$mu <- vars.ls$mu
-    p.CA$p <- vars.ls$p.est
+    p.CA$g.B <- p.CA$g.D <- vars.ls$germ
     
     # impose seed bank issue
     if(mod.issue=="noSB") {p.CA$s.B <- 0; p.CA$bank=F}
