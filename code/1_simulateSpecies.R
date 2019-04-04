@@ -12,9 +12,9 @@
 ########
 # file specifications
 sp <- c("barberry", "garlic_mustard")[1]
-res <- "10km" # "3km", "5km", "10km", "50km"
+res <- "5km" # "3km", "5km", "10km", "50km"
 overwrite <- TRUE
-plots <- TRUE
+plots <- F
 clim_X <- paste0("bio10_", c(6, "prMay"))
 habitat <- 4
 max_z_pow <- 1
@@ -43,14 +43,14 @@ n.cell <- sum(L$env.rct$inbd)
 p <- fit_PNAS_species(sp, env.f, nlcd.sp, clim_X, FALSE, max_z_pow, habitat,
                       x_min, x_max, y_min, y_max)
 if(sp=="garlic_mustard") {
-  p$s_x <- c(-2, -0.9, -0.3, -0.6)
+  p$s_x <- c(-1.2, -0.5, -0.3, -0.6)
   p$g_x <- c(-4, -1.1, -1, -0.4)
-  p$germ_x <- c(0.7, -0.5, -0.9, -0.2, -0.1)
-  p$fl_x <- c(-0.3, -0.05, 0.25, -0.1)
-  p$seed_x <- c(-1.3, -1, -0.3, -0.3)
-  p$tmax <- 150
+  p$germ_x <- c(-4.5, -2, -1.5, -0.2, -0.1)
+  p$fl_x <- c(-0.1, -0.05, 0.1, -0.2)
+  p$seed_x <- c(-0.25, -0.22, -0.3, -0.3)
+  p$tmax <- 200
   p$bird_hab <- rep(1, 5)
-  p$NDD_rcr <- 1  # mean number of recruits for NDD
+  p$NDD_rcr <- 500  # mean number of recruits for NDD
   p$max_age <- 2
 } else {
   p$s_x <- c(-5, -2.75, 1, -2.5)
@@ -58,8 +58,8 @@ if(sp=="garlic_mustard") {
   p$germ_x <- c(-1.25, -4, -2, -2, -0.75)
   p$tmax <- 200
   p$bird_hab <- c(.32, .36, .05, .09, .09)
-  p$NDD_rcr <- 40 # mean number of recruits for NDD
-  p$max_age <- 50
+  p$NDD_rcr <- 200 # mean number of recruits for NDD
+  p$max_age <- 100
 }
 p$n <- 30
 p$tnonEq <- floor(p$tmax/3)
@@ -118,10 +118,13 @@ if(!all(file.exists(here(vs.dir, "sdd.rds")),
 ########
 # Initial populations
 N_init <- rep(0, n.cell)
-# N_init[sample(filter(L$env.in, x>425 & y>100 & y<200)$id.in,
-#               p$prop_init*n.cell, replace=F)] <- p$n0
-N_init[sample(filter(L$env.in, x>200 & y>40 & y<80)$id.in,
+if(res=="5km") {
+	N_init[sample(filter(L$env.in, x>425 & y>100 & y<200)$id.in,
+               	p$prop_init*n.cell, replace=F)] <- p$n0
+} else {
+	N_init[sample(filter(L$env.in, x>200 & y>40 & y<80)$id.in,
               p$prop_init*n.cell, replace=F)] <- p$n0
+}
 
 # Use assigned slopes to fill IPM matrix
 U <- fill_IPM_matrices(n.cell, buffer=0, discrete=1, p, n_z, n_x, 
@@ -179,6 +182,8 @@ lam.df <- L$env.in %>%
          g=c(cbind(1, mean(p$z.rng), X$g) %*% c(p$g_z, p$g_x)),
          germ=antilogit(c(X$germ %*% p$germ_x)))
 p$K_max <- max(lam.df$Surv.S)  # max abundance for CAd
+cat("Finished constructing lam.df\n")
+
 
 library(viridis)
 lam.gg <- ggplot(lam.df, aes(x=lon, y=lat)) + theme_bw() +
@@ -265,6 +270,7 @@ if(plots) {
 ########
 if(overwrite) {
   if(!dir.exists(here(vs.dir))) dir.create(here(vs.dir), recursive=T)
+  saveRDS(lam.df, here(vs.dir, "lam_df.rds"))
   saveRDS(L$scale.i, here(vs.dir, "cov_scale.rds"))
   saveRDS(L$env.rct, here(vs.dir, "env_rct.rds"))
   saveRDS(L$env.rct.unscaled, here(vs.dir, "env_rct_unscaled.rds"))
@@ -278,7 +284,6 @@ if(overwrite) {
   saveRDS(p.ji, here(vs.dir, "p_ji.rds"))
   saveRDS(U, here(vs.dir, "U.rds"))
   saveRDS(S, here(vs.dir, "S.rds"))
-  saveRDS(lam.df, here(vs.dir, "lam_df.rds"))
 }
 
 
