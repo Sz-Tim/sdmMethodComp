@@ -204,8 +204,8 @@ simulate_data <- function(n.cell, lo, hi, p, X, n_z, sdd.ji, p.ji, N_init, sp,
     ## dispersal & density dependence
     D1 <- sapply(i, function(x) sum(nSd1[sdd.ji[[x]]] * p$p_emig * p.ji[[x]]))
     p_est1 <- rep(p$p_est, n.cell)
-    p_est1[g.Rcr] <- pmin(p$NDD_rcr/((nSd1[g.Rcr] + D1[g.Rcr] +
-                                        B1[g.Rcr]) * pr_germ[g.Rcr]),
+    p_est1[g.Rcr] <- pmin(p$NDD_rcr/((nSd1[g.Rcr]*(1-p$p_emig) + 
+                                        D1[g.Rcr] + B1[g.Rcr]) * pr_germ[g.Rcr]),
                           p$p_est)
     d1 <- lapply(i, function(x) sim_recruits(k, d1[[x]], p_est1[x], nSd1[x], 
                                              B1[x], D1[x], p, pr_germ[x], F))
