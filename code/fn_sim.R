@@ -55,7 +55,7 @@ sim_realized <- function(k, z.ik, E_ik, p, age.ik, sp, lo, hi) {
     d_ik$fl <- fl.ik <- rbinom(n.ik, 1, E_ik$fl) * surv.ik * 
       ifelse(age.ik==2, 1, NA)
     d_ik$seed <- rpois(n.ik, pmin(E_ik$seed, p$seed_max)) * ifelse(fl.ik, 1, NA)
-    d_ik$surv <- d_ik$surv * as.numeric(age.ik==1)
+    d_ik$surv <- d_ik$surv * as.numeric(age.ik<2)
     surv.ik <- ifelse(d_ik$surv, 1, NA)
     d_ik$sizeNext <- rnorm(n.ik, E_ik$g, p$g_sig) * surv.ik
     d_ik$sizeNext <- pmax(d_ik$sizeNext, lo)
@@ -190,7 +190,9 @@ simulate_data <- function(n.cell, lo, hi, p, X, n_z, sdd.ji, p.ji, N_init, sp,
     } else {
       age.k <- lapply(i, function(x) rep(1, length(z.k[[x]])))
     }
-    occupied <- which(map_int(z.k, length)>0)
+    N.i <- map_int(z.k, length)
+    occupied <- which(N.i>0)
+    g.Rcr <- which(N.i>p$NDD_rcr)
     E1 <- E_null
     d1 <- d_null
     E1[occupied] <- lapply(occupied, function(x) 
@@ -202,8 +204,8 @@ simulate_data <- function(n.cell, lo, hi, p, X, n_z, sdd.ji, p.ji, N_init, sp,
     ## dispersal & density dependence
     D1 <- sapply(i, function(x) sum(nSd1[sdd.ji[[x]]] * p$p_emig * p.ji[[x]]))
     p_est1 <- rep(p$p_est, n.cell)
-    p_est1[occupied] <- pmin(p$NDD_rcr/((nSd1[occupied] + D1[occupied] +
-                                           B1[occupied]) * pr_germ[occupied]),
+    p_est1[g.Rcr] <- pmin(p$NDD_rcr/((nSd1[g.Rcr] + D1[g.Rcr] +
+                                        B1[g.Rcr]) * pr_germ[g.Rcr]),
                           p$p_est)
     d1 <- lapply(i, function(x) sim_recruits(k, d1[[x]], p_est1[x], nSd1[x], 
                                              B1[x], D1[x], p, pr_germ[x], F))
