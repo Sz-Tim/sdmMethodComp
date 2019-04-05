@@ -81,9 +81,10 @@ calc_grow <- function(z1, z.v, p, n_gz, X.g) {
 #' @return Vector of flowering probabilities for the size distribution
 calc_flwr <- function(z.v, p, n_flz, X.fl) {
   z <- z_pow(z.v, n_flz)
-  u <- exp(z %*% p$fl_z + c(X.fl %*% p$fl_x))
-  u[u<0] <- 0  # in case -Inf
-  u[u>1] <- 1  # in case Inf
+  return(antilogit(z %*% p$fl_z + c(X.fl %*% p$fl_x)))
+  # u <- exp(z %*% p$fl_z + c(X.fl %*% p$fl_x))
+  # u[u<0] <- 0  # in case -Inf
+  # u[u>1] <- 1  # in case Inf
   return(u / (1+u))
 }
 
@@ -99,7 +100,7 @@ calc_flwr <- function(z.v, p, n_flz, X.fl) {
 #' @return Vector of theoretical seed production for the size distribution
 calc_seeds <- function(z.v, p, n_seedz, X.seed) {
   z <- z_pow(z.v, n_seedz)
-  exp(z %*% p$seed_z + c(X.seed %*% p$seed_x))
+  pmin(exp(z %*% p$seed_z + c(X.seed %*% p$seed_x)), p$seed_max)
 }
 
 
