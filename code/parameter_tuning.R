@@ -1,5 +1,5 @@
 
-sp <- c("barberry", "garlic_mustard")[1]
+sp <- c("barberry", "garlic_mustard")[2]
 res <- "5km"
 clim_X <- paste0("bio10_", c(6, "prMay"))
 habitat <- 4
@@ -17,22 +17,7 @@ sp_i <- read.csv(paste0("data/species_", res, ".csv")) %>% filter(Name==sp)
 nlcd.sp <- read.csv(here("data/PNAS_2017/", sp_i$LC_f))
 L <- build_landscape(env.f, nlcd.sp, x_min, x_max, y_min, y_max) 
 n.cell <- sum(L$env.rct$inbd)
-# em.df <- st_as_sf(read.csv("data/eddmaps/BETH_ALPE4.csv"), 
-#                   coords=c("Longitude_Decimal", "Latitude_Decimal")) %>% 
-#   filter(USDAcode==ifelse(sp=="barberry", "BETH", "ALPE4")) 
-# em.df <- em.df %>% st_set_crs(4326) %>% 
-#   st_transform(., CRS(paste("+proj=aea", "+lat_1=29.5", "+lat_2=45.5", "+lat_0=23",
-#                             "+lon_0=-96", "+x_0=0", "+y_0=0", "+ellps=GRS80",
-#                             "+towgs84=0,0,0,-0,-0,-0,0", "+units=m", "+no_defs",  
-#                             collapse=" "))@projargs) %>%
-#   st_coordinates %>% as.data.frame %>% rename(lon=X, lat=Y) %>%
-#   mutate(ord=em.df$ord)
-# em.id <- lapply(1:nrow(em.df), function(x) get_pt_id(L$env.in, unlist(em.df[x,])))
-# em.id <- unlist(em.id)[unlist(em.id)>0]
-# em_ids <- unique(em.id)
-# em_ord <- map_dbl(em_ids, ~mean(em.df$ord[which(em.id==.)]))
-# abund.pred <- dir("data/eddmaps", ".asc", full.names=T) %>% 
-  # map(raster::raster) 
+
 hs.df <- read.csv("data/AllenBradley2016/IAS_occurences_final_analysis.csv") %>%
   filter(PLANT_CODE==ifelse(sp=="barberry", "BETH", "ALPE4")) %>% 
   st_as_sf(coords=c("LONGITUDE_DECIMAL", "LATITUDE_DECIMAL")) %>%
@@ -49,9 +34,9 @@ hs_ids <- unique(hs.id)
 
 
 lam.df <- readRDS(paste0("vs/sp", ifelse(sp=="barberry", 1, 2), "/lam_df.rds"))
-p <- readRDS(paste0("vs/sp", ifelse(sp=="barberry", 1, 2), "/p.rds"))
 sdd.ji <- readRDS(paste0("vs/sp", ifelse(sp=="barberry", 1, 2), "/sdd_ji.rds"))
 p.ji <- readRDS(paste0("vs/sp", ifelse(sp=="barberry", 1, 2), "/p_ji.rds"))
+p <- readRDS(paste0("vs/sp", ifelse(sp=="barberry", 1, 2), "/p.rds"))
 
 
 p.pnas <- p
@@ -61,11 +46,11 @@ p.pnas <- p
 # p <- p.pnas
 
 if(sp=="garlic_mustard") {
-  p$s_x <- c(-1.2, -0.5, -0.3, -0.6)
-  p$g_x <- c(-4, -1.1, -1, -0.4)
-  p$germ_x <- c(-4.5, -2, -1.5, -0.2, -0.1)
-  p$fl_x <- c(-0.1, -0.05, 0.1, -0.2)
-  p$seed_x <- c(-0.25, -0.22, -0.3, -0.3)
+  p$s_x <- c(-1.4, -0.7, 0, -0.2)
+  p$g_x <- c(-3.9, -1, -1, -0.4)
+  p$germ_x <- c(-.1, -1.5, -1.5, -0.2, -0.1)
+  p$fl_x <- c(-0.7, -0.46, 0.1, -0.1)
+  p$seed_x <- c(-0.45, -0.35, -0.1, -0.2)
 } else {
   p$s_x <- c(-5, -2.75, 1, -2.5)
   p$g_x <- c(-1.5, -0.4, -0.2, -0.5)
@@ -86,20 +71,15 @@ if(sp=="garlic_mustard") {
   library(doSNOW); library(foreach)
   p.c <- makeCluster(4); registerDoSNOW(p.c)
   U$lambda <- foreach(i=1:n.cell, .combine="c") %dopar% {
-    iter_lambda(p, U$Ps[,,i], U$Fs[,,i], tol=0.5)
+    iter_lambda(p, U$Ps[,,i], U$Fs[,,i], tol=0.1)
   }
   stopCluster(p.c)
 } else {
   U$lambda <- apply(U$IPMs, 3, function(x) Re(eigen(x)$values[1]))
 }
-lam.df <- L$env.in %>% mutate(lambda=U$lambda)
+# lam.df <- L$env.in %>% mutate(lambda=U$lambda)
 lam.df <- lam.df %>% mutate(lambda.new=U$lambda)
 
-
-# lam.df$em <- FALSE
-# lam.df$em[lam.df$id %in% em_ids] <- TRUE
-# lam.df$em_ord <- NA
-# lam.df$em_ord[match(em_ids, lam.df$id)] <- em_ord
 lam.df$hs <- FALSE
 lam.df$hs[lam.df$id %in% hs_ids] <- TRUE
 lam.df$s <- antilogit(as.matrix(lam.df[,c(11,12,39,40)]) %*% p$s_x)
@@ -141,14 +121,15 @@ plot(x1, antilogit(cbind(1, x1.mx) %*% p$germ_x[1:3]), xlab="Temp",
      ylab="Germination", type="l", ylim=c(0,1))
 lines(x1, antilogit(cbind(1, x1.mx) %*% p.pnas$germ_x[1:3]), col="red")
 
-# plot(x2, antilogit(x2.mx %*% p$s_x[3:4]), xlab="Precip", ylab="Survival", type="l",
-#      ylim=c(0,1))
-# lines(x2, antilogit(x2.mx %*% p.pnas$s_x[3:4]), col="red")
+par(mfrow=c(2,3))
+plot(x2, antilogit(x2.mx %*% p$s_x[3:4]), xlab="Precip", ylab="Survival", type="l",
+     ylim=c(0,1))
+lines(x2, antilogit(x2.mx %*% p.pnas$s_x[3:4]), col="red")
 plot(x2, antilogit(x2.mx %*% p$fl_x[3:4]), xlab="Precip", ylab="Flowering", type="l",
      ylim=c(0,1))
 lines(x2, antilogit(x2.mx %*% p.pnas$fl_x[3:4]), col="red")
-# plot(x2, exp(x2.mx %*% p$seed_x[3:4]), xlab="Precip", ylab="Seeds", type="l")
-# lines(x2, exp(x2.mx %*% p.pnas$seed_x[3:4]), col="red")
+plot(x2, exp(x2.mx %*% p$seed_x[3:4]), xlab="Precip", ylab="Seeds", type="l")
+lines(x2, exp(x2.mx %*% p.pnas$seed_x[3:4]), col="red")
 plot(x2, x2.mx %*% p$g_x[3:4], xlab="Precip", ylab="Growth", type="l")
 lines(x2, x2.mx %*% p.pnas$g_x[3:4], col="red")
 plot(x2, antilogit(x2.mx %*% p$germ_x[4:5]), xlab="Precip",
