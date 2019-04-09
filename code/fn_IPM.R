@@ -338,15 +338,15 @@ iter_lambda <- function(p, P.mx, F.mx, tol=0.01) {
   # iterate population
   while(qmax>tol) {
     # survival within the seed bank
-    Nt1[1,1] <- P.bank * Nt[1,1]
+    Nt1[1,1] <- P.bank * Nt[1,1] * (1- p$rcr_SB)
     # survival from rosette to flowering stage
     Nt1[,3] <- P.mx %*% Nt[,2]
     # reproduction
     Ft <- F.mx %*% Nt[,3]
     # rosettes from seed bank & direct recruitment
-    Nt1[-1,2] <- Ft[-1,] + F.mx[-1,1]*Nt[1,1]
+    Nt1[-1,2] <- Ft[-1,] + F.mx[-1,1]*Nt[1,1]*p$rcr_SB
     # addition to seed bank
-    Nt1[1,1] <- Nt1[1,1] + Ft[1,] * p$s_SB
+    Nt1[1,1] <- Nt1[1,1]*p$s_SB + Ft[1,]*p$s_SB
     # calculate lambda, update Nt
     qmax <- sum(abs(Nt1-lam*Nt))
     lam <- sum(Nt1)
