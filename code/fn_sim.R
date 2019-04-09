@@ -53,9 +53,9 @@ sim_realized <- function(k, z.ik, E_ik, p, age.ik, sp, lo, hi) {
     d_ik$surv <- rbinom(n.ik, 1, E_ik$s)
     surv.ik <- ifelse(d_ik$surv, 1, NA)
     d_ik$fl <- fl.ik <- rbinom(n.ik, 1, E_ik$fl) * surv.ik * 
-      ifelse(age.ik>1, 1, NA)
+      ifelse(age.ik==2, 1, NA)
     d_ik$seed <- rpois(n.ik, pmin(E_ik$seed, p$seed_max)) * ifelse(fl.ik, 1, NA)
-    # d_ik$surv <- d_ik$surv * as.numeric(age.ik<2)
+    d_ik$surv <- d_ik$surv * as.numeric(age.ik<2)
     surv.ik <- ifelse(d_ik$surv, 1, NA)
     d_ik$sizeNext <- rnorm(n.ik, E_ik$g, p$g_sig) * surv.ik
     d_ik$sizeNext <- pmax(d_ik$sizeNext, lo)

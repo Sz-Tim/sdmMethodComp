@@ -151,7 +151,7 @@ calc_addSB <- function(z.v, p, n_seedz, n_flz, X.seed, X.fl) {
   z <- z_pow(z.v, n_seedz)
   calc_flwr(z.v, p, n_flz, X.fl) *
     calc_seeds(z.v, p, n_seedz, X.seed) *
-    (1 - p$rcr_dir)
+    (1 - p$rcr_dir) * p$s_SB
 }
 
 
@@ -343,10 +343,10 @@ iter_lambda <- function(p, P.mx, F.mx, tol=0.01) {
     Nt1[,3] <- P.mx %*% Nt[,2]
     # reproduction
     Ft <- F.mx %*% Nt[,3]
-    # addition to seed bank
-    Nt1[1,1] <- Ft[1,]
     # rosettes from seed bank & direct recruitment
     Nt1[-1,2] <- Ft[-1,] + F.mx[-1,1]*Nt[1,1]
+    # addition to seed bank
+    Nt1[1,1] <- Nt1[1,1] + Ft[1,] * p$s_SB
     # calculate lambda, update Nt
     qmax <- sum(abs(Nt1-lam*Nt))
     lam <- sum(Nt1)
