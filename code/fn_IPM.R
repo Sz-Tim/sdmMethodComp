@@ -85,7 +85,7 @@ calc_flwr <- function(z.v, p, n_flz, X.fl) {
   # u <- exp(z %*% p$fl_z + c(X.fl %*% p$fl_x))
   # u[u<0] <- 0  # in case -Inf
   # u[u>1] <- 1  # in case Inf
-  return(u / (1+u))
+  # return(u / (1+u))
 }
 
 
