@@ -161,7 +161,7 @@ calc_addSB <- function(z.v, p, n_seedz, n_flz, X.seed, X.fl) {
 #' @param p List of parameters
 #' @return Probability of failing to recruit & surviving another year in seed bank
 calc_staySB <- function(p) {
-  p$s_SB
+  p$s_SB * (1 - p$rcr_SB)
 }
 
 
@@ -228,16 +228,15 @@ fill_P <- function(h, y, z.i, p, n_z, n_x, X_s, X_g) {
 #' @param n_x List of number of environmental covariates for each vital rate regression
 #' @param X_fl Matrix of environmental covariates for flowering regression
 #' @param X_seed Matrix of environmental covariates for seed regression
-#' @param X_germ Matrix of environmental covariates for germination regression
 #' @param sp Either 'barberry' or 'garlic_mustard'
 #' @return F matrix with fecundity kernel
 fill_F <- function(h, y, z.i, p, n_z, n_x, X_fl, X_seed) {
   F.mx <- matrix(0, nrow=p$n+1, ncol=p$n+1)
   F.mx[z.i,z.i] <- outer(y, y, calc_rcrDir, p=p, n_seedz=n_z$seed, n_flz=n_z$fl, 
-                         X.seed=X_seed, X.fl=X_fl) * h * p$p_est
+                         X.seed=X_seed, X.fl=X_fl) * h
   F.mx[1,z.i] <- calc_addSB(y, p=p, n_seedz=n_z$seed, n_flz=n_z$fl, 
                             X.seed=X_seed, X.fl=X_fl) * h
-  F.mx[z.i,1] <- calc_rcrSB(y, p) * p$p_est
+  F.mx[z.i,1] <- calc_rcrSB(y, p)
   return(F.mx)
 }
 
@@ -277,12 +276,11 @@ fill_IPM_matrices <- function(n.cell, buffer, discrete, p, n_z, n_x,
   if(verbose) cat("Beginning local growth \n")
   Ps <- vapply(i, function(x) fill_P(Mx$h, Mx$y, z.i, p, n_z, n_x, 
                                      X$s[x,], X$g[x,]), Ps[,,1])
-  Ps[1,1,] <- Ps[1,1,] * (1 - p$rcr_SB)
   Fb <- vapply(i, function(x) fill_F(Mx$h, Mx$y, z.i, p, n_z, n_x, X$fl[x,], 
                                      X$seed[x,]), Fb[,,1])
-  Fs[z.i,1,] <- Fb[z.i,1,]  # potential recruits from seedbank 
-  Fs[1,z.i,] <- (1-p$p_emig) * Fb[1,z.i,] # potential local addition to seedbank
-  Fs[z.i,z.i,] <- (1-p$p_emig) * Fb[z.i,z.i,]  # potential local direct recruits
+  Fs[z.i,1,] <- Fb[z.i,1,]  # recruits from seedbank unaffected by immigration
+  Fs[1,z.i,] <- (1-p$p_emig) * Fb[1,z.i,]  # local contribution to seedbank
+  Fs[z.i,z.i,] <- (1-p$p_emig) * Fb[z.i,z.i,]  # local direct recruits
   
   ## dispersal
   if(verbose) cat("Beginning dispersal \n")
@@ -291,7 +289,8 @@ fill_IPM_matrices <- function(n.cell, buffer, discrete, p, n_z, n_x,
     #   local seeds = Fs[1,z,i]
     #   immigrant seeds = Fb[1,z,j_to_i] * p_emig * pr(j_to_i)
     Fs[1,z.i,] <- vapply(i, function(x) Fs[1,z.i,x] + 
-                           Fb[1,z.i,sdd.ji[[x]]] %*% as.matrix(p$p_emig*p.ji[[x]]),
+                           Fb[1,z.i,sdd.ji[[x]]] %*% 
+                           as.matrix(p$p_emig*p.ji[[x]]),
                          Fs[1,z.i,1])
     # direct recruits: F[z,z,i]
     #   local seedlings = Fs[z,z,i]
@@ -300,15 +299,19 @@ fill_IPM_matrices <- function(n.cell, buffer, discrete, p, n_z, n_x,
                                                 ~(Fb[,z.i,.x] * .y))))
     D_NULL <- which(map_lgl(D, is.null))
     if(length(D_NULL) > 0) {
-      for(x in D_NULL) D[[x]] <- matrix(0, ncol=p$n, nrow=p$n+1)
+      for(x in D_NULL) D[[x]] <- matrix(0, nrow=p$n+1, ncol=p$n)
     }
     Fs[,z.i,] <- vapply(i, function (x) Fs[,z.i,x] + D[[x]], Fs[,z.i,1])
   }
-  # multiply by germination rates
-  p$rcr_dir <- p$rcr_SB <- antilogit(c(X$germ %*% p$germ_x))
-  Fs[z.i,1,] <- Fs[z.i,1,] * p$rcr_SB  # recruits from seedbank 
-  Fs[1,z.i,] <- Fs[1,z.i,] * (1-p$rcr_dir) # local addition to seedbank
-  Fs[z.i,z.i,] <- Fs[z.i,z.i,] * p$rcr_dir  # local direct recruits
+  
+  ## germination
+  p_germ <- antilogit(c(X$germ %*% p$germ_x))
+  for(x in i) {
+    Fs[1,z.i,x] <- Fs[1,z.i,x] * (1-p_germ[x])  # addition to seedbank
+    Fs[z.i,1,x] <- Fs[z.i,1,x] * p_germ[x] * p$p_est  # recruits from seedbank
+    Fs[z.i,z.i,x] <- Fs[z.i,z.i,x] * p_germ[x] * p$p_est  # direct recruits
+  }
+  
   
   return(list(IPMs=Ps+Fs, Ps=Ps, Fs=Fs, 
               lo=Mx$lo, hi=Mx$hi, b=Mx$b, y=Mx$y, h=Mx$h))
