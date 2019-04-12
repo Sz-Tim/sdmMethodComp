@@ -48,7 +48,7 @@ if(!dir.exists(here(out.dir))) dir.create(here(out.dir), recursive=T)
 
 
 p.c <- makeCluster(n_core_iss); registerDoSNOW(p.c)
-foreach(i=seq_along(issue_i$Issue), .packages=c("dismo", pkgs)) %dopar% {
+foreach(i=1:8, .packages=c("dismo", pkgs)) %dopar% {
   # load issues
   issue <- issue_i$Issue[i]
   samp.issue <- issue_i$Sampling[i]
