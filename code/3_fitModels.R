@@ -10,11 +10,11 @@
 ## Setup
 ########
 # file specifications
-sp <- c("barberry", "garlic_mustard")[2]
+sp <- c("barberry", "garlic_mustard")[1]
 overwrite <- TRUE
-SDMs <- c("MxE", "CAd", "IPM")[3]
-n_core_iss <- 2  # number of issues to run in parallel
-n_core_obs <- 3  # number of simulations to run in parallel for each issue
+SDMs <- c("MxE", "CAd", "CAi", "IPM")[4]
+n_core_iss <- 4  # number of issues to run in parallel
+n_core_obs <- 6  # number of simulations to run in parallel for each issue
 n_sim <- 1 # number of simulations per sample (mechanistic only)
 
 # load workspace
@@ -106,16 +106,21 @@ foreach(i=1:8, .packages=c("dismo", pkgs)) %dopar% {
   }
   
   # fit IPM, CA-individual
-  if("IPM" %in% SDMs) {
+  if(any(c("IPM", "CAi") %in% SDMs)) {
     P_IPM <- fit_IPM(sp, sp_i, samp.issue, mod.issue, p,
                      L$env_rct_unscaled, lam.df, v$IPM, m$IPM, n_z, n_x,
-                     N_init, sdd.ji, p.ji, n_sim, n_core_obs)
+                     N_init, sdd.ji, p.ji, n_sim, n_core_obs, SDMs)
     if(overwrite) {
-      saveRDS(P_IPM$diag, here(out.dir, paste0("Diag_IPM_", issue, ".rds")))
-      saveRDS(P_IPM$P_CAi, here(out.dir, paste0("P_CAi_", issue, ".rds")))
-      saveRDS(P_IPM$P_IPM, here(out.dir, paste0("P_IPM_", issue, ".rds")))
-      saveRDS(P_IPM$TSS_IPM, here(out.dir, paste0("TSS_IPM_", issue, ".rds")))
-      saveRDS(P_IPM$TSS_CAi, here(out.dir, paste0("TSS_CAi_", issue, ".rds")))
+      if("IPM" %in% SDMs) {
+        saveRDS(P_IPM$diag, here(out.dir, paste0("Diag_IPM_", issue, ".rds")))
+        saveRDS(P_IPM$P_IPM, here(out.dir, paste0("P_IPM_", issue, ".rds")))
+        saveRDS(P_IPM$TSS_IPM, here(out.dir, paste0("TSS_IPM_", issue, ".rds")))
+      }
+      if("CAi" %in% SDMs) {
+        saveRDS(P_IPM$diag, here(out.dir, paste0("Diag_CAi_", issue, ".rds")))
+        saveRDS(P_IPM$P_CAi, here(out.dir, paste0("P_CAi_", issue, ".rds")))
+        saveRDS(P_IPM$TSS_CAi, here(out.dir, paste0("TSS_CAi_", issue, ".rds"))) 
+      }
     }
   }
 }

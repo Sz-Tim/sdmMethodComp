@@ -215,7 +215,7 @@ summarize_CAd_samples <- function(CA.f, in.id) {
 #' number of seeds produced, D.mn = mean number of immigrant seeds, p_est.mn = 
 #' mean establishment probability, N_tot.mn = mean total abundance, N_surv.mn = 
 #' mean abundance of individuals >1 year, N_rcr.mn = mean seedling abundance
-summarize_IPM_CAi_samples <- function(U.f, S.f) {
+summarize_IPM_CAi_samples <- function(U.f, S.f=NULL) {
   Ua <- list(IPMs=map(U.f, ~.$IPMs),
              lam=map(U.f, ~.$lambda)) %>% 
     map(simplify2array)
@@ -224,24 +224,30 @@ summarize_IPM_CAi_samples <- function(U.f, S.f) {
   Uf <- list(prP=apply(Uf.pa, 1, mean),
              lam.mn=apply(Ua$lam, 1, mean),
              IPM.mn=apply(Ua$IPMs, 1:3, mean))
-  Sa <- list(P=map(S.f, ~.$P),
-             B=map(S.f, ~.$B),
-             nSd=map(S.f, ~.$nSd),
-             D=map(S.f, ~.$D),
-             p_est=map(S.f, ~.$p_est),
-             N_tot=map(S.f, ~.$N_tot),
-             N_surv=map(S.f, ~.$N_surv),
-             N_rcr=map(S.f, ~.$N_rcr)) %>%
-    map(simplify2array)
-  Sf <- list(prP=apply(Sa$P, 1, mean),
-             B.mn=apply(Sa$B, 1:2, mean),
-             nSd.mn=apply(Sa$nSd, 1:2, mean),
-             D.mn=apply(Sa$D, 1:2, mean),
-             p_est.mn=apply(Sa$p_est, 1:2, mean),
-             N_tot.mn=apply(Sa$N_tot, 1, mean),
-             N_surv.mn=apply(Sa$N_surv, 1, mean),
-             N_rcr.mn=apply(Sa$N_rcr, 1, mean))
-  return(list(Uf=Uf, Sf=Sf, Uf.pa=Uf.pa, Sf.pa=Sa$P[,1,]))
+  if(!is.null(S.f)) {
+    Sa <- list(P=map(S.f, ~.$P),
+               B=map(S.f, ~.$B),
+               nSd=map(S.f, ~.$nSd),
+               D=map(S.f, ~.$D),
+               p_est=map(S.f, ~.$p_est),
+               N_tot=map(S.f, ~.$N_tot),
+               N_surv=map(S.f, ~.$N_surv),
+               N_rcr=map(S.f, ~.$N_rcr)) %>%
+      map(simplify2array)
+    Sf <- list(prP=apply(Sa$P, 1, mean),
+               B.mn=apply(Sa$B, 1:2, mean),
+               nSd.mn=apply(Sa$nSd, 1:2, mean),
+               D.mn=apply(Sa$D, 1:2, mean),
+               p_est.mn=apply(Sa$p_est, 1:2, mean),
+               N_tot.mn=apply(Sa$N_tot, 1, mean),
+               N_surv.mn=apply(Sa$N_surv, 1, mean),
+               N_rcr.mn=apply(Sa$N_rcr, 1, mean)) 
+    Sf.pa <- Sa$P[,1,]
+  } else {
+    Sf=NULL
+    Sf.pa=NULL
+  }
+  return(list(Uf=Uf, Sf=Sf, Uf.pa=Uf.pa, Sf.pa=Sf.pa))
 }
 
 

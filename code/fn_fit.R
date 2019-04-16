@@ -514,11 +514,12 @@ fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc,
 #' @param p.ji
 #' @param n_sim Number of simulations to run per observed dataset
 #' @param n_cores Number of cores to use for running simulations in parallel
+#' @param SDMs SDMs to fit; "IPM", "CAi" or a vector of both
 #' @return List with dataframes P_IPM and P_CAi with overall summaries across
 #'   datasets for the IPM distribution and individual-based CA distribution
 #'   respectively, and diagnostics containing the vital rate regressions
 fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
-                    m, n_z, n_x, N_init, sdd.ji, p.ji, n_sim, n_cores) {
+                    m, n_z, n_x, N_init, sdd.ji, p.ji, n_sim, n_cores, SDMs) {
   library(here); library(tidyverse); library(magrittr); library(gbPopMod);
   library(MuMIn); library(doSNOW)
   walk(dir("code", "fn", full.names=T), source)
@@ -624,40 +625,52 @@ fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
     saveRDS(U.f, paste0(out.dir, "/IPM_fit_", i_pad, ".rds"))
     
     # use estimated slopes to generate simulated data
-    for(s in 1:n_sim) {
-      sim.ls[[s]] <- simulate_data(n.cell, U.f$lo, U.f$hi, p.IPM, X.IPM, n_z, 
-                                   sdd.ji, p.ji, N_init, sp, save_yrs=p.IPM$tmax)
+    if("CAi" %in% SDMs) {
+      for(s in 1:n_sim) {
+        sim.ls[[s]] <- simulate_data(n.cell, U.f$lo, U.f$hi, p.IPM, X.IPM, n_z, 
+                                     sdd.ji, p.ji, N_init, sp, save_yrs=p.IPM$tmax)
+      }
+      saveRDS(aggregate_CAi_simulations(sim.ls, p.IPM$tmax), 
+              paste0(out.dir, "/CAi_fit_", i_pad, ".rds"))
     }
-    saveRDS(aggregate_CAi_simulations(sim.ls, p.IPM$tmax), 
-            paste0(out.dir, "/CAi_fit_", i_pad, ".rds"))
   }
   stopCluster(p.c)
   
-  out <- summarize_IPM_CAi_samples(
-    map(list.files(out.dir, "IPM_fit", full.names=T), readRDS),
-    map(list.files(out.dir, "CAi_fit", full.names=T), readRDS)
-  )
+  if("CAi" %in% SDMs) {
+    out <- summarize_IPM_CAi_samples(
+      map(list.files(out.dir, "IPM_fit", full.names=T), readRDS),
+      map(list.files(out.dir, "CAi_fit", full.names=T), readRDS)
+    )
+  } else {
+    out <- summarize_IPM_CAi_samples(
+      map(list.files(out.dir, "IPM_fit", full.names=T), readRDS),
+      NULL
+    )
+  }
+  
+  diagnostics <- list.files(out.dir, "IPM_diag", full.names=T) %>% map(readRDS)
   TSS_IPM <- list(N=apply(out$Uf.pa, 2, calc_TSS, S.pa=lam.df$Surv.S>0),
                   lam=apply(out$Uf.pa, 2, calc_TSS, S.pa=lam.df$lambda>1))
-  TSS_CAi <- list(N=apply(out$Sf.pa, 2, calc_TSS, S.pa=lam.df$Surv.S>0),
-                  lam=apply(out$Sf.pa, 2, calc_TSS, S.pa=lam.df$lambda>1))
-  diagnostics <- list.files(out.dir, "IPM_diag", full.names=T) %>% map(readRDS)
-  
-  P_CAi <- lam.df %>% 
-    dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.in") %>% 
-    mutate(prP=out$Sf$prP,
-           nSeed.f=out$Sf$nSd.mn[,dim(out$Sf$nSd.mn)[2]], 
-           D.f=out$Sf$D.mn[,dim(out$Sf$D.mn)[2]],
-           B.f=out$Sf$B.mn[,dim(out$Sf$B.mn)[2]],
-           N.S.f=out$Sf$N_tot.mn, 
-           Surv.S.f=out$Sf$N_surv.mn, 
-           Rcr.S.f=out$Sf$N_rcr.mn,
-           nSdStay.f=nSeed.f*(1-p.IPM$p_emig), 
-           nSdLeave.f=nSeed.f*p.IPM$p_emig)
   P_IPM <- lam.df %>% 
     dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.in") %>% 
     mutate(prP=out$Uf$prP,
            lambda.f=out$Uf$lam.mn)
+  
+  if("CAi" %in% SDMs) {
+    TSS_CAi <- list(N=apply(out$Sf.pa, 2, calc_TSS, S.pa=lam.df$Surv.S>0),
+                    lam=apply(out$Sf.pa, 2, calc_TSS, S.pa=lam.df$lambda>1))
+    P_CAi <- lam.df %>% 
+      dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.in") %>% 
+      mutate(prP=out$Sf$prP,
+             nSeed.f=out$Sf$nSd.mn[,dim(out$Sf$nSd.mn)[2]], 
+             D.f=out$Sf$D.mn[,dim(out$Sf$D.mn)[2]],
+             B.f=out$Sf$B.mn[,dim(out$Sf$B.mn)[2]],
+             N.S.f=out$Sf$N_tot.mn, 
+             Surv.S.f=out$Sf$N_surv.mn, 
+             Rcr.S.f=out$Sf$N_rcr.mn,
+             nSdStay.f=nSeed.f*(1-p.IPM$p_emig), 
+             nSdLeave.f=nSeed.f*p.IPM$p_emig)
+  }
   
   return(list(P_IPM=P_IPM, P_CAi=P_CAi, diag=diagnostics, 
               TSS_IPM=TSS_IPM, TSS_CAi=TSS_CAi))
