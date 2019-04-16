@@ -569,49 +569,53 @@ fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
     O_IPM.i.germ <- O_IPM[[i]]$germ.df
     
     # full models
-    options(na.action="na.fail")
-    full.m <- list(s=glm(as.formula(paste("surv ~", m, collapse="")), 
-                         data=O_IPM.i.s, family="binomial"),
-                   g=lm(as.formula(paste("sizeNext ~", m, collapse="")), 
-                        data=O_IPM.i.g),
-                   fl=glm(as.formula(paste("fl ~", m, collapse="")), 
-                          data=O_IPM.i.fl, family="binomial"),
-                   seed=glm(as.formula(paste("seed ~", m, collapse="")), 
-                            data=O_IPM.i.seed, family="poisson"),
-                   germ=glm(as.formula(paste("cbind(p.1, p.0) ~", 
-                                             paste(grep("size", names(v), 
-                                                        invert=T, value=T)[-1], 
-                                                   collapse=" + "), 
-                                             collapse="")),
-                            data=O_IPM.i.germ, family="binomial"))
-    
-    # store coefficients from optimal models
-    opt.m <- map(full.m, ~get.models(dredge(., m.lim=c(1,6)), subset=1)[[1]])
-    vars.opt <- map(opt.m, coef)
-    vars.ls <- rep(list(v), 5); names(vars.ls) <- names(opt.m)
-    for(j in seq_along(vars.ls)) {
-      vars.ls[[j]][names(vars.opt[[j]])] <- vars.opt[[j]]
-    }
-    
-    # update parameters
-    p.IPM$s_z <- vars.ls$s[1:n_z$s]
-    p.IPM$s_x <- vars.ls$s[(n_z$s+1):length(v)]
-    p.IPM$g_z <- vars.ls$g[1:n_z$g]
-    p.IPM$g_x <- vars.ls$g[(n_z$g+1):length(v)]
-    p.IPM$g_sig <- summary(opt.m$g)$sigma
-    p.IPM$fl_z <- vars.ls$fl[1:n_z$fl]
-    p.IPM$fl_x <- vars.ls$fl[(n_z$fl+1):length(v)]
-    p.IPM$seed_z <- vars.ls$seed[1:n_z$seed]
-    p.IPM$seed_x <- vars.ls$seed[(n_z$seed+1):length(v)]
-    p.IPM$germ_x <- vars.ls$germ[grep("size", names(v), invert=T, value=T)]
-    p.IPM$rcr_z <- filter(O_IPM[[i]]$d, is.na(size)) %>% 
-      summarise(mn=mean(sizeNext), sd=sd(sizeNext)) %>% unlist
-    
-    # impose issues
-    if(mod.issue=="noSB") p.IPM$s_SB <- 0
-    
-    # save parameters to diagnostics file
-    saveRDS(p.IPM, paste0(out.dir, "/IPM_diag_", i_pad, ".rds"))
+    if(file.exists(paste0(out.dir, "/IPM_diag_", i_pad, ".rds"))) {
+      p.IPM <- readRDS(paste0(out.dir, "/IPM_diag_", i_pad, ".rds"))
+    } else {
+      options(na.action="na.fail")
+      full.m <- list(s=glm(as.formula(paste("surv ~", m, collapse="")), 
+                           data=O_IPM.i.s, family="binomial"),
+                     g=lm(as.formula(paste("sizeNext ~", m, collapse="")), 
+                          data=O_IPM.i.g),
+                     fl=glm(as.formula(paste("fl ~", m, collapse="")), 
+                            data=O_IPM.i.fl, family="binomial"),
+                     seed=glm(as.formula(paste("seed ~", m, collapse="")), 
+                              data=O_IPM.i.seed, family="poisson"),
+                     germ=glm(as.formula(paste("cbind(p.1, p.0) ~", 
+                                               paste(grep("size", names(v), 
+                                                          invert=T, value=T)[-1], 
+                                                     collapse=" + "), 
+                                               collapse="")),
+                              data=O_IPM.i.germ, family="binomial"))
+      
+      # store coefficients from optimal models
+      opt.m <- map(full.m, ~get.models(dredge(., m.lim=c(1,6)), subset=1)[[1]])
+      vars.opt <- map(opt.m, coef)
+      vars.ls <- rep(list(v), 5); names(vars.ls) <- names(opt.m)
+      for(j in seq_along(vars.ls)) {
+        vars.ls[[j]][names(vars.opt[[j]])] <- vars.opt[[j]]
+      }
+      
+      # update parameters
+      p.IPM$s_z <- vars.ls$s[1:n_z$s]
+      p.IPM$s_x <- vars.ls$s[(n_z$s+1):length(v)]
+      p.IPM$g_z <- vars.ls$g[1:n_z$g]
+      p.IPM$g_x <- vars.ls$g[(n_z$g+1):length(v)]
+      p.IPM$g_sig <- summary(opt.m$g)$sigma
+      p.IPM$fl_z <- vars.ls$fl[1:n_z$fl]
+      p.IPM$fl_x <- vars.ls$fl[(n_z$fl+1):length(v)]
+      p.IPM$seed_z <- vars.ls$seed[1:n_z$seed]
+      p.IPM$seed_x <- vars.ls$seed[(n_z$seed+1):length(v)]
+      p.IPM$germ_x <- vars.ls$germ[grep("size", names(v), invert=T, value=T)]
+      p.IPM$rcr_z <- filter(O_IPM[[i]]$d, is.na(size)) %>% 
+        summarise(mn=mean(sizeNext), sd=sd(sizeNext)) %>% unlist
+      
+      # impose issues
+      if(mod.issue=="noSB") p.IPM$s_SB <- 0
+      
+      # save parameters to diagnostics file
+      saveRDS(p.IPM, paste0(out.dir, "/IPM_diag_", i_pad, ".rds"))
+    } 
     
     # use estimated slopes to fill IPM matrix
     if(file.exists(paste0(out.dir, "/IPM_fit_", i_pad, ".rds"))) {
