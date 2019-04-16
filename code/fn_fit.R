@@ -614,18 +614,23 @@ fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
     saveRDS(p.IPM, paste0(out.dir, "/IPM_diag_", i_pad, ".rds"))
     
     # use estimated slopes to fill IPM matrix
-    U.f <- fill_IPM_matrices(n.cell, buffer=0, discrete=1, p.IPM, n_z,
-                                  n_x, X.IPM, sdd.ji, p.ji)
-    if(sp=="garlic_mustard") {
-      U.f$lambda <- sapply(1:n.cell, 
-                         function(x) iter_lambda(p.IPM, U.f$Ps[,,x], U.f$Fs[,,x]))
+    if(file.exists(paste0(out.dir, "/IPM_fit_", i_pad, ".rds"))) {
+      U.f <- readRDS(paste0(out.dir, "/IPM_fit_", i_pad, ".rds"))
     } else {
-      U.f$lambda <- apply(U.f$IPMs, 3, function(x) Re(eigen(x)$values[1]))
+      U.f <- fill_IPM_matrices(n.cell, buffer=0, discrete=1, p.IPM, n_z,
+                               n_x, X.IPM, sdd.ji, p.ji)
+      if(sp=="garlic_mustard") {
+        U.f$lambda <- sapply(1:n.cell, 
+                             function(x) iter_lambda(p.IPM, U.f$Ps[,,x], U.f$Fs[,,x]))
+      } else {
+        U.f$lambda <- apply(U.f$IPMs, 3, function(x) Re(eigen(x)$values[1]))
+      }
+      saveRDS(U.f, paste0(out.dir, "/IPM_fit_", i_pad, ".rds"))
     }
-    saveRDS(U.f, paste0(out.dir, "/IPM_fit_", i_pad, ".rds"))
     
     # use estimated slopes to generate simulated data
-    if("CAi" %in% SDMs) {
+    if("CAi" %in% SDMs && 
+       !file.exists(paste0(out.dir, "/CAi_fit_", i_pad, ".rds"))) {
       for(s in 1:n_sim) {
         sim.ls[[s]] <- simulate_data(n.cell, U.f$lo, U.f$hi, p.IPM, X.IPM, n_z, 
                                      sdd.ji, p.ji, N_init, sp, save_yrs=p.IPM$tmax)
