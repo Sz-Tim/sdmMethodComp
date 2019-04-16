@@ -641,44 +641,45 @@ fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
   }
   stopCluster(p.c)
   
-  if("CAi" %in% SDMs) {
-    out <- summarize_IPM_CAi_samples(
-      map(list.files(out.dir, "IPM_fit", full.names=T), readRDS),
-      map(list.files(out.dir, "CAi_fit", full.names=T), readRDS)
-    )
-  } else {
-    out <- summarize_IPM_CAi_samples(
-      map(list.files(out.dir, "IPM_fit", full.names=T), readRDS),
-      NULL
-    )
-  }
+  # if("CAi" %in% SDMs) {
+  #   out <- summarize_IPM_CAi_samples(
+  #     map(list.files(out.dir, "IPM_fit", full.names=T), readRDS),
+  #     map(list.files(out.dir, "CAi_fit", full.names=T), readRDS)
+  #   )
+  # } else {
+  #   out <- summarize_IPM_CAi_samples(
+  #     map(list.files(out.dir, "IPM_fit", full.names=T), readRDS),
+  #     NULL
+  #   )
+  # }
+  # 
+  # diagnostics <- list.files(out.dir, "IPM_diag", full.names=T) %>% map(readRDS)
+  # TSS_IPM <- list(N=apply(out$Uf.pa, 2, calc_TSS, S.pa=lam.df$Surv.S>0),
+  #                 lam=apply(out$Uf.pa, 2, calc_TSS, S.pa=lam.df$lambda>1))
+  # P_IPM <- lam.df %>% 
+  #   dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.in") %>% 
+  #   mutate(prP=out$Uf$prP,
+  #          lambda.f=out$Uf$lam.mn)
+  # 
+  # if("CAi" %in% SDMs) {
+  #   TSS_CAi <- list(N=apply(out$Sf.pa, 2, calc_TSS, S.pa=lam.df$Surv.S>0),
+  #                   lam=apply(out$Sf.pa, 2, calc_TSS, S.pa=lam.df$lambda>1))
+  #   P_CAi <- lam.df %>% 
+  #     dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.in") %>% 
+  #     mutate(prP=out$Sf$prP,
+  #            nSeed.f=out$Sf$nSd.mn[,dim(out$Sf$nSd.mn)[2]], 
+  #            D.f=out$Sf$D.mn[,dim(out$Sf$D.mn)[2]],
+  #            B.f=out$Sf$B.mn[,dim(out$Sf$B.mn)[2]],
+  #            N.S.f=out$Sf$N_tot.mn, 
+  #            Surv.S.f=out$Sf$N_surv.mn, 
+  #            Rcr.S.f=out$Sf$N_rcr.mn,
+  #            nSdStay.f=nSeed.f*(1-p.IPM$p_emig), 
+  #            nSdLeave.f=nSeed.f*p.IPM$p_emig)
+  # }
   
-  diagnostics <- list.files(out.dir, "IPM_diag", full.names=T) %>% map(readRDS)
-  TSS_IPM <- list(N=apply(out$Uf.pa, 2, calc_TSS, S.pa=lam.df$Surv.S>0),
-                  lam=apply(out$Uf.pa, 2, calc_TSS, S.pa=lam.df$lambda>1))
-  P_IPM <- lam.df %>% 
-    dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.in") %>% 
-    mutate(prP=out$Uf$prP,
-           lambda.f=out$Uf$lam.mn)
-  
-  if("CAi" %in% SDMs) {
-    TSS_CAi <- list(N=apply(out$Sf.pa, 2, calc_TSS, S.pa=lam.df$Surv.S>0),
-                    lam=apply(out$Sf.pa, 2, calc_TSS, S.pa=lam.df$lambda>1))
-    P_CAi <- lam.df %>% 
-      dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.in") %>% 
-      mutate(prP=out$Sf$prP,
-             nSeed.f=out$Sf$nSd.mn[,dim(out$Sf$nSd.mn)[2]], 
-             D.f=out$Sf$D.mn[,dim(out$Sf$D.mn)[2]],
-             B.f=out$Sf$B.mn[,dim(out$Sf$B.mn)[2]],
-             N.S.f=out$Sf$N_tot.mn, 
-             Surv.S.f=out$Sf$N_surv.mn, 
-             Rcr.S.f=out$Sf$N_rcr.mn,
-             nSdStay.f=nSeed.f*(1-p.IPM$p_emig), 
-             nSdLeave.f=nSeed.f*p.IPM$p_emig)
-  }
-  
-  return(list(P_IPM=P_IPM, P_CAi=P_CAi, diag=diagnostics, 
-              TSS_IPM=TSS_IPM, TSS_CAi=TSS_CAi))
+  # return(list(P_IPM=P_IPM, P_CAi=P_CAi, diag=diagnostics, 
+  #             TSS_IPM=TSS_IPM, TSS_CAi=TSS_CAi))
+  return("Finished")
 }
 
 
