@@ -650,7 +650,7 @@ fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
     stopCluster(p.c)
   }
   
-  if("agg" %in% fit) {
+  if("agg" %in% process) {
     if("CAi" %in% SDMs) {
       out <- summarize_IPM_CAi_samples(
         map(list.files(out.dir, "IPM_fit", full.names=T), readRDS),
