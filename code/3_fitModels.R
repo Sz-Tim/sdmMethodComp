@@ -11,10 +11,11 @@
 ########
 # file specifications
 sp <- c("barberry", "garlic_mustard")[1]
-overwrite <- TRUE
+overwrite <- FALSE
 SDMs <- c("MxE", "CAd", "CAi", "IPM")[4]
-n_core_iss <- 4  # number of issues to run in parallel
-n_core_obs <- 6  # number of simulations to run in parallel for each issue
+process <- c("fit", "agg")[1]
+n_core_iss <- 1  # number of issues to run in parallel
+n_core_obs <- 10  # number of simulations to run in parallel for each issue
 n_sim <- 1 # number of simulations per sample (mechanistic only)
 
 # load workspace
@@ -109,7 +110,7 @@ foreach(i=1:8, .packages=c("dismo", pkgs)) %dopar% {
   if(any(c("IPM", "CAi") %in% SDMs)) {
     P_IPM <- fit_IPM(sp, sp_i, samp.issue, mod.issue, p,
                      L$env_rct_unscaled, lam.df, v$IPM, m$IPM, n_z, n_x,
-                     N_init, sdd.ji, p.ji, n_sim, n_core_obs, SDMs)
+                     N_init, sdd.ji, p.ji, n_sim, n_core_obs, SDMs, process)
     if(overwrite) {
       if("IPM" %in% SDMs) {
         saveRDS(P_IPM$diag, here(out.dir, paste0("Diag_IPM_", issue, ".rds")))

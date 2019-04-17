@@ -515,11 +515,14 @@ fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc,
 #' @param n_sim Number of simulations to run per observed dataset
 #' @param n_cores Number of cores to use for running simulations in parallel
 #' @param SDMs SDMs to fit; "IPM", "CAi" or a vector of both
+#' @param process Fitting and aggregating may be separated for running on the
+#' cluster more efficiently; "fit", "agg", or a vector of both
 #' @return List with dataframes P_IPM and P_CAi with overall summaries across
 #'   datasets for the IPM distribution and individual-based CA distribution
 #'   respectively, and diagnostics containing the vital rate regressions
 fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
-                    m, n_z, n_x, N_init, sdd.ji, p.ji, n_sim, n_cores, SDMs) {
+                    m, n_z, n_x, N_init, sdd.ji, p.ji, n_sim, n_cores, 
+                    SDMs, process) {
   library(here); library(tidyverse); library(magrittr); library(gbPopMod);
   library(MuMIn); library(doSNOW)
   walk(dir("code", "fn", full.names=T), source)
@@ -554,136 +557,141 @@ fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
   }
   
   # Fit IPM models
-  p.c <- makeCluster(n_cores); registerDoSNOW(p.c)
-  foreach(i=1:length(O_IPM), .errorhandling="pass", 
-          .packages=c("tidyverse", "magrittr", "gbPopMod", "MuMIn")) %dopar% {
-    walk(dir("code", "fn", full.names=T), source)
-    sim.ls <- vector("list", n_sim)
-    i_pad <- str_pad(i, 2, pad="0")
-    # separate data for MuMIn::dredge()
-    O_IPM.i.s <- filter(O_IPM[[i]]$d, !is.na(surv))
-    if(sp=="garlic_mustard") O_IPM.i.s <- filter(O_IPM.i.s, age==1)
-    O_IPM.i.g <- filter(O_IPM[[i]]$d, !is.na(sizeNext) & !is.na(size))
-    O_IPM.i.fl <- filter(O_IPM[[i]]$d, !is.na(fl))
-    O_IPM.i.seed <- filter(O_IPM[[i]]$d, !is.na(seed))
-    O_IPM.i.germ <- O_IPM[[i]]$germ.df
-    
-    # full models
-    if(file.exists(paste0(out.dir, "/IPM_diag_", i_pad, ".rds"))) {
-      p.IPM <- readRDS(paste0(out.dir, "/IPM_diag_", i_pad, ".rds"))
-    } else {
-      options(na.action="na.fail")
-      full.m <- list(s=glm(as.formula(paste("surv ~", m, collapse="")), 
-                           data=O_IPM.i.s, family="binomial"),
-                     g=lm(as.formula(paste("sizeNext ~", m, collapse="")), 
-                          data=O_IPM.i.g),
-                     fl=glm(as.formula(paste("fl ~", m, collapse="")), 
-                            data=O_IPM.i.fl, family="binomial"),
-                     seed=glm(as.formula(paste("seed ~", m, collapse="")), 
-                              data=O_IPM.i.seed, family="poisson"),
-                     germ=glm(as.formula(paste("cbind(p.1, p.0) ~", 
-                                               paste(grep("size", names(v), 
-                                                          invert=T, value=T)[-1], 
-                                                     collapse=" + "), 
-                                               collapse="")),
-                              data=O_IPM.i.germ, family="binomial"))
-      
-      # store coefficients from optimal models
-      opt.m <- map(full.m, ~get.models(dredge(., m.lim=c(1,6)), subset=1)[[1]])
-      vars.opt <- map(opt.m, coef)
-      vars.ls <- rep(list(v), 5); names(vars.ls) <- names(opt.m)
-      for(j in seq_along(vars.ls)) {
-        vars.ls[[j]][names(vars.opt[[j]])] <- vars.opt[[j]]
-      }
-      
-      # update parameters
-      p.IPM$s_z <- vars.ls$s[1:n_z$s]
-      p.IPM$s_x <- vars.ls$s[(n_z$s+1):length(v)]
-      p.IPM$g_z <- vars.ls$g[1:n_z$g]
-      p.IPM$g_x <- vars.ls$g[(n_z$g+1):length(v)]
-      p.IPM$g_sig <- summary(opt.m$g)$sigma
-      p.IPM$fl_z <- vars.ls$fl[1:n_z$fl]
-      p.IPM$fl_x <- vars.ls$fl[(n_z$fl+1):length(v)]
-      p.IPM$seed_z <- vars.ls$seed[1:n_z$seed]
-      p.IPM$seed_x <- vars.ls$seed[(n_z$seed+1):length(v)]
-      p.IPM$germ_x <- vars.ls$germ[grep("size", names(v), invert=T, value=T)]
-      p.IPM$rcr_z <- filter(O_IPM[[i]]$d, is.na(size)) %>% 
-        summarise(mn=mean(sizeNext), sd=sd(sizeNext)) %>% unlist
-      
-      # impose issues
-      if(mod.issue=="noSB") p.IPM$s_SB <- 0
-      
-      # save parameters to diagnostics file
-      saveRDS(p.IPM, paste0(out.dir, "/IPM_diag_", i_pad, ".rds"))
-    } 
-    
-    # use estimated slopes to fill IPM matrix
-    if(file.exists(paste0(out.dir, "/IPM_fit_", i_pad, ".rds"))) {
-      U.f <- readRDS(paste0(out.dir, "/IPM_fit_", i_pad, ".rds"))
-    } else {
-      U.f <- fill_IPM_matrices(n.cell, buffer=0, discrete=1, p.IPM, n_z,
-                               n_x, X.IPM, sdd.ji, p.ji)
-      if(sp=="garlic_mustard") {
-        U.f$lambda <- sapply(1:n.cell, 
-                             function(x) iter_lambda(p.IPM, U.f$Ps[,,x], U.f$Fs[,,x]))
+  if("fit" %in% process) {
+    p.c <- makeCluster(n_cores); registerDoSNOW(p.c)
+    foreach(i=1:length(O_IPM), .errorhandling="pass", 
+            .packages=c("tidyverse", "magrittr", "gbPopMod", "MuMIn")) %dopar% {
+      walk(dir("code", "fn", full.names=T), source)
+      sim.ls <- vector("list", n_sim)
+      i_pad <- str_pad(i, 2, pad="0")
+      if(file.exists(paste0(out.dir, "/IPM_diag_", i_pad, ".rds"))) {
+        p.IPM <- readRDS(paste0(out.dir, "/IPM_diag_", i_pad, ".rds"))
       } else {
-        U.f$lambda <- apply(U.f$IPMs, 3, function(x) Re(eigen(x)$values[1]))
+        # separate data for MuMIn::dredge()
+        O_IPM.i.s <- filter(O_IPM[[i]]$d, !is.na(surv))
+        if(sp=="garlic_mustard") O_IPM.i.s <- filter(O_IPM.i.s, age==1)
+        O_IPM.i.g <- filter(O_IPM[[i]]$d, !is.na(sizeNext) & !is.na(size))
+        O_IPM.i.fl <- filter(O_IPM[[i]]$d, !is.na(fl))
+        O_IPM.i.seed <- filter(O_IPM[[i]]$d, !is.na(seed))
+        O_IPM.i.germ <- O_IPM[[i]]$germ.df
+        
+        # full models
+        options(na.action="na.fail")
+        full.m <- list(s=glm(as.formula(paste("surv ~", m, collapse="")), 
+                             data=O_IPM.i.s, family="binomial"),
+                       g=lm(as.formula(paste("sizeNext ~", m, collapse="")), 
+                            data=O_IPM.i.g),
+                       fl=glm(as.formula(paste("fl ~", m, collapse="")), 
+                              data=O_IPM.i.fl, family="binomial"),
+                       seed=glm(as.formula(paste("seed ~", m, collapse="")), 
+                                data=O_IPM.i.seed, family="poisson"),
+                       germ=glm(as.formula(paste("cbind(p.1, p.0) ~", 
+                                                 paste(grep("size", names(v), 
+                                                            invert=T, value=T)[-1], 
+                                                       collapse=" + "), 
+                                                 collapse="")),
+                                data=O_IPM.i.germ, family="binomial"))
+        
+        # store coefficients from optimal models
+        opt.m <- map(full.m, ~get.models(dredge(., m.lim=c(1,6)), subset=1)[[1]])
+        vars.opt <- map(opt.m, coef)
+        vars.ls <- rep(list(v), 5); names(vars.ls) <- names(opt.m)
+        for(j in seq_along(vars.ls)) {
+          vars.ls[[j]][names(vars.opt[[j]])] <- vars.opt[[j]]
+        }
+        
+        # update parameters
+        p.IPM$s_z <- vars.ls$s[1:n_z$s]
+        p.IPM$s_x <- vars.ls$s[(n_z$s+1):length(v)]
+        p.IPM$g_z <- vars.ls$g[1:n_z$g]
+        p.IPM$g_x <- vars.ls$g[(n_z$g+1):length(v)]
+        p.IPM$g_sig <- summary(opt.m$g)$sigma
+        p.IPM$fl_z <- vars.ls$fl[1:n_z$fl]
+        p.IPM$fl_x <- vars.ls$fl[(n_z$fl+1):length(v)]
+        p.IPM$seed_z <- vars.ls$seed[1:n_z$seed]
+        p.IPM$seed_x <- vars.ls$seed[(n_z$seed+1):length(v)]
+        p.IPM$germ_x <- vars.ls$germ[grep("size", names(v), invert=T, value=T)]
+        p.IPM$rcr_z <- filter(O_IPM[[i]]$d, is.na(size)) %>% 
+          summarise(mn=mean(sizeNext), sd=sd(sizeNext)) %>% unlist
+        
+        # impose issues
+        if(mod.issue=="noSB") p.IPM$s_SB <- 0
+        
+        # save parameters to diagnostics file
+        saveRDS(p.IPM, paste0(out.dir, "/IPM_diag_", i_pad, ".rds"))
+      } 
+      
+      # use estimated slopes to fill IPM matrix
+      if(file.exists(paste0(out.dir, "/IPM_fit_", i_pad, ".rds"))) {
+        U.f <- readRDS(paste0(out.dir, "/IPM_fit_", i_pad, ".rds"))
+      } else {
+        U.f <- fill_IPM_matrices(n.cell, buffer=0, discrete=1, p.IPM, n_z,
+                                 n_x, X.IPM, sdd.ji, p.ji)
+        if(sp=="garlic_mustard") {
+          U.f$lambda <- sapply(1:n.cell, 
+                               function(x) iter_lambda(p.IPM, U.f$Ps[,,x], U.f$Fs[,,x]))
+        } else {
+          U.f$lambda <- apply(U.f$IPMs, 3, function(x) Re(eigen(x)$values[1]))
+        }
+        saveRDS(U.f, paste0(out.dir, "/IPM_fit_", i_pad, ".rds"))
       }
-      saveRDS(U.f, paste0(out.dir, "/IPM_fit_", i_pad, ".rds"))
+      
+      # use estimated slopes to generate simulated data
+      if("CAi" %in% SDMs && 
+         !file.exists(paste0(out.dir, "/CAi_fit_", i_pad, ".rds"))) {
+        for(s in 1:n_sim) {
+          sim.ls[[s]] <- simulate_data(n.cell, U.f$lo, U.f$hi, p.IPM, X.IPM, n_z, 
+                                       sdd.ji, p.ji, N_init, sp, save_yrs=p.IPM$tmax)
+        }
+        saveRDS(aggregate_CAi_simulations(sim.ls, p.IPM$tmax), 
+                paste0(out.dir, "/CAi_fit_", i_pad, ".rds"))
+      }
+    }
+    stopCluster(p.c)
+  }
+  
+  if("agg" %in% fit) {
+    if("CAi" %in% SDMs) {
+      out <- summarize_IPM_CAi_samples(
+        map(list.files(out.dir, "IPM_fit", full.names=T), readRDS),
+        map(list.files(out.dir, "CAi_fit", full.names=T), readRDS)
+      )
+    } else {
+      out <- summarize_IPM_CAi_samples(
+        map(list.files(out.dir, "IPM_fit", full.names=T), readRDS),
+        NULL
+      )
+    }
+
+    diagnostics <- list.files(out.dir, "IPM_diag", full.names=T) %>% map(readRDS)
+    TSS_IPM <- list(N=apply(out$Uf.pa, 2, calc_TSS, S.pa=lam.df$Surv.S>0),
+                    lam=apply(out$Uf.pa, 2, calc_TSS, S.pa=lam.df$lambda>1))
+    P_IPM <- lam.df %>%
+      dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.in") %>%
+      mutate(prP=out$Uf$prP,
+             lambda.f=out$Uf$lam.mn)
+
+    if("CAi" %in% SDMs) {
+      TSS_CAi <- list(N=apply(out$Sf.pa, 2, calc_TSS, S.pa=lam.df$Surv.S>0),
+                      lam=apply(out$Sf.pa, 2, calc_TSS, S.pa=lam.df$lambda>1))
+      P_CAi <- lam.df %>%
+        dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.in") %>%
+        mutate(prP=out$Sf$prP,
+               nSeed.f=out$Sf$nSd.mn[,dim(out$Sf$nSd.mn)[2]],
+               D.f=out$Sf$D.mn[,dim(out$Sf$D.mn)[2]],
+               B.f=out$Sf$B.mn[,dim(out$Sf$B.mn)[2]],
+               N.S.f=out$Sf$N_tot.mn,
+               Surv.S.f=out$Sf$N_surv.mn,
+               Rcr.S.f=out$Sf$N_rcr.mn,
+               nSdStay.f=nSeed.f*(1-p.IPM$p_emig),
+               nSdLeave.f=nSeed.f*p.IPM$p_emig)
     }
     
-    # use estimated slopes to generate simulated data
-    if("CAi" %in% SDMs && 
-       !file.exists(paste0(out.dir, "/CAi_fit_", i_pad, ".rds"))) {
-      for(s in 1:n_sim) {
-        sim.ls[[s]] <- simulate_data(n.cell, U.f$lo, U.f$hi, p.IPM, X.IPM, n_z, 
-                                     sdd.ji, p.ji, N_init, sp, save_yrs=p.IPM$tmax)
-      }
-      saveRDS(aggregate_CAi_simulations(sim.ls, p.IPM$tmax), 
-              paste0(out.dir, "/CAi_fit_", i_pad, ".rds"))
-    }
+    return(list(P_IPM=P_IPM, P_CAi=P_CAi, diag=diagnostics,
+                TSS_IPM=TSS_IPM, TSS_CAi=TSS_CAi))
+  } else {
+    return("Finished")
   }
-  stopCluster(p.c)
-  
-  # if("CAi" %in% SDMs) {
-  #   out <- summarize_IPM_CAi_samples(
-  #     map(list.files(out.dir, "IPM_fit", full.names=T), readRDS),
-  #     map(list.files(out.dir, "CAi_fit", full.names=T), readRDS)
-  #   )
-  # } else {
-  #   out <- summarize_IPM_CAi_samples(
-  #     map(list.files(out.dir, "IPM_fit", full.names=T), readRDS),
-  #     NULL
-  #   )
-  # }
-  # 
-  # diagnostics <- list.files(out.dir, "IPM_diag", full.names=T) %>% map(readRDS)
-  # TSS_IPM <- list(N=apply(out$Uf.pa, 2, calc_TSS, S.pa=lam.df$Surv.S>0),
-  #                 lam=apply(out$Uf.pa, 2, calc_TSS, S.pa=lam.df$lambda>1))
-  # P_IPM <- lam.df %>% 
-  #   dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.in") %>% 
-  #   mutate(prP=out$Uf$prP,
-  #          lambda.f=out$Uf$lam.mn)
-  # 
-  # if("CAi" %in% SDMs) {
-  #   TSS_CAi <- list(N=apply(out$Sf.pa, 2, calc_TSS, S.pa=lam.df$Surv.S>0),
-  #                   lam=apply(out$Sf.pa, 2, calc_TSS, S.pa=lam.df$lambda>1))
-  #   P_CAi <- lam.df %>% 
-  #     dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.in") %>% 
-  #     mutate(prP=out$Sf$prP,
-  #            nSeed.f=out$Sf$nSd.mn[,dim(out$Sf$nSd.mn)[2]], 
-  #            D.f=out$Sf$D.mn[,dim(out$Sf$D.mn)[2]],
-  #            B.f=out$Sf$B.mn[,dim(out$Sf$B.mn)[2]],
-  #            N.S.f=out$Sf$N_tot.mn, 
-  #            Surv.S.f=out$Sf$N_surv.mn, 
-  #            Rcr.S.f=out$Sf$N_rcr.mn,
-  #            nSdStay.f=nSeed.f*(1-p.IPM$p_emig), 
-  #            nSdLeave.f=nSeed.f*p.IPM$p_emig)
-  # }
-  
-  # return(list(P_IPM=P_IPM, P_CAi=P_CAi, diag=diagnostics, 
-  #             TSS_IPM=TSS_IPM, TSS_CAi=TSS_CAi))
-  return("Finished")
 }
 
 
