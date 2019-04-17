@@ -651,27 +651,11 @@ fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
   }
   
   if("agg" %in% process) {
-    if("CAi" %in% SDMs) {
+    if("CAi" %in% SDMs & !"IPM" %in% SDMs) {
       out <- summarize_IPM_CAi_samples(
-        map(list.files(out.dir, "IPM_fit", full.names=T), readRDS),
-        map(list.files(out.dir, "CAi_fit", full.names=T), readRDS)
-      )
-    } else {
-      out <- summarize_IPM_CAi_samples(
-        map(list.files(out.dir, "IPM_fit", full.names=T), readRDS),
-        NULL
-      )
-    }
-
-    diagnostics <- list.files(out.dir, "IPM_diag", full.names=T) %>% map(readRDS)
-    TSS_IPM <- list(N=apply(out$Uf.pa, 2, calc_TSS, S.pa=lam.df$Surv.S>0),
-                    lam=apply(out$Uf.pa, 2, calc_TSS, S.pa=lam.df$lambda>1))
-    P_IPM <- lam.df %>%
-      dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.in") %>%
-      mutate(prP=out$Uf$prP,
-             lambda.f=out$Uf$lam.mn)
-
-    if("CAi" %in% SDMs) {
+        NULL,
+        map(list.files(out.dir, "CAi_fit", full.names=T), readRDS))
+      
       TSS_CAi <- list(N=apply(out$Sf.pa, 2, calc_TSS, S.pa=lam.df$Surv.S>0),
                       lam=apply(out$Sf.pa, 2, calc_TSS, S.pa=lam.df$lambda>1))
       P_CAi <- lam.df %>%
@@ -685,6 +669,30 @@ fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
                Rcr.S.f=out$Sf$N_rcr.mn,
                nSdStay.f=nSeed.f*(1-p.IPM$p_emig),
                nSdLeave.f=nSeed.f*p.IPM$p_emig)
+      
+    } else if("IPM" %in% SDMs & !"CAi" %in% SDMs) {
+      out.ls <- vector("list", 10)
+      for(i in 1:10) {
+        f.num <- 10*i - 9:0
+        out.ls[[i]] <- summarize_IPM_CAi_samples(
+          map(list.files(out.dir, "IPM_fit", full.names=T)[f.num], readRDS),
+          NULL)
+      }
+      out <- list(Uf.pa=do.call("cbind", map(out.ls, ~.$Uf.pa)),
+                  prP=Reduce(`+`, map(out.ls, ~.$Uf$prP))/length(out.ls),
+                  lam.mn=Reduce(`+`, map(out.ls, ~.$Uf$lam.mn))/length(out.ls))
+      
+      diagnostics <- list.files(out.dir, "IPM_diag", full.names=T) %>% map(readRDS)
+      TSS_IPM <- list(N=apply(out$Uf.pa, 2, calc_TSS, S.pa=lam.df$Surv.S>0),
+                      lam=apply(out$Uf.pa, 2, calc_TSS, S.pa=lam.df$lambda>1))
+      P_IPM <- lam.df %>%
+        dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.in") %>%
+        mutate(prP=out$prP,
+               lambda.f=out$lam.mn)
+      P_CAi <- NULL
+      TSS_CAi <- NULL
+    } else { 
+      break() 
     }
     
     return(list(P_IPM=P_IPM, P_CAi=P_CAi, diag=diagnostics,
