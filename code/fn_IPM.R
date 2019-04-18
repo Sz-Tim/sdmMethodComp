@@ -345,7 +345,7 @@ iter_lambda <- function(p, P.mx, F.mx, tol=0.01) {
   counter <- 0
   bilam <- rep(NA, 2)
   while(qmax>tol) {
-    if(counter>1e4) { break }
+    if(counter>1e2) { break }
     # survival within the seed bank
     Nt1[1,1] <- P.bank * Nt[1,1] * (1- p$rcr_SB)
     # survival from rosette to flowering stage
