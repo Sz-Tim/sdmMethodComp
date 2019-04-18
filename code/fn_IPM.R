@@ -342,7 +342,10 @@ iter_lambda <- function(p, P.mx, F.mx, tol=0.01) {
   P.mx[1,1] <- 0
   
   # iterate population
+  counter <- 0
+  bilam <- rep(NA, 2)
   while(qmax>tol) {
+    if(counter>1e4) { break }
     # survival within the seed bank
     Nt1[1,1] <- P.bank * Nt[1,1] * (1- p$rcr_SB)
     # survival from rosette to flowering stage
@@ -357,7 +360,12 @@ iter_lambda <- function(p, P.mx, F.mx, tol=0.01) {
     qmax <- sum(abs(Nt1-lam*Nt))
     lam <- sum(Nt1)
     Nt <- Nt1/lam
+    # update counter
+    counter <- counter + 1
+    bilam[counter %% 2 + 1] <- lam
   } 
+  lam <- exp(mean(log(bilam)))
+  
   return(lam)
 }
 
