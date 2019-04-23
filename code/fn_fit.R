@@ -525,12 +525,13 @@ fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc,
 #' @param SDMs SDMs to fit; "IPM", "CAi" or a vector of both
 #' @param process Fitting and aggregating may be separated for running on the
 #' cluster more efficiently; "fit", "agg", or a vector of both
+#' @param i_start Dataset number to start from; defaults to 1
 #' @return List with dataframes P_IPM and P_CAi with overall summaries across
 #'   datasets for the IPM distribution and individual-based CA distribution
 #'   respectively, and diagnostics containing the vital rate regressions
 fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
                     m, n_z, n_x, N_init, sdd.ji, p.ji, n_sim, n_cores, 
-                    SDMs, process) {
+                    SDMs, process, i_start=1) {
   library(here); library(tidyverse); library(magrittr); library(gbPopMod);
   library(MuMIn); library(doSNOW)
   walk(dir("code", "fn", full.names=T), source)
@@ -567,7 +568,7 @@ fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
   # Fit IPM models
   if("fit" %in% process) {
     p.c <- makeCluster(n_cores); registerDoSNOW(p.c)
-    foreach(i=1:length(O_IPM), .errorhandling="pass", 
+    foreach(i=i_start:length(O_IPM), .errorhandling="pass", 
             .packages=c("tidyverse", "magrittr", "gbPopMod", "MuMIn")) %dopar% {
       walk(dir("code", "fn", full.names=T), source)
       sim.ls <- vector("list", n_sim)
