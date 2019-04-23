@@ -239,7 +239,6 @@ fit_MxE <- function(spNum, issue, samp.issue, lam.df, v) {
   names(temp.rast) <- names(X.Mx)
   rast.Mx <- raster::stack(temp.rast)
 
-  bias_type="none"
   MxE.f <- MxE.p <- vector("list", length(O_Mx))
   fit.args <- c("responsecurves", "jackknife", "replicates=10", "plots",
                 "removeduplicates", "nothreshold", "nohinge", "pictures",
@@ -256,7 +255,7 @@ fit_MxE <- function(spNum, issue, samp.issue, lam.df, v) {
     thresh_j <- rep(NA, 10)
     for (j in 0:9){   #loop for each replicate
       d <- read.csv(paste0(path_iss, i, "/species_", j, "_samplePredictions.csv"))
-      thresh_j[j+1] <- min(dplyr::filter(d, Test.or.train=="train")$Logistic.prediction)
+      thresh_j[j+1] <- quantile(dplyr::filter(d, Test.or.train=="train")$Logistic.prediction, probs=0.05)
     }
     MxE.p[[i]] <- raster::setValues(MxE.p[[i]],
                                     raster::values(MxE.p[[i]]) > mean(thresh_j))
@@ -271,8 +270,17 @@ fit_MxE <- function(spNum, issue, samp.issue, lam.df, v) {
   diagnostics <- NULL
   TSS_MxE <- list(N=apply(MxE.p.data, 2, calc_TSS, S.pa=lam.df$Surv.S>0),
                   lam=apply(MxE.p.data, 2, calc_TSS, S.pa=lam.df$lambda>1))
-  # diagnostics <- map(MxE.f, ~evaluate(p=S_p, a=S_a, model=., x=rast.Mx))
-  return(list(P_MxE=P_MxE, diag=diagnostics, TSS_MxE=TSS_MxE))
+  N.d <- map(MxE.f, 
+                ~dismo::evaluate(.@models[[1]], 
+                                 p=as.matrix(lam.df[lam.df$Surv.S>0, c("lon", "lat")]), 
+                                 a=as.matrix(lam.df[lam.df$Surv.S<1, c("lon", "lat")]),
+                                 x=rast.Mx))
+  l.d <- map(MxE.f, 
+             ~dismo::evaluate(.@models[[1]], 
+                              p=as.matrix(lam.df[lam.df$lambda>1, c("lon", "lat")]), 
+                              a=as.matrix(lam.df[lam.df$lambda<1, c("lon", "lat")]),
+                              x=rast.Mx))
+  return(list(P_MxE=P_MxE, diag=list(N=N.d, lam=l.d), TSS_MxE=TSS_MxE))
 }
 
 
