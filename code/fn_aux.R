@@ -463,7 +463,7 @@ plot_sdm_reg <- function(p, sdm.diag, pars, par.v, X, X.mx, cols,
   # plot structure
   plot(NA, NA, xlab=xlab, ylab=ylab, ylim=ylim, xlim=xlim, cex.lab=1.5)
   
-  if(grepl("s_|fl_|germ_|p.f|s.M|s.N|p", pars)) {
+  if(grepl("s_|fl_|germ_|p.f|s.M|s.N", pars) | pars=="g.D") {
     # antilogit
     for(i in seq_along(sdm.diag)) {
       walk(sdm.diag[[i]], 
