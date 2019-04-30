@@ -119,7 +119,6 @@ foreach(i=1:8, .packages=c("dismo", pkgs)) %dopar% {
         saveRDS(P_IPM$TSS_IPM, here(out.dir, paste0("TSS_IPM_", issue, ".rds")))
       }
       if("CAi" %in% SDMs) {
-        saveRDS(P_IPM$diag, here(out.dir, paste0("Diag_CAi_", issue, ".rds")))
         saveRDS(P_IPM$P_CAi, here(out.dir, paste0("P_CAi_", issue, ".rds")))
         saveRDS(P_IPM$TSS_CAi, here(out.dir, paste0("TSS_CAi_", issue, ".rds"))) 
       }

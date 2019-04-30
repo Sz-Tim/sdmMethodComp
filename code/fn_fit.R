@@ -678,7 +678,9 @@ fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
                Rcr.S.f=out$Sf$N_rcr.mn,
                nSdStay.f=nSeed.f*(1-p.IPM$p_emig),
                nSdLeave.f=nSeed.f*p.IPM$p_emig)
-      
+      P_IPM <- NULL
+      TSS_IPM <- NULL
+      diagnostics <- NULL
     } else if("IPM" %in% SDMs & !"CAi" %in% SDMs) {
       out.ls <- vector("list", 10)
       for(i in 1:10) {
