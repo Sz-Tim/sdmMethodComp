@@ -98,6 +98,7 @@ sim_recruits <- function(k, d_i, p_est_ik, nSd_ik, B_ik, D_ik, p, pr_germ, ldd=F
     n <- round(p_est_ik * (nSd_ik * (1-p$p_emig) * p$rcr_dir + 
                              B_ik * p$rcr_SB + 
                              D_ik * p$rcr_dir)) 
+    if(!is.null(p$K_max)) n <- min(n, 2*p$K_max) # for garlic mustard seed bank
   }
   if(n > 0) {
     rcr_i <- (1:n)+length(d_i$yr)
