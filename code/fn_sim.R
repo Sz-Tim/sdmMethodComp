@@ -98,7 +98,6 @@ sim_recruits <- function(k, d_i, p_est_ik, nSd_ik, B_ik, D_ik, p, pr_germ, ldd=F
     n <- round(p_est_ik * (nSd_ik * (1-p$p_emig) * p$rcr_dir + 
                              B_ik * p$rcr_SB + 
                              D_ik * p$rcr_dir)) 
-    if(!is.null(p$K_max)) n <- min(n, 2*p$K_max) # for garlic mustard seed bank
   }
   if(n > 0) {
     rcr_i <- (1:n)+length(d_i$yr)
@@ -106,6 +105,7 @@ sim_recruits <- function(k, d_i, p_est_ik, nSd_ik, B_ik, D_ik, p, pr_germ, ldd=F
     d_i$yr[rcr_i] <- k
     d_i$size[rcr_i] <- d_i$surv[rcr_i] <- d_i$fl[rcr_i] <- d_i$seed[rcr_i] <- NA
     d_i$age[rcr_i] <- 0
+    if(!is.null(p$K_max)) n <- min(n, 10*p$K_max) # for garlic mustard seed bank
   }
   return(d_i)
 }
