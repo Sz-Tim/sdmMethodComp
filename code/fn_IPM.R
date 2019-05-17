@@ -330,7 +330,7 @@ fill_IPM_matrices <- function(n.cell, buffer, discrete, p, n_z, n_x,
 #' @param P.mx Survival matrix
 #' @param F.mx Fecundity matrix
 #' @param tol Uncertainty tolerance in lambda estimate
-iter_lambda <- function(p, P.mx, F.mx, tol=0.001) {
+iter_lambda <- function(p, P.mx, F.mx, tol=0.0001) {
   # initialize objects
   # ages: Nt[,1] = Seed Bank, Nt[,2] = Rosette Stage, Nt[,3] = Flowering Stage
   # sizes: Nt[1,] = Seed, Nt[2:p$n+1,] = Size breakpoints
@@ -345,7 +345,7 @@ iter_lambda <- function(p, P.mx, F.mx, tol=0.001) {
   counter <- 0
   bilam <- rep(NA, 2)
   while(qmax>tol) {
-    if(counter>1e3) { break }
+    if(counter>1e4) { break }
     # survival within the seed bank
     Nt1[1,1] <- P.bank * Nt[1,1] * (1- p$rcr_SB)
     # survival from rosette to flowering stage
