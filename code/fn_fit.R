@@ -494,6 +494,7 @@ fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc,
            B.f=out$B.mn[,dim(out$B.mn)[2]],
            N.S.f=out$N_tot.mn[,dim(out$N_tot.mn)[2]], 
            Surv.S.f=out$N_ad.mn[,dim(out$N_ad.mn)[2]], 
+           Surv.S.sd.f=out$N_ad.sd[,dim(out$N_ad.sd)[2]], 
            Rcr.S.f=out$N_rcr.mn[,dim(out$N_rcr.mn)[2]],
            nSdStay.f=nSeed.f*(1-p.CA$p_emig), 
            nSdLeave.f=nSeed.f*p.CA$p_emig)
@@ -676,6 +677,7 @@ fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
                B.f=out$Sf$B.mn[,dim(out$Sf$B.mn)[2]],
                N.S.f=out$Sf$N_tot.mn,
                Surv.S.f=out$Sf$N_surv.mn,
+               Surv.S.sd.f=out$Sf$N_surv.sd,
                Rcr.S.f=out$Sf$N_rcr.mn,
                nSdStay.f=nSeed.f*(1-p.IPM$p_emig),
                nSdLeave.f=nSeed.f*p.IPM$p_emig)
@@ -690,9 +692,11 @@ fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
           map(list.files(out.dir, "IPM_fit", full.names=T)[f.num], readRDS),
           NULL)
       }
+      lambdas <- do.call("cbind", map(out.ls, ~.$Uf$lam))
       out <- list(Uf.pa=do.call("cbind", map(out.ls, ~.$Uf.pa)),
-                  prP=Reduce(`+`, map(out.ls, ~.$Uf$prP))/length(out.ls),
-                  lam.mn=Reduce(`+`, map(out.ls, ~.$Uf$lam.mn))/length(out.ls))
+                  prP=apply(lambdas>1, 1, mean),
+                  lam.mn=apply(lambdas, 1, mean),
+                  lam.sd=apply(lambdas, 1, sd))
       
       diagnostics <- list.files(out.dir, "IPM_diag", full.names=T) %>% map(readRDS)
       TSS_IPM <- list(N=apply(out$Uf.pa, 2, calc_TSS, S.pa=lam.df$Surv.S>0),
@@ -700,7 +704,8 @@ fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
       P_IPM <- lam.df %>%
         dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.in") %>%
         mutate(prP=out$prP,
-               lambda.f=out$lam.mn)
+               lambda.f=out$lam.mn, 
+               lambda.sd.f=out$lam.sd)
       P_CAi <- NULL
       TSS_CAi <- NULL
     } else { 

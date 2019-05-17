@@ -195,6 +195,7 @@ summarize_CAd_samples <- function(CA.f, in.id) {
               D.mn=apply(Sa$D[in.id,,,], 1:2, mean, na.rm=T),
               N_tot.mn=apply(Sa$N_tot[in.id,,,], 1:2, mean, na.rm=T),
               N_ad.mn=apply(Sa$N_ad[in.id,,,], 1:2, mean, na.rm=T),
+              N_ad.sd=apply(Sa$N_ad[in.id,,,], 1:2, sd, na.rm=T),
               N_rcr.mn=apply(Sa$N_rcr[in.id,,,], 1:2, mean, na.rm=T)))
 }
 
@@ -227,8 +228,9 @@ summarize_IPM_CAi_samples <- function(U.f=NULL, S.f=NULL) {
     Ua <- list(lam=map(U.f, ~.$lambda)) %>% 
       map(simplify2array)
     Uf.pa <- Ua$lam>=1
-    Uf <- list(prP=apply(Uf.pa, 1, mean),
-               lam.mn=apply(Ua$lam, 1, mean))
+    # Uf <- list(prP=apply(Uf.pa, 1, mean),
+    #            lam.mn=apply(Ua$lam, 1, mean))
+    Uf <- Ua
   } else {
     Uf <- NULL
     Uf.pa <- NULL
@@ -250,6 +252,7 @@ summarize_IPM_CAi_samples <- function(U.f=NULL, S.f=NULL) {
                p_est.mn=apply(Sa$p_est, 1:2, mean),
                N_tot.mn=apply(Sa$N_tot, 1, mean),
                N_surv.mn=apply(Sa$N_surv, 1, mean),
+               N_surv.sd=apply(Sa$N_surv, 1, sd),
                N_rcr.mn=apply(Sa$N_rcr, 1, mean)) 
     Sf.pa <- Sa$P[,1,]
   } else {
