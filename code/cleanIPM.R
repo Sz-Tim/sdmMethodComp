@@ -1,5 +1,5 @@
 # file cleaning
-library(foreach)
+library(doSNOW); library(foreach)
 dirs <- paste0("out/sp1/", c("none/none/", "noise/none/", 
                            "nonEq/none/", "sampBias/none/",
                            "none/noSB/", "none/underDisp/",
