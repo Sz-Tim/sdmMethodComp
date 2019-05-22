@@ -312,9 +312,7 @@ fill_IPM_matrices <- function(n.cell, buffer, discrete, p, n_z, n_x,
     Fs[z.i,z.i,x] <- Fs[z.i,z.i,x] * p_germ[x] * p$p_est  # direct recruits
   }
   
-  
-  return(list(IPMs=Ps+Fs, Ps=Ps, Fs=Fs, 
-              lo=Mx$lo, hi=Mx$hi, b=Mx$b, y=Mx$y, h=Mx$h))
+  return(list(Ps=Ps, Fs=Fs, lo=Mx$lo, hi=Mx$hi, b=Mx$b, y=Mx$y, h=Mx$h))
 }
 
 
@@ -345,7 +343,7 @@ iter_lambda <- function(p, P.mx, F.mx, tol=0.0001) {
   counter <- 0
   bilam <- rep(NA, 2)
   while(qmax>tol) {
-    if(counter>1e5) { break }
+    if(counter>1e3) { break }
     # survival within the seed bank
     Nt1[1,1] <- P.bank * Nt[1,1] * (1- p$rcr_SB)
     # survival from rosette to flowering stage

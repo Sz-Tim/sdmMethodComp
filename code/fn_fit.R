@@ -537,7 +537,7 @@ fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
   library(here); library(tidyverse); library(magrittr); library(gbPopMod);
   library(MuMIn); library(doSNOW)
   walk(dir("code", "fn", full.names=T), source)
-  out.dir <- paste0(out.dir.base, "/", sp_i$Num, "/", samp.issue, "/", mod.issue, "/")
+  out.dir <- paste0(out.dir.base, "/", samp.issue, "/", mod.issue, "/")
   if(!dir.exists(out.dir)) dir.create(out.dir, recursive=TRUE)
   n.cell <- nrow(lam.df)
   
@@ -642,9 +642,10 @@ fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
           U.f$lambda <- sapply(1:n.cell, 
                                function(x) iter_lambda(p.IPM, U.f$Ps[,,x], U.f$Fs[,,x]))
         } else {
-          U.f$lambda <- apply(U.f$IPMs, 3, function(x) Re(eigen(x)$values[1]))
+          IPMs <- U.f$Ps + U.f$Fs
+          U.f$lambda <- apply(IPMs, 3, function(x) Re(eigen(x)$values[1]))
         }
-        saveRDS(U.f, paste0(out.dir, "/IPM_fit_", i_pad, ".rds"))
+        saveRDS(U.f['lambda'], paste0(out.dir, "/IPM_fit_", i_pad, ".rds"))
       }
       
       # use estimated slopes to generate simulated data
