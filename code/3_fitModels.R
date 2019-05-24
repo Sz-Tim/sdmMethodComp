@@ -99,7 +99,7 @@ foreach(i=1:8, .packages=c("dismo", pkgs)) %dopar% {
   if("CAd" %in% SDMs) {
     P_CA <- fit_CA(sp, sp_i, samp.issue, mod.issue, p,
                    L$env_rct, L$env_rct_unscaled, lam.df, v$CA, m$CA,
-                   N_init, sdd.pr, sdd.ji, p.ji, n_sim, n_core_obs)
+                   N_init, sdd.pr, sdd.ji, p.ji, n_sim, n_core_obs, process)
     if(overwrite) {
       saveRDS(P_CA$diag, here(out.dir, paste0("Diag_CAd_", issue, ".rds")))
       saveRDS(P_CA$P_CAd, here(out.dir, paste0("P_CAd_", issue, ".rds")))

@@ -349,11 +349,13 @@ fit_MxL <- function(sp, issue, samp.issue, lam.df, v, m) {
 #' @param p.ji
 #' @param n_sim Number of simulations to run per observed dataset
 #' @param n_cores Number of cores to use for running simulations in parallel
+#' @param process Fitting and aggregating may be separated for running on the
+#' cluster more efficiently; "fit", "agg", or a vector of both
 #' @return List with dataframe P_CAi with overall summaries across datasets for
 #'   the demographic CA distribution and diagnostics containing the vital rate
 #'   regressions
 fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc, 
-                   lam.df, v, m, N_init, sdd.pr, sdd.ji, p.ji, n_sim, n_cores) {
+                   lam.df, v, m, N_init, sdd.pr, sdd.ji, p.ji, n_sim, n_cores, process) {
   library(here); library(tidyverse); library(gbPopMod); 
   library(MuMIn); library(lme4); library(doSNOW)
   walk(dir("code", "fn", full.names=T), source)
@@ -398,106 +400,113 @@ fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc,
   }
   
   # Fit CA models
-  p.c <- makeCluster(n_cores); registerDoSNOW(p.c)
-  foreach(i=1:length(O_CA), .errorhandling="pass", 
-          .packages=c("tidyverse", "gbPopMod", "MuMIn", "lme4")) %dopar% {
-    walk(dir("code", "fn", full.names=T), source)
-    i_pad <- str_pad(i, 2, pad="0")
-    O_CA.i <- O_CA[[i]]$d 
-    O_CA.germ <- O_CA[[i]]$germ
-    O_CA.K <- O_CA.i %>% filter(id %in% O_CA.i$id[abs(O_CA.i$lambda-1)<0.05])
-    sim.ls <- vector("list", n_sim)
-    
-    # global models
-    options(na.action="na.fail")
-    full.m <- opt.m <- vars.opt <- setNames(vector("list", 6), 
-                                            c("K", "s.M", "s.N", "p.f", "mu", "germ"))
-    
-    full.m$K <- glmer(as.formula(paste("N ~", m, collapse="")),
-                      data=O_CA.K, family="poisson")
-    if(sum(O_CA.i$s.M.0==0)/nrow(O_CA.i) < 0.9) { # in case very low mortality
-      full.m$s.M <- glmer(as.formula(paste("cbind(s.M.1, s.M.0) ~", m, collapse="")), 
-                          data=O_CA.i, family="binomial")
-    }
-    if(sp=="barberry" && sum(O_CA.i$s.N.0==0)/nrow(O_CA.i) < 0.9) { # <10% mortality
-      full.m$s.N <- glmer(as.formula(paste("cbind(s.N.1, s.N.0) ~", m, collapse="")), 
-                          data=O_CA.i, family="binomial")
-    } 
-    full.m$p.f <- glmer(as.formula(paste("cbind(f.1, f.0) ~", m, collapse="")), 
-                        data=O_CA.i, family="binomial")
-    full.m$mu <- glmer(as.formula(paste("mu ~", m, collapse="")), 
-                       data=O_CA.i, family="poisson")
-    full.m$germ <- glm(as.formula(paste("cbind(g.1, g.0) ~", 
-                                         substr(m, 1, nchar(m)-9), 
-                                         collapse="")), 
-                        data=O_CA.germ, family="binomial")
-    
-    # store coefficients from optimal models
-    vars.ls <- rep(list(v), length(full.m)); names(vars.ls) <- names(opt.m)
-    for(j in seq_along(full.m)) {
-      if(is.null(full.m[[j]])) {
-        if(sp=="barberry") {
-          vars.opt[[j]] <- c("(Intercept)"=logit(0.9999))
-        } else if(sp=="mustard") {
-          vars.opt[[j]] <- c("(Intercept)"=logit(0.0001))
-        }
-      } else {
-        opt.m[[j]] <- get.models(dredge(full.m[[j]], m.max=6), subset=1)[[1]]
-        if(class(coef(opt.m[[j]]))=="numeric") {
-          vars.opt[[j]] <- coef(opt.m[[j]])
-        } else {
-          vars.opt[[j]] <- colMeans(coef(opt.m[[j]])$yr)
-        }
-      }
-      vars.ls[[j]][names(vars.opt[[j]])] <- vars.opt[[j]]
-    }
-    
-    # update parameters
-    p.CA$K <- vars.ls$K
-    p.CA$s.M <- vars.ls$s.M
-    p.CA$s.N <- vars.ls$s.N
-    p.CA$p.f <- vars.ls$p.f
-    p.CA$mu <- vars.ls$mu
-    p.CA$g.B <- p.CA$g.D <- vars.ls$germ
-    
-    # impose seed bank issue
-    if(mod.issue=="noSB") {p.CA$s.B <- 0; p.CA$bank=F}
-    
-    # save parameters to diagnostic file
-    saveRDS(p.CA, paste0(out.dir, "/CAd_diag_", i_pad, ".rds"))
-    
-    # run simulations
-    N.init <- matrix(0, n.grid, p.CA$m)  # column for each age class
-    N.init[X.CA$id[X.CA$inbd], p.CA$m] <- N_init
-    N.init[X.CA$id[X.CA$inbd], -p.CA$m] <- round(N_init/5)
-    for(s in 1:n_sim) {
-      sim.ls[[s]] <- gbPopMod::run_sim(n.grid, n.cell, p.CA, X.CA, sdd.pr, 
-                                       N.init, NULL, T, (-1:0)+p.CA$tmax, 
-                                       p$K_max, dem_out=TRUE, FALSE)
-    }
-    saveRDS(aggregate_CAd_simulations(sim.ls, max(p.CA$m)), 
-            paste0(out.dir, "/CAd_fit_", i_pad, ".rds"))
+  if("fit" %in% process) {
+    p.c <- makeCluster(n_cores); registerDoSNOW(p.c)
+    foreach(i=1:length(O_CA), .errorhandling="pass", 
+            .packages=c("tidyverse", "gbPopMod", "MuMIn", "lme4")) %dopar% {
+              walk(dir("code", "fn", full.names=T), source)
+              i_pad <- str_pad(i, 2, pad="0")
+              O_CA.i <- O_CA[[i]]$d 
+              O_CA.germ <- O_CA[[i]]$germ
+              O_CA.K <- O_CA.i %>% filter(id %in% O_CA.i$id[abs(O_CA.i$lambda-1)<0.05])
+              sim.ls <- vector("list", n_sim)
+              
+              # global models
+              options(na.action="na.fail")
+              full.m <- opt.m <- vars.opt <- setNames(vector("list", 6), 
+                                                      c("K", "s.M", "s.N", "p.f", "mu", "germ"))
+              
+              full.m$K <- glmer(as.formula(paste("N ~", m, collapse="")),
+                                data=O_CA.K, family="poisson")
+              if(sum(O_CA.i$s.M.0==0)/nrow(O_CA.i) < 0.9) { # in case very low mortality
+                full.m$s.M <- glmer(as.formula(paste("cbind(s.M.1, s.M.0) ~", m, collapse="")), 
+                                    data=O_CA.i, family="binomial")
+              }
+              if(sp=="barberry" && sum(O_CA.i$s.N.0==0)/nrow(O_CA.i) < 0.9) { # <10% mortality
+                full.m$s.N <- glmer(as.formula(paste("cbind(s.N.1, s.N.0) ~", m, collapse="")), 
+                                    data=O_CA.i, family="binomial")
+              } 
+              full.m$p.f <- glmer(as.formula(paste("cbind(f.1, f.0) ~", m, collapse="")), 
+                                  data=O_CA.i, family="binomial")
+              full.m$mu <- glmer(as.formula(paste("mu ~", m, collapse="")), 
+                                 data=O_CA.i, family="poisson")
+              full.m$germ <- glm(as.formula(paste("cbind(g.1, g.0) ~", 
+                                                  substr(m, 1, nchar(m)-9), 
+                                                  collapse="")), 
+                                 data=O_CA.germ, family="binomial")
+              
+              # store coefficients from optimal models
+              vars.ls <- rep(list(v), length(full.m)); names(vars.ls) <- names(opt.m)
+              for(j in seq_along(full.m)) {
+                if(is.null(full.m[[j]])) {
+                  if(sp=="barberry") {
+                    vars.opt[[j]] <- c("(Intercept)"=logit(0.9999))
+                  } else if(sp=="mustard") {
+                    vars.opt[[j]] <- c("(Intercept)"=logit(0.0001))
+                  }
+                } else {
+                  opt.m[[j]] <- get.models(dredge(full.m[[j]], m.max=6), subset=1)[[1]]
+                  if(class(coef(opt.m[[j]]))=="numeric") {
+                    vars.opt[[j]] <- coef(opt.m[[j]])
+                  } else {
+                    vars.opt[[j]] <- colMeans(coef(opt.m[[j]])$yr)
+                  }
+                }
+                vars.ls[[j]][names(vars.opt[[j]])] <- vars.opt[[j]]
+              }
+              
+              # update parameters
+              p.CA$K <- vars.ls$K
+              p.CA$s.M <- vars.ls$s.M
+              p.CA$s.N <- vars.ls$s.N
+              p.CA$p.f <- vars.ls$p.f
+              p.CA$mu <- vars.ls$mu
+              p.CA$g.B <- p.CA$g.D <- vars.ls$germ
+              
+              # impose seed bank issue
+              if(mod.issue=="noSB") {p.CA$s.B <- 0; p.CA$bank=F}
+              
+              # save parameters to diagnostic file
+              saveRDS(p.CA, paste0(out.dir, "/CAd_diag_", i_pad, ".rds"))
+              
+              # run simulations
+              N.init <- matrix(0, n.grid, p.CA$m)  # column for each age class
+              N.init[X.CA$id[X.CA$inbd], p.CA$m] <- N_init
+              N.init[X.CA$id[X.CA$inbd], -p.CA$m] <- round(N_init/5)
+              for(s in 1:n_sim) {
+                sim.ls[[s]] <- gbPopMod::run_sim(n.grid, n.cell, p.CA, X.CA, sdd.pr, 
+                                                 N.init, NULL, T, (-1:0)+p.CA$tmax, 
+                                                 p$K_max, dem_out=TRUE, FALSE)
+              }
+              saveRDS(aggregate_CAd_simulations(sim.ls, max(p.CA$m)), 
+                      paste0(out.dir, "/CAd_fit_", i_pad, ".rds"))
+            }
+    stopCluster(p.c)
   }
-  stopCluster(p.c)
   
-  fits <- list.files(out.dir, "CAd_fit", full.names=T) %>% map(readRDS) 
-  PA.mx <- do.call("cbind", map(fits, ~.$P[,dim(fits[[1]]$P)[2],1]))[lam.df$id,]
-  out <- summarize_CAd_samples(fits, lam.df$id)
-  TSS_CAd <- list(N=apply(PA.mx, 2, calc_TSS, S.pa=lam.df$Surv.S>0),
-                  lam=apply(PA.mx, 2, calc_TSS, S.pa=lam.df$lambda>1))
-  diagnostics <- list.files(out.dir, "CAd_diag", full.names=T) %>% map(readRDS)
-  P_CAd <- lam.df %>% 
-    dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.in") %>% 
-    mutate(prP=out$prP[,dim(out$prP)[2]],
-           nSeed.f=out$nSd.mn[,dim(out$nSd.mn)[2]], 
-           D.f=out$D.mn[,dim(out$D.mn)[2]],
-           B.f=out$B.mn[,dim(out$B.mn)[2]],
-           N.S.f=out$N_tot.mn[,dim(out$N_tot.mn)[2]], 
-           Surv.S.f=out$N_ad.mn[,dim(out$N_ad.mn)[2]], 
-           Surv.S.sd.f=out$N_ad.sd[,dim(out$N_ad.sd)[2]], 
-           Rcr.S.f=out$N_rcr.mn[,dim(out$N_rcr.mn)[2]],
-           nSdStay.f=nSeed.f*(1-p.CA$p_emig), 
-           nSdLeave.f=nSeed.f*p.CA$p_emig)
+  if("agg" %in% process) {
+    fits <- list.files(out.dir, "CAd_fit", full.names=T) %>% map(readRDS) 
+    PA.mx <- do.call("cbind", map(fits, ~.$P[,dim(fits[[1]]$P)[2],1]))[lam.df$id,]
+    out <- summarize_CAd_samples(fits, lam.df$id)
+    TSS_CAd <- list(N=apply(PA.mx, 2, calc_TSS, S.pa=lam.df$Surv.S>0),
+                    lam=apply(PA.mx, 2, calc_TSS, S.pa=lam.df$lambda>1))
+    diagnostics <- list.files(out.dir, "CAd_diag", full.names=T) %>% map(readRDS)
+    P_CAd <- lam.df %>% 
+      dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.in") %>% 
+      mutate(prP=out$prP[,dim(out$prP)[2]],
+             nSeed.f=out$nSd.mn[,dim(out$nSd.mn)[2]], 
+             D.f=out$D.mn[,dim(out$D.mn)[2]],
+             B.f=out$B.mn[,dim(out$B.mn)[2]],
+             N.S.f=out$N_tot.mn[,dim(out$N_tot.mn)[2]], 
+             Surv.S.f=out$N_ad.mn[,dim(out$N_ad.mn)[2]], 
+             Surv.S.sd.f=out$N_ad.sd[,dim(out$N_ad.sd)[2]], 
+             Rcr.S.f=out$N_rcr.mn[,dim(out$N_rcr.mn)[2]],
+             nSdStay.f=nSeed.f*(1-p.CA$p_emig), 
+             nSdLeave.f=nSeed.f*p.CA$p_emig) 
+  } else {
+    P_CAd <- NULL
+    TSS_CAd <- NULL
+  }
   
   return(list(P_CAd=P_CAd, diag=diagnostics, TSS_CAd=TSS_CAd))
 }
