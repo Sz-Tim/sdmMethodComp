@@ -706,7 +706,9 @@ fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
       out <- list(Uf.pa=do.call("cbind", map(out.ls, ~.$Uf.pa)),
                   prP=apply(lambdas>1, 1, mean),
                   lam.mn=apply(lambdas, 1, mean),
-                  lam.sd=apply(lambdas, 1, sd))
+                  lam.sd=apply(lambdas, 1, sd),
+                  llam.mn=apply(log(lambdas), 1, mean),
+                  llam.sd=apply(log(lambdas), 1, sd))
       
       diagnostics <- list.files(out.dir, "IPM_diag", full.names=T) %>% map(readRDS)
       TSS_IPM <- list(N=apply(out$Uf.pa, 2, calc_TSS, S.pa=lam.df$Surv.S>0),
@@ -715,7 +717,9 @@ fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
         dplyr::select("x", "y", "x_y", "lat", "lon", "id", "id.in") %>%
         mutate(prP=out$prP,
                lambda.f=out$lam.mn, 
-               lambda.sd.f=out$lam.sd)
+               lambda.sd.f=out$lam.sd,
+               llambda.f=out$llam.mn,
+               llambda.sd=out$llam.sd)
       P_CAi <- NULL
       TSS_CAi <- NULL
     } else { 
