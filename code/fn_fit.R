@@ -688,6 +688,8 @@ fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
                N.S.f=out$Sf$N_tot.mn,
                Surv.S.f=out$Sf$N_surv.mn,
                Surv.S.sd.f=out$Sf$N_surv.sd,
+               Surv.S.025.f=out$Sf$N_surv.025,
+               Surv.S.975.f=out$Sf$N_surv.975,
                Rcr.S.f=out$Sf$N_rcr.mn,
                nSdStay.f=nSeed.f*(1-p.IPM$p_emig),
                nSdLeave.f=nSeed.f*p.IPM$p_emig)
@@ -707,6 +709,8 @@ fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
                   prP=apply(lambdas>1, 1, mean),
                   lam.mn=apply(lambdas, 1, mean),
                   lam.sd=apply(lambdas, 1, sd),
+                  lam.025=apply(lambdas, 1, quantile, probs=0.025),
+                  lam.975=apply(lambdas, 1, quantile, probs=0.975),
                   llam.mn=apply(log(lambdas), 1, mean),
                   llam.sd=apply(log(lambdas), 1, sd))
       
@@ -718,8 +722,10 @@ fit_IPM <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct.unsc, lam.df, v,
         mutate(prP=out$prP,
                lambda.f=out$lam.mn, 
                lambda.sd.f=out$lam.sd,
+               lambda.025.f=out$lam.025,
+               lambda.975.f=out$lam.975,
                llambda.f=out$llam.mn,
-               llambda.sd=out$llam.sd)
+               llambda.sd.f=out$llam.sd)
       P_CAi <- NULL
       TSS_CAi <- NULL
     } else { 
