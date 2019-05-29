@@ -500,6 +500,8 @@ fit_CA <- function(sp, sp_i, samp.issue, mod.issue, p, env.rct, env.rct.unsc,
              N.S.f=out$N_tot.mn[,dim(out$N_tot.mn)[2]], 
              Surv.S.f=out$N_ad.mn[,dim(out$N_ad.mn)[2]], 
              Surv.S.sd.f=out$N_ad.sd[,dim(out$N_ad.sd)[2]], 
+             Surv.S.025.f=out$N_ad.025[,dim(out$N_ad.025)[2]], 
+             Surv.S.975.f=out$N_ad.025[,dim(out$N_ad.975)[2]], 
              Rcr.S.f=out$N_rcr.mn[,dim(out$N_rcr.mn)[2]],
              nSdStay.f=nSeed.f*(1-p.CA$p_emig), 
              nSdLeave.f=nSeed.f*p.CA$p_emig) 
