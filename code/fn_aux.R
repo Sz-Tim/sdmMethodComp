@@ -197,6 +197,8 @@ summarize_CAd_samples <- function(CA.f, in.id) {
               N_ad.mn=apply(Sa$N_ad[in.id,,,], 1:2, mean, na.rm=T),
               N_ad.sd=apply(Sa$N_ad[in.id,,,], 1:2, sd, na.rm=T),
               N_ad.025=apply(Sa$N_ad[in.id,,,], 1:2, quantile, probs=0.025, na.rm=T),
+              N_ad.25=apply(Sa$N_ad[in.id,,,], 1:2, quantile, probs=0.25, na.rm=T),
+              N_ad.75=apply(Sa$N_ad[in.id,,,], 1:2, quantile, probs=0.75, na.rm=T),
               N_ad.975=apply(Sa$N_ad[in.id,,,], 1:2, quantile, probs=0.975, na.rm=T),
               N_rcr.mn=apply(Sa$N_rcr[in.id,,,], 1:2, mean, na.rm=T)))
 }
@@ -256,6 +258,8 @@ summarize_IPM_CAi_samples <- function(U.f=NULL, S.f=NULL) {
                N_surv.mn=apply(Sa$N_surv, 1, mean),
                N_surv.sd=apply(Sa$N_surv, 1, sd),
                N_surv.025=apply(Sa$N_surv, 1, quantile, probs=0.025),
+               N_surv.25=apply(Sa$N_surv, 1, quantile, probs=0.25),
+               N_surv.75=apply(Sa$N_surv, 1, quantile, probs=0.75),
                N_surv.975=apply(Sa$N_surv, 1, quantile, probs=0.975),
                N_rcr.mn=apply(Sa$N_rcr, 1, mean)) 
     Sf.pa <- Sa$P[,1,]
