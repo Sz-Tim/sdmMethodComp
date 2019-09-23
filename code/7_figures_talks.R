@@ -16,6 +16,7 @@ theme_set(theme_bw())
 sp.names <- c("shrub", "biennial")
 SDM_col <- c(MaxEnt="#fd8d3c", IPM="#08306b", 
              'CA[i]'="#2171b5", 'CA[p]'="#6baed6")
+model.issues <- c("No Seedbank", "Under dispersal", "Over dispersal")
 
 # load TSS, etc
 TSS.df <- rbind(read.csv("out/sp1/out_TSS.csv"),
@@ -48,8 +49,9 @@ TSS.ci <- TSS.df %>% group_by(sp, SDM, issue, Boundary) %>%
   mutate(rank_SDM=row_number())  %>%
   full_join(., filter(., issue=="None"), by=c("sp", "SDM", "Boundary"), 
             suffix=c("", ".none"))
+TSS.ci$rank_SDM[TSS.ci$SDM=="MaxEnt" & TSS.ci$issue %in% model.issues] <- NA
 SDM.ranks <- TSS.ci %>% ungroup %>% 
-  filter(!issue %in% c("No Seedbank", "Under dispersal", "Over dispersal")) %>% 
+  filter(!issue %in% model.issues) %>% 
   group_by(SDM, Boundary, sp) %>% 
   summarise(min_rank=min(rank_SDM), mean_rank=mean(rank_SDM), 
             med_rank=median(rank_SDM), max_rank=max(rank_SDM)) %>%
@@ -59,8 +61,7 @@ rank.bar <- expand.grid(Boundary=unique(TSS.ci$Boundary),
                         sp=unique(TSS.ci$sp), 
                         rank_SDM=unique(TSS.ci$rank_SDM)) %>%
   left_join(., TSS.ci %>% 
-              filter(!issue %in% c("No Seedbank", "Under dispersal", 
-                                   "Over dispersal")) %>%
+              filter(!issue %in% model.issues) %>%
               ungroup %>% group_by(Boundary, SDM, rank_SDM, sp) %>%
               summarise(ct=n()), 
             by=c("Boundary", "SDM", "rank_SDM", "sp"))
@@ -106,6 +107,31 @@ p <- ggplot(SDM.ranks, aes(x=sp, y=mean_rank, colour=SDM)) +
         strip.text.y=element_text(hjust=0)) +
   fonts.isem
 ggsave(paste0(dir.isem, "Ranks_mn_pt.jpg"), p, width=3, height=5)
+
+# by scenario
+ggplot(TSS.ci, aes(x=sp, y=rank_SDM, colour=SDM)) +
+  geom_hline(yintercept=seq(1, 4, 1), colour="gray90", linetype=2, size=0.2) +
+  geom_point(size=8) + 
+  scale_colour_manual("SDM\nMethod", values=SDM_col, 
+                      labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
+  facet_grid(Boundary~issue, labeller=labeller(Boundary=label_parsed)) +
+  labs(x="", y="Rank") + ylim(1, 4.25) +
+  theme(panel.grid=element_blank(), 
+        legend.position="none", 
+        strip.text.y=element_text(hjust=0)) +
+  fonts.isem
+ggplot(TSS.ci, aes(x=issue, y=rank_SDM, colour=SDM, group=SDM)) +
+  geom_hline(yintercept=seq(1, 4, 1), colour="gray90", linetype=2, size=0.2) +
+  geom_line(size=2) + 
+  scale_colour_manual("SDM\nMethod", values=SDM_col, 
+                      labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
+  facet_grid(Boundary~sp, labeller=labeller(Boundary=label_parsed)) +
+  labs(x="", y="Rank") + ylim(1, 4.25) +
+  theme(panel.grid=element_blank(), 
+        legend.position="none", 
+        strip.text.y=element_text(hjust=0)) +
+  fonts.isem
+  
   
 # barplot
 p <- ggplot(rank.bar, aes(x=rank_SDM, y=ct, fill=SDM)) + 
