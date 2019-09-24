@@ -81,8 +81,12 @@ fonts.isem <- theme(plot.title=element_text(size=20),
 
 
 
-# Ranks
-# points
+####----
+## Ranks
+####----
+
+## Mean rank across all scenarios
+# blank
 p <- ggplot(SDM.ranks, aes(x=sp, y=mean_rank, colour=SDM)) + 
   geom_hline(yintercept=seq(1, 4, 1), colour="gray90", linetype=2, size=0.2) +
   geom_point(size=4, colour=NA) + 
@@ -95,6 +99,8 @@ p <- ggplot(SDM.ranks, aes(x=sp, y=mean_rank, colour=SDM)) +
         strip.text.y=element_text(hjust=0)) +
   fonts.isem
 ggsave(paste0(dir.isem, "Ranks_mn_pt_0.jpg"), p, width=3, height=5)
+
+# points
 p <- ggplot(SDM.ranks, aes(x=sp, y=mean_rank, colour=SDM)) + 
   geom_hline(yintercept=seq(1, 4, 1), colour="gray90", linetype=2, size=0.2) +
   geom_point(size=4, position=position_jitter(width=0.02, height=0), alpha=0.8) + 
@@ -108,18 +114,9 @@ p <- ggplot(SDM.ranks, aes(x=sp, y=mean_rank, colour=SDM)) +
   fonts.isem
 ggsave(paste0(dir.isem, "Ranks_mn_pt.jpg"), p, width=3, height=5)
 
-# by scenario
-ggplot(TSS.ci, aes(x=sp, y=rank_SDM, colour=SDM)) +
-  geom_hline(yintercept=seq(1, 4, 1), colour="gray90", linetype=2, size=0.2) +
-  geom_point(size=8) + 
-  scale_colour_manual("SDM\nMethod", values=SDM_col, 
-                      labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
-  facet_grid(Boundary~issue, labeller=labeller(Boundary=label_parsed)) +
-  labs(x="", y="Rank") + ylim(1, 4.25) +
-  theme(panel.grid=element_blank(), 
-        legend.position="none", 
-        strip.text.y=element_text(hjust=0)) +
-  fonts.isem
+
+## Rank for each scenario
+# lines by scenario
 ggplot(TSS.ci, aes(x=issue, y=rank_SDM, colour=SDM, group=SDM)) +
   geom_hline(yintercept=seq(1, 4, 1), colour="gray90", linetype=2, size=0.2) +
   geom_line(size=2) + 
@@ -128,10 +125,10 @@ ggplot(TSS.ci, aes(x=issue, y=rank_SDM, colour=SDM, group=SDM)) +
   facet_grid(Boundary~sp, labeller=labeller(Boundary=label_parsed)) +
   labs(x="", y="Rank") + ylim(1, 4.25) +
   theme(panel.grid=element_blank(), 
+        axis.text.x=element_text(angle=270, vjust=0.5, hjust=0),
         legend.position="none", 
         strip.text.y=element_text(hjust=0)) +
   fonts.isem
-  
   
 # barplot
 p <- ggplot(rank.bar, aes(x=rank_SDM, y=ct, fill=SDM)) + 
@@ -148,6 +145,11 @@ p <- ggplot(rank.bar, aes(x=rank_SDM, y=ct, fill=SDM)) +
 ggsave(paste0(dir.isem, "Ranks_bar.jpg"), p, width=7, height=5)
 
 
+
+
+####----
+## Mean TSS, etc
+####----
 
 # Mean TSS ± 2*SE
 mn_jitt <- position_dodge(width=0.4)
@@ -205,28 +207,88 @@ for(i in 1:length(iss.isem)) {
 }
 
 
-# MS Figure: TSS vs. none
-ggplot(filter(TSS.ci, issue != "None" & issue %in% iss.isem), 
-       aes(x=issue, y=med-med.none, colour=SDM, group=SDM, shape=sp)) + 
+
+
+####----
+## TSS vs. none
+####----
+
+## Scenario effects on median TSS
+# blank
+p <- ggplot(filter(TSS.ci, issue != "None" & issue %in% iss.isem), 
+            aes(x=issue, y=med-med.none, colour=SDM, group=SDM, shape=sp)) + 
   geom_hline(yintercept=seq(-0.15, 0.05, 0.05), colour="gray90", 
-             linetype=2, size=0.2) +
-  geom_hline(yintercept=0, colour="gray80", linetype=1, size=0.2) +
-  geom_point(position=position_dodge(width=1)) +
-  facet_grid(Boundary~issue, scales="free", 
+             linetype=2, size=0.2) + 
+  geom_hline(yintercept=0, colour="gray80", linetype=2, size=1) +
+  geom_point(position=position_dodge(width=1), size=4, colour=NA) +
+  facet_grid(Boundary~issue, scales="free_x", 
              labeller=labeller(Boundary=label_parsed, issue=label_wrap_gen(11))) +
   scale_colour_manual("SDM\nMethod", values=SDM_col, 
                       labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
-  scale_shape_manual("Species", values=1:2) +
+  scale_shape_manual("Species", values=c(19,17)) +
+  scale_y_continuous(breaks=c(-0.1, 0, 0.1), limits=c(-0.15,0.1)) +
   theme(panel.grid=element_blank(), 
         axis.text.x=element_blank(),
         axis.ticks.x=element_blank(),
-        legend.key.size=unit(0.3, 'cm'), 
-        legend.text.align=0,
+        strip.text.y=element_text(hjust=0),
+        legend.position="none",
         panel.spacing.x=unit(c(rep(-.1, 4)), "cm"),
-        panel.spacing.y=unit(0.1, "cm"),
+        panel.spacing.y=unit(0.5, "cm"),
         panel.border=element_rect(colour="gray40")) + 
-  labs(x="", y=expression(TSS[scenario]-TSS['no issue']))
-ggsave(paste0(dir.isem, "Fig_TSSvNone.jpg"), p, width=8, height=3.75)
+  fonts.isem +
+  labs(x="", y=expression(TSS[i]-TSS['None']))
+ggsave(paste0(dir.isem, "TSS_md_v_None_0.jpg"), p, width=7.5, height=5.25)
+
+# points
+for(i in 2:length(iss.isem)) {
+  p <- ggplot(filter(TSS.ci, issue != "None" & issue %in% iss.isem), 
+              aes(x=issue, y=med-med.none, colour=SDM, group=SDM, shape=sp)) + 
+    geom_point(position=position_dodge(width=1), size=4, colour=NA) +
+    geom_hline(yintercept=seq(-0.15, 0.05, 0.05), colour="gray90", 
+               linetype=2, size=0.2) + 
+    geom_hline(yintercept=0, colour="gray80", linetype=2, size=1) +
+    geom_point(data=filter(TSS.ci, issue %in% iss.isem[2:i]),
+               position=position_dodge(width=1), size=4, alpha=0.7) +
+    facet_grid(Boundary~issue, scales="free_x", 
+               labeller=labeller(Boundary=label_parsed, issue=label_wrap_gen(11))) +
+    scale_colour_manual("SDM\nMethod", values=SDM_col, 
+                        labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
+    scale_shape_manual("Species", values=c(19,17)) +
+    scale_y_continuous(breaks=c(-0.1, 0, 0.1), limits=c(-0.15,0.1)) +
+    theme(panel.grid=element_blank(), 
+          axis.text.x=element_blank(),
+          axis.ticks.x=element_blank(),
+          strip.text.y=element_text(hjust=0),
+          legend.position="none",
+          panel.spacing.x=unit(c(rep(-.1, 4)), "cm"),
+          panel.spacing.y=unit(0.5, "cm"),
+          panel.border=element_rect(colour="gray40")) + 
+    fonts.isem +
+    labs(x="", y=expression(TSS[i]-TSS['None']))
+  ggsave(paste0(dir.isem, "TSS_md_v_None_", i-1, ".jpg"), p, width=7.5, height=5.25)
+}
+
+
+ggplot(filter(TSS.ci, issue != "None" & issue %in% iss.isem), 
+       aes(x=issue, y=(med-med.none)/med.none, colour=SDM, group=SDM)) + 
+  # geom_hline(yintercept=seq(-0.15, 0.05, 0.05), colour="gray90", 
+             # linetype=2, size=0.2) + 
+  geom_hline(yintercept=0, colour="gray80", linetype=2, size=1) +
+  geom_point(position=position_jitter(width=0.2), size=4, alpha=0.7) +
+  facet_grid(Boundary~sp, 
+             labeller=labeller(Boundary=label_parsed, issue=label_wrap_gen(11))) +
+  scale_colour_manual("SDM\nMethod", values=SDM_col, 
+                      labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
+  scale_y_continuous(breaks=c(-0.1, 0, 0.1), limits=c(-0.15,0.1)) +
+  theme(panel.grid=element_blank(), 
+        strip.text.y=element_text(hjust=0),
+        legend.position="none",
+        axis.text.x=element_text(angle=270, vjust=0.5, hjust=0),
+        # panel.spacing.x=unit(c(rep(-.1, 4)), "cm"),
+        # panel.spacing.y=unit(0.5, "cm"),
+        panel.border=element_rect(colour="gray40")) + 
+  fonts.isem +
+  labs(x="", y=expression(TSS[i]-TSS['None']))
 
 
 
