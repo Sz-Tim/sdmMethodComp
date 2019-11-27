@@ -27,7 +27,7 @@ TSS.df <- rbind(read.csv("out/sp1/out_TSS.csv"),
 TSS.df$issue <- factor(TSS.df$issue, 
                        levels=c("none", "noise", "sampBias", "nonEq", 
                                 "wrongCov", "noSB", "underDisp", "overDisp"),
-                       labels=c("None", "Measurement error", "Sampling bias", 
+                       labels=c("Ideal", "Measurement error", "Sampling bias", 
                                 "Non equilibrium", "Incorrect covariates", 
                                 "No Seedbank", "Under dispersal",
                                 "Over dispersal"))
@@ -45,7 +45,7 @@ TSS.ci <- TSS.df %>% group_by(sp, SDM, issue, Boundary) %>%
   arrange(Boundary, issue, sp, desc(med)) %>%
   ungroup %>% group_by(Boundary, issue, sp) %>%
   mutate(rank_SDM=row_number())  %>%
-  full_join(., filter(., issue=="None"), by=c("sp", "SDM", "Boundary"), 
+  full_join(., filter(., issue=="Ideal"), by=c("sp", "SDM", "Boundary"), 
             suffix=c("", ".none"))
 
 # Sensitivity & specificity
@@ -63,7 +63,7 @@ senspe.ci <- TSS.df %>% group_by(sp, SDM, issue, Boundary) %>%
             q75.spe=quantile(specificity, probs=0.75, na.rm=T), 
             q975.spe=quantile(specificity, probs=0.975, na.rm=T)) %>%
   arrange(Boundary, issue, sp, desc(med.sen)) %>%
-  full_join(., filter(., issue=="None"), by=c("sp", "SDM", "Boundary"), 
+  full_join(., filter(., issue=="Ideal"), by=c("sp", "SDM", "Boundary"), 
             suffix=c("", ".none"))
 
 # Log likelihood
@@ -75,7 +75,7 @@ LL.df <- rbind(read.csv("out/sp1/out_LL.csv"),
 LL.df$issue <- factor(LL.df$issue, 
                        levels=c("none", "noise", "sampBias", "nonEq", 
                                 "wrongCov", "noSB", "underDisp", "overDisp"),
-                       labels=c("None", "Measurement error", "Sampling bias", 
+                       labels=c("Ideal", "Measurement error", "Sampling bias", 
                                 "Non equilibrium", "Incorrect covariates", 
                                 "No Seedbank", "Under dispersal",
                                 "Over dispersal"))
@@ -100,7 +100,7 @@ P.df$S_in_CI[P.df$SDM=="IPM" & P.df$lambda.975.f >= P.df$lambda &
 P.df$issue <- factor(P.df$issue, 
                      levels=c("none", "noise", "sampBias", "nonEq", 
                               "wrongCov", "noSB", "underDisp", "overDisp"),
-                     labels=c("None", "Measurement error", "Sampling bias", 
+                     labels=c("Ideal", "Measurement error", "Sampling bias", 
                               "Non equilibrium", "Incorrect covariates", 
                               "No Seedbank", "Under dispersal",
                               "Over dispersal"))
@@ -209,8 +209,8 @@ ggsave("figs/Supp_Fig_Ranks.jpg", width=3, height=3)
 ########
 ## No issue
 ########
-tss.none <- filter(TSS.df, issue=="None")
-tss.none.ci <- filter(TSS.ci, issue=="None")
+tss.none <- filter(TSS.df, issue=="Ideal")
+tss.none.ci <- filter(TSS.ci, issue=="Ideal")
 
 TukeyHSD(aov(TSS ~ SDM*sp, 
              data=filter(tss.none, Boundary=="True~range:~lambda > 1")))
@@ -224,16 +224,16 @@ ggplot(tss.none.ci, aes(x=SDM, y=med, min=q025, ymax=q975)) +
   geom_point() + geom_errorbar() +
   facet_grid(Boundary~sp)
 
-p <- ggplot(filter(P.df, sp=="shrub" & issue!="None"), 
+p <- ggplot(filter(P.df, sp=="shrub" & issue!="Ideal"), 
             aes(x=prP.none, y=prP)) + 
   geom_abline(colour="gray70") + geom_point(alpha=0.01) + 
   facet_grid(SDM~issue)
-ggsave("~/Desktop/shrub_prP_vNone.jpg", p, height=6, width=10)
-p <- ggplot(filter(P.df, sp=="biennial" & issue!="None"), 
+ggsave("~/Desktop/shrub_prP_vIdeal.jpg", p, height=6, width=10)
+p <- ggplot(filter(P.df, sp=="biennial" & issue!="Ideal"), 
             aes(x=prP.none, y=prP)) + 
   geom_abline(colour="gray70") + geom_point(alpha=0.01) + 
   facet_grid(SDM~issue)
-ggsave("~/Desktop/biennial_prP_vNone.jpg", p, height=6, width=10)
+ggsave("~/Desktop/biennial_prP_vIdeal.jpg", p, height=6, width=10)
 
 
 
@@ -243,6 +243,19 @@ ggsave("~/Desktop/biennial_prP_vNone.jpg", p, height=6, width=10)
 ## TSS/Sensitivity/Specificity: median + 95% CI
 ########
 # MS Figure: TSS
+ggplot(TSS.df, aes(x=issue, y=TSS, colour=SDM)) + 
+  geom_hline(yintercept=seq(0.6, 1, 0.1), colour="gray90", linetype=2, size=0.2) +
+  geom_boxplot(outlier.shape=NA) + ylim(.7, 1) +
+  facet_grid(Boundary~., labeller=labeller(Boundary=label_parsed)) +
+  scale_colour_manual("SDM", values=SDM_col, 
+                      labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
+  theme(panel.grid=element_blank(), 
+        legend.text.align=0,
+        axis.text.x=element_text(angle=270, vjust=0.5, hjust=0),
+        legend.key.size=unit(0.3, 'cm')) + 
+  labs(x="Scenario", y="TSS")
+ggsave("figs/Fig_TSS_box.jpg", width=6, height=4)
+
 ggplot(TSS.ci, aes(x=issue, y=med, colour=SDM, group=SDM)) + 
   geom_hline(yintercept=seq(0.4, 1, 0.1), colour="gray90", linetype=2, size=0.2) +
   geom_line(size=0.2, position=position_dodge(width=0.4)) +
@@ -251,7 +264,7 @@ ggplot(TSS.ci, aes(x=issue, y=med, colour=SDM, group=SDM)) +
   geom_linerange(aes(ymin=q25, ymax=q75), size=0.75, 
                  position=position_dodge(width=0.4)) + 
   facet_grid(Boundary~sp, labeller=labeller(Boundary=label_parsed)) +
-  scale_colour_manual("SDM\nMethod", values=SDM_col, 
+  scale_colour_manual("SDM", values=SDM_col, 
                       labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
   theme(panel.grid=element_blank(), 
         legend.text.align=0,
@@ -263,17 +276,33 @@ ggsave("figs/Fig_TSS_med.jpg", width=5, height=5)
 ggplot(TSS.ci, aes(x=issue, y=mn, colour=SDM, group=SDM)) + 
   geom_hline(yintercept=seq(0.7, 1, 0.1), colour="gray90", linetype=2, size=0.2) +
   geom_line(size=0.2, position=position_dodge(width=0.4)) +
-  geom_errorbar(aes(ymin=mn-1.96*sd, ymax=mn+1.96*sd), size=0.3, width=0.75, 
+  geom_errorbar(aes(ymin=mn-.196*sd, ymax=mn+.196*sd), size=0.3, width=0.75, 
                 position=position_dodge(width=0.4)) + 
   facet_grid(Boundary~sp, labeller=labeller(Boundary=label_parsed)) +
-  scale_colour_manual("SDM\nMethod", values=SDM_col, 
+  scale_colour_manual("SDM", values=SDM_col, 
+                      labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
+  theme(panel.grid=element_blank(), 
+        legend.text.align=0,
+        axis.text.x=element_text(angle=270, vjust=0.5, hjust=0),
+        legend.key.size=unit(0.3, 'cm')) + 
+  labs(#title="TSS across 100 sampled datasets", 
+       x="Scenario", y="TSS")
+ggsave("figs/Fig_TSS_mn+CI.jpg", width=5, height=5)
+
+ggplot(TSS.ci, aes(x=issue, y=mn, colour=SDM, group=SDM)) + 
+  geom_hline(yintercept=seq(0.7, 1, 0.1), colour="gray90", linetype=2, size=0.2) +
+  geom_line(size=0.2, position=position_dodge(width=0.4)) +
+  geom_errorbar(aes(ymin=q25, ymax=q75), size=0.3, width=0.75, 
+                position=position_dodge(width=0.4)) + 
+  facet_grid(Boundary~sp, labeller=labeller(Boundary=label_parsed)) +
+  scale_colour_manual("SDM", values=SDM_col, 
                       labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
   theme(panel.grid=element_blank(), 
         legend.text.align=0,
         axis.text.x=element_text(angle=270, vjust=0.5, hjust=0),
         legend.key.size=unit(0.3, 'cm')) + 
   labs(title="TSS across 100 sampled datasets", x="Scenario", y="TSS")
-ggsave("figs/Fig_TSS_mn+CI.jpg", width=5, height=5)
+ggsave("figs/Fig_TSS_mn+50.jpg", width=5, height=5)
 
 # Supplemental Figure: Sensitivity
 ggplot(senspe.ci, aes(x=issue, y=med.sen, colour=SDM, group=SDM)) + 
@@ -284,7 +313,7 @@ ggplot(senspe.ci, aes(x=issue, y=med.sen, colour=SDM, group=SDM)) +
   geom_linerange(aes(ymin=q25.sen, ymax=q75.sen), size=0.75, 
                  position=position_dodge(width=0.4)) + 
   facet_grid(Boundary~sp, labeller=labeller(Boundary=label_parsed)) +
-  scale_colour_manual("SDM\nMethod", values=SDM_col, 
+  scale_colour_manual("SDM", values=SDM_col, 
                       labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
   theme(panel.grid=element_blank(), 
         legend.text.align=0,
@@ -319,83 +348,100 @@ ggsave("figs/Supp_Spec_med.jpg", width=5, height=5)
 
 
 ########
-## TSS/Sensitivity/Specificity vs. None
+## TSS/Sensitivity/Specificity vs. Ideal
 ########
 TSS.df <- full_join(TSS.df, 
-                    filter(TSS.df, issue=="None") %>% 
+                    filter(TSS.df, issue=="Ideal") %>% 
                       select(TSS, sp, SDM, Boundary), 
                     by=c("sp", "SDM", "Boundary"), 
                       suffix=c("", ".none"))
 
 # MS Figure: TSS vs. none
-ggplot(filter(TSS.ci, issue != "None"), 
+ggplot(filter(TSS.ci, issue != "Ideal"), 
        aes(x=issue, y=med-med.none, colour=SDM, group=SDM, shape=sp)) + 
-  geom_hline(yintercept=seq(-0.15, 0.05, 0.05), colour="gray90", 
-             linetype=2, size=0.2) +
+  geom_hline(yintercept=seq(-0.1, 0.05, 0.05), colour="gray85", 
+             linetype=2, size=0.2) + ylim(-0.12, 0.08) +
   geom_hline(yintercept=0, colour="gray80", linetype=1, size=0.2) +
-  geom_point(position=position_dodge(width=1)) +
+  geom_point(aes(fill=SDM), position=position_dodge(width=1), alpha=0.5, size=2) +
+  geom_point(position=position_dodge(width=1), fill=NA, size=2) +
   facet_grid(Boundary~issue, scales="free", 
              labeller=labeller(Boundary=label_parsed, issue=label_wrap_gen(11))) +
-  scale_colour_manual("SDM\nMethod", values=SDM_col, 
+  scale_colour_manual("SDM:", values=SDM_col, 
                       labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
-  scale_shape_manual("Species", values=1:2) +
+  scale_fill_manual("SDM:", values=SDM_col, 
+                      labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
+  scale_shape_manual("Species:", values=c(21,24)) +
+  # scale_shape_manual("Species", values=1:2) +
   theme(panel.grid=element_blank(), 
         axis.text.x=element_blank(),
         axis.ticks.x=element_blank(),
-        legend.key.size=unit(0.3, 'cm'), 
+        legend.key.size=unit(0.25, 'cm'), 
+        legend.box.margin=margin(-20,0,0,0),
         legend.text.align=0,
+        legend.position="bottom",
         panel.spacing.x=unit(c(rep(-.1, 6)), "cm"),
         panel.spacing.y=unit(0.1, "cm"),
         panel.border=element_rect(colour="gray40")) + 
-  labs(title="Effect of scenarios on median TSS", x="", 
-       y=expression(TSS[scenario]-TSS['no issue']))
-ggsave("figs/Fig_TSSvNone.jpg", width=8, height=3.75)
+  labs(#title="Effect of scenarios on median TSS", 
+       x="", 
+       y=expression(TSS[i]-TSS['Ideal']))
+ggsave("figs/Fig_TSSvIdeal.jpg", width=8, height=3.75)
 
-ggplot(filter(senspe.ci, issue != "None"), 
+ggplot(filter(senspe.ci, issue != "Ideal"), 
        aes(x=issue, y=med.sen-med.sen.none, colour=SDM, group=SDM, shape=sp)) + 
   geom_hline(yintercept=seq(-0.15, 0.05, 0.05), colour="gray90",
              linetype=2, size=0.2) +
   geom_hline(yintercept=0, colour="gray80", linetype=1, size=0.2) +
-  geom_point(position=position_dodge(width=1)) +
+  geom_point(aes(fill=SDM), position=position_dodge(width=1), alpha=0.5, size=2) +
+  geom_point(position=position_dodge(width=1), fill=NA, size=2) +
   facet_grid(Boundary~issue, scales="free", 
              labeller=labeller(Boundary=label_parsed, issue=label_wrap_gen(11))) +
-  scale_colour_manual("SDM\nMethod", values=SDM_col, 
+  scale_colour_manual("SDM:", values=SDM_col, 
                       labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
-  scale_shape_manual("Species", values=1:2) +
+  scale_fill_manual("SDM:", values=SDM_col, 
+                    labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
+  scale_shape_manual("Species:", values=c(21,24)) +
   theme(panel.grid=element_blank(), 
         axis.text.x=element_blank(),
         axis.ticks.x=element_blank(),
-        legend.key.size=unit(0.3, 'cm'), 
+        legend.key.size=unit(0.25, 'cm'), 
+        legend.box.margin=margin(-20,0,0,0),
         legend.text.align=0,
+        legend.position="bottom",
         panel.spacing.x=unit(c(rep(-.1, 6)), "cm"),
         panel.spacing.y=unit(0.1, "cm"),
         panel.border=element_rect(colour="gray40")) + 
   labs(title="Effect of scenarios on median sensitivity", x="", 
-       y=expression(Sensitivity[scenario]-Sensitivity['no issue']))
-ggsave("figs/Supp_SensvNone.jpg", width=8, height=3.75)
+       y=expression(Sensitivity[i]-Sensitivity['ideal']))
+ggsave("figs/Supp_SensvIdeal.jpg", width=8, height=3.75)
 
-ggplot(filter(senspe.ci, issue != "None"), 
+ggplot(filter(senspe.ci, issue != "Ideal"), 
        aes(x=issue, y=med.spe-med.spe.none, colour=SDM, group=SDM, shape=sp)) + 
   geom_hline(yintercept=seq(-0.15, 0.1, 0.05), colour="gray90",
              linetype=2, size=0.2) +
   geom_hline(yintercept=0, colour="gray80", linetype=1, size=0.2) +
-  geom_point(position=position_dodge(width=1)) +
+  geom_point(aes(fill=SDM), position=position_dodge(width=1), alpha=0.5, size=2) +
+  geom_point(position=position_dodge(width=1), fill=NA, size=2) +
   facet_grid(Boundary~issue, scales="free", 
              labeller=labeller(Boundary=label_parsed, issue=label_wrap_gen(11))) +
-  scale_colour_manual("SDM\nMethod", values=SDM_col, 
+  scale_colour_manual("SDM:", values=SDM_col, 
                       labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
-  scale_shape_manual("Species", values=1:2) +
+  scale_fill_manual("SDM:", values=SDM_col, 
+                    labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
+  scale_shape_manual("Species:", values=c(21,24)) +
   theme(panel.grid=element_blank(), 
         axis.text.x=element_blank(),
         axis.ticks.x=element_blank(),
-        legend.key.size=unit(0.3, 'cm'), 
+        legend.key.size=unit(0.25, 'cm'), 
+        legend.box.margin=margin(-20,0,0,0),
         legend.text.align=0,
+        legend.position="bottom",
         panel.spacing.x=unit(c(rep(-.1, 6)), "cm"),
         panel.spacing.y=unit(0.1, "cm"),
         panel.border=element_rect(colour="gray40")) + 
   labs(title="Effect of scenarios on median specificity", x="", 
-       y=expression(Specificity[scenario]-Specificity['no issue']))
-ggsave("figs/Supp_SpecvNone.jpg", width=8, height=3.75)
+       y=expression(Specificity[i]-Specificity['ideal']))
+ggsave("figs/Supp_SpecvIdeal.jpg", width=8, height=3.75)
 
 
 
@@ -471,7 +517,7 @@ ggsave("figs/Fig_N_S.jpg", N.p, width=11, height=7)
 
 
 
-dunn.list <- filter(TSS.df, issue == "None" & sp == "shrub" &
+dunn.list <- filter(TSS.df, issue == "Ideal" & sp == "shrub" &
                       Boundary == "True~range:~lambda > 1") %>%
   list(CAp=filter(., SDM=="CA[p]")$TSS,
        CAp=filter(., SDM=="CA[i]")$TSS,
