@@ -208,6 +208,29 @@ for(i in 1:length(iss.isem)) {
 
 
 
+p <- TSS.ci %>% filter(issue %in% c("None", "Non equilibrium")) %>%
+  ggplot(aes(x=sp, y=mn, ymin=mn-2*se, ymax=mn+2*se, shape=sp, colour=SDM)) +
+  geom_hline(yintercept=seq(0.8, 1, 0.1), colour="gray80", 
+             linetype=2, size=0.5) +
+  geom_point(alpha=0.7, size=4, position=mn_jitt) +
+  geom_errorbar(size=0.5, width=0.25, position=mn_jitt) + 
+  facet_grid(Boundary~issue, labeller=labeller(Boundary=label_parsed)) +
+  scale_x_discrete(labels=scales::wrap_format(10)) +
+  scale_y_continuous(breaks=c(0.8, 0.9, 1)) +
+  scale_colour_manual("SDM\nMethod", values=SDM_col, 
+                      labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
+  theme(panel.grid=element_blank(), 
+        strip.text.y=element_text(hjust=0),
+        axis.text.x=element_text(angle=270, vjust=0.5, hjust=0),
+        legend.position="none") + 
+  fonts.isem +
+  labs(x="", y="TSS")
+ggsave(paste0(dir.isem, "TSS_mn+SD_None+NonEq.jpg"), p, width=5, height=5)
+
+
+
+
+
 
 ####----
 ## TSS vs. none
