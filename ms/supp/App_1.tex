@@ -1,0 +1,339 @@
+\documentclass[]{article}
+\usepackage{lmodern}
+\usepackage{amssymb,amsmath}
+\usepackage{ifxetex,ifluatex}
+\usepackage{fixltx2e} % provides \textsubscript
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+\else % if luatex or xelatex
+  \ifxetex
+    \usepackage{mathspec}
+  \else
+    \usepackage{fontspec}
+  \fi
+  \defaultfontfeatures{Ligatures=TeX,Scale=MatchLowercase}
+\fi
+% use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+% use microtype if available
+\IfFileExists{microtype.sty}{%
+\usepackage{microtype}
+\UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\hypersetup{unicode=true,
+            pdftitle={Appendix 1: Supplemental Methods},
+            pdfauthor={Tim M. Szewczyk, Marek Petrik, Jenica M. Allen},
+            pdfborder={0 0 0},
+            breaklinks=true}
+\urlstyle{same}  % don't use monospace font for urls
+\usepackage{graphicx,grffile}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+\IfFileExists{parskip.sty}{%
+\usepackage{parskip}
+}{% else
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt plus 2pt minus 1pt}
+}
+\setlength{\emergencystretch}{3em}  % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{5}
+% Redefines (sub)paragraphs to behave more like sections
+\ifx\paragraph\undefined\else
+\let\oldparagraph\paragraph
+\renewcommand{\paragraph}[1]{\oldparagraph{#1}\mbox{}}
+\fi
+\ifx\subparagraph\undefined\else
+\let\oldsubparagraph\subparagraph
+\renewcommand{\subparagraph}[1]{\oldsubparagraph{#1}\mbox{}}
+\fi
+
+%%% Use protect on footnotes to avoid problems with footnotes in titles
+\let\rmarkdownfootnote\footnote%
+\def\footnote{\protect\rmarkdownfootnote}
+
+%%% Change title format to be more compact
+\usepackage{titling}
+
+% Create subtitle command for use in maketitle
+\providecommand{\subtitle}[1]{
+  \posttitle{
+    \begin{center}\large#1\end{center}
+    }
+}
+
+\setlength{\droptitle}{-2em}
+
+  \title{Appendix 1: Supplemental Methods}
+    \pretitle{\vspace{\droptitle}\centering\huge}
+  \posttitle{\par}
+  \subtitle{The performance of presence-based and process-based species distribution
+models}
+  \author{Tim M. Szewczyk, Marek Petrik, Jenica M. Allen}
+    \preauthor{\centering\large\emph}
+  \postauthor{\par}
+    \date{}
+    \predate{}\postdate{}
+  
+\newcommand{\beginsupplement}{\setcounter{table}{0}  \renewcommand{\thetable}{A.\arabic{table}} \setcounter{figure}{0} \renewcommand{\thefigure}{A.\arabic{figure}}}  \usepackage{longtable}  \usepackage{caption}
+
+\begin{document}
+\maketitle
+
+{
+\setcounter{tocdepth}{1}
+\tableofcontents
+}
+\setcounter{table}{0}  \renewcommand{\thetable}{A.\arabic{table}} \setcounter{figure}{0} \renewcommand{\thefigure}{A.\arabic{figure}}
+
+\begin{center}\rule{0.5\linewidth}{\linethickness}\end{center}
+
+This appendix contains supplemental methods pertaining to the virtual
+species generation, species distribution model specifics, and scenario
+particulars.
+
+\begin{center}\rule{0.5\linewidth}{\linethickness}\end{center}
+
+\section{General model structure}
+\subsection{Integral Projection Model overview}
+
+To generate fully-known true distributions for the virtual species, we
+used the general structure of an Integral Projection Model (IPM) to
+calculate the intrinsic growth rate \(\lambda\) in each cell of the
+gridded landscape, and adapted the regression-based structure of an IPM
+into an individual-level, simulation-based cellular automata (CA) model
+to produce spatiotemporally dynamic abundance distributions. The
+equations below apply to both models.
+
+IPMs use the size distribution, \(z\), of individuals at time \(t\),
+along with a kernel \(K(z^{\prime}, z)\), to predict the size
+distribution, \(z^{\prime}\), at time \(t+1\): \begin{equation}
+n_{t+1}(z^{\prime}) = \int_{\Omega} K(z^{\prime}, z) n_t(z) dz
+\end{equation}
+
+Here, \(\Omega\) represents the range of possible sizes for the species
+or population. The kernel \(K(z^{\prime}, z)\) is composed of a growth
+and survival component, \(P(z, z^{\prime})\), representing the fate of
+individuals from time \(t\) to \(t+1\), and a fecundity component,
+\(F(z, z^{\prime})\), representing new individuals added between time
+\(t\) and \(t+1\). In practice, the integral is approximated using a
+discretized transition matrix, and the intrinsic growth rate \(\lambda\)
+is calculated as the first eigenvalue of the transition matrix.
+
+The \(P\) and \(F\) kernels are decomposed further into more mechanistic
+conditional probabilities and parameters, many of which are functions of
+the size distribution \(z\). For example: \begin{equation}
+\begin{split}
+K(z^{\prime}, z) & = P(z^{\prime}, z) + F(z^{\prime}, z) \\
+    & = s(z) g(z^{\prime}|z) + p_{flower}(z) f_{seeds}(z) p_{estab} f_{rcrSize}(z^{\prime})
+\end{split}
+\end{equation}
+
+where \(s(z)\) is the survival probability of individuals based on size,
+\(g(z^{\prime}|z)\) is the probability density of size \(z^{\prime}\)
+for an individual of size \(z\), \(p_{flower}(z)\) is the probability
+that an individual of size \(z\) produces flowers, \(f_{seeds}(z)\) is
+the expected number of seeds produced by an individual of size \(z\)
+given that they flower, \(p_{estab}\) is the probability that a seed
+germinates and establishes as a new recruit, and
+\(f_{rcrSize}(z^{\prime})\) is the expected size distribution of new
+recruits at time \(t+1\). On a gridded landscape, the population in each
+cell could be modelled independently using the above structure, with
+environmental effects incorporated by allowing the environment to
+influence parameter values (e.g., \(f_{seeds}\)).
+
+\subsection{Adding a seed bank}
+
+This basic IPM structure is very flexible, allowing for discrete life
+stages, reproduction-dependent mortality, and environmental covariates.
+To incorporate a seed bank where seeds that do not germinate between
+time \(t\) and \(t+1\) may survive to \(t+2\) or beyond, the fecundity
+kernel is altered, with seed bank \(B\), such that: \begin{align}
+n_{t+1}(z^{\prime}) &= B_t s_{rcrB} p_{estab} f_{rcrSize}(z^{\prime}) + \int_{\Omega}[P(z^{\prime}, z)+F(z^{\prime}, z)] n_t(z) dz \\
+F(z^{\prime}, z) &= p_{flower}(z)  f_{seeds}(z) s_{rcrDirect} p_{estab} f_{rcrSize}(z^{\prime}) \\
+B_{t+1} &= B_t s_{survB} (1-s_{rcrB})  + p_{flower}(z)  f_{seeds}(z) (1-s_{rcrDirect}) s_{survB} n_t(z) dz
+\end{align}
+
+where \(B_t\) is the number of seeds in the seed bank at time \(t\),
+\(s_{rcrB}\) is the probability a seed recruits from the seed bank,
+\(s_{survB}\) is the probability a seed survives in the seed bank from
+time \(t\) to \(t+1\), and \(s_{rcrDirect}\) is the probability a seed
+produced in year \(t\) germinates between year \(t\) and \(t+1\). Two
+notes about the structure and definitions: 1) a seed added to the seed
+bank must fail to recruit in time \(t\) and must also survive from \(t\)
+to \(t+1\), and 2) the probability of recruiting is best interpreted as
+the probability of germinating and is therefore separate from the
+probability of establishing. Both of these could be defined differently
+to combine each set of processes, though keeping them separate allows
+for seeds to perish.
+
+\subsection{Adding dispersal}
+
+The above equations assume isolated populations in each cell. However,
+for a typical plant species, dispersal occurs when seeds move from the
+cell where they are produced to a different cell. In an IPM with a seed
+bank, this will affect the fecundity kernel \(F(z^{\prime}, z)\) and the
+seed bank \(B\). Specifically, the number of seeds in the seed bank in
+cell \(i\) at time \(t+1\) will be the number of seeds surviving in the
+seed bank \(B_i\) from time \(t\) to \(t+1\), plus the number of seeds
+produced in cell \(i\) at time \(t\) that remain in cell \(i\) and do
+not recruit directly, plus the number of seeds entering cell \(i\) from
+cells \(j = 1, ..., J\) as immigrants in time \(t\) that then fail to
+recruit directly: \begin{equation}
+    \begin{aligned}
+        B_{i,t+1} = \enspace
+        & B_{i,t} s_{survSB} (1-s_{rcrSB}) \enspace+  \\
+        & \int_{\Omega} p_{flower,i}(z)  f_{seeds,i}(z) (1-p_{emig}) (1-s_{rcrDirect}) s_{survB} n_{i,t}(z) dz \enspace+  \\
+        & \sum_{j=1}^{J} \int_{\Omega} [p_{flower,j}(z)  f_{seeds,j}(z) p_{emig} n_{t,j}(z) dz] p_{SDD,ji} (1-s_{rcrDirect}) s_{survB}\\
+    \end{aligned}
+\end{equation} \begin{equation}
+\begin{aligned}
+n_{i,t+1}(z^{\prime}) = \enspace
+& B_{i,t} s_{rcrSB} p_{estab_i} f_{rcrSize}(z^{\prime}) \enspace+   \\
+& \int_{\Omega} [s_i(z) g_i(z^{\prime}|z) + p_{flower_i}(z)  f_{seeds_i}(z) (1-p_{emig}) s_{rcrDirect} p_{estab_i} f_{rcrSize}(z^{\prime})] n_{i,t}(z) dz \enspace +  \\
+& \sum_{j=1}^{J} \int_{\Omega} [p_{flower,j}(z)  f_{seeds,j}(z) p_{emig} n_{t, j}(z) dz] p_{SDD,ji} s_{rcrDirect} p_{estab,i} f_{rcrSize}(z^{\prime})\\
+\end{aligned}
+\end{equation} for each cell \(i\) which is a target cell of each cell
+\(j\) of \(J\) cells, where the integral describes the seed production
+in each cell \(j\) and \(p_{SDD,ji}\) is the probability that a seed
+dispersed from \(j\) lands in \(i\). Note that, as above, seeds added to
+the seed bank must survive overwinter as well as fail to recruit
+directly.
+
+\begin{center}\rule{0.5\linewidth}{\linethickness}\end{center}
+
+\newpage
+\section{Regression equations for the virtual species}
+
+We used the above IPM structure, including a seed bank and dispersal, as
+the basis for the virtual species. Thus, the population in each cell
+\(i\) has size distribution \(z\), where \(z^{\prime}\) is the size
+distribution the next year, and \(\boldsymbol{z_i}\) is a matrix with
+columns for: 1, \(z\), \(z^2\), and \(z^3\).
+
+\subsection{Survival}
+
+Annual survival, \(\boldsymbol{s_i}\), was modelled for each individual
+in cell \(i\) as a binary outcome (0: mortality; 1: survival) following
+a Bernoulli distribution with probability \(\boldsymbol{\psi_{si}}\)
+such that: \begin{align}
+\boldsymbol{s_i} & \sim Bern(\boldsymbol{\psi_{si}}) \\
+logit(\boldsymbol{\psi_{si}}) & = \boldsymbol{z_i}\beta_{s} + \boldsymbol{X_i}\theta_{s}
+\end{align} where \(\beta_{s}\) is a vector of covariates for size,
+\(\boldsymbol{X_i}\) is a set of cell-level environmental covariates,
+and \(\theta_{s}\) is a vector of responses to the environmental
+covariates.
+
+\subsection{Growth}
+
+The size distribution, \(\boldsymbol{z^{\prime}_i}\) of individuals in
+cell \(i\) for time \(t+1\) was distributed normally about the vector of
+expected sizes, \(\boldsymbol{\mu_{gi}}\) with standard deviation
+\(\sigma_g\), such that \begin{align}
+\boldsymbol{z^{\prime}_i} &\sim Norm(\boldsymbol{\mu_{gi}}, \sigma_g) \\
+\boldsymbol{\mu_{gi}} &= \boldsymbol{z_i}\beta_{g} + \boldsymbol{X_i}\theta_{g}
+\end{align} where \(\beta_{g}\) is a vector of covariates for size,
+\(\boldsymbol{X_i}\) is a set of cell-level environmental covariates,
+and \(\theta_{g}\) is a vector of responses to the environmental
+covariates.
+
+\subsection{Flowering}
+
+Individual flowering, \(\boldsymbol{l_i}\), was modelled for each
+individual in cell \(i\) as a binary outcome (0: no flowers; 1: flowers)
+following a Bernoulli distribution with probability
+\(\boldsymbol{\psi_{li}}\) such that: \begin{align}
+\boldsymbol{l_i} &\sim Bern(\boldsymbol{\psi_{li}}) \\
+logit(\boldsymbol{\psi_{li}}) &= \boldsymbol{z_i}\beta_{l} + \boldsymbol{X_i}\theta_{l}
+\end{align} where \(\beta_{l}\) is a vector of covariates for size,
+\(\boldsymbol{X_i}\) is a set of cell-level environmental covariates,
+and \(\theta_{l}\) is a vector of responses to the environmental
+covariates.
+
+\subsection{Seeds}
+
+The number of seeds produced, \(\boldsymbol{d_i}\) by each flowering
+individual in cell \(i\) for time \(t\) was Poisson distributed about
+the vector of expected seed counts, \(\boldsymbol{\mu_{di}}\), such that
+\begin{align}
+\boldsymbol{d_i} &\sim Poisson(\boldsymbol{\mu_{di}}) \\
+log(\boldsymbol{\mu_{di}}) &= \boldsymbol{z_i}\beta_{d} + \boldsymbol{X_i}\theta_{d}
+\end{align} where \(\beta_{d}\) is a vector of covariates for size,
+\(\boldsymbol{X_i}\) is a set of cell-level environmental covariates,
+and \(\theta_{d}\) is a vector of responses to the environmental
+covariates. In each cell \(i\), the seeds produced stay in the cell,
+emigrate through short distance dispersal, or perish. Seeds that survive
+may either enter the seed bank or recruit directly.
+
+\subsection{Dispersal}
+
+The total number of immigrant seeds arriving in a cell, \(D_i\) is
+calculated as the sum of the seeds from nearby cells that disperse from
+cell \(j\) to cell \(i\), such that: \begin{equation}
+D_i = \sum\limits_{j=1}^J \sum\limits_{n=1}^{N_j} \boldsymbol{d_j}p_{emig}p_{ji}
+\end{equation} where \(J\) is the number of cells dispersing into \(i\),
+\(N_j\) is the number of individuals in cell \(j\), \(d_j\) is the
+vector of seed numbers produced by individuals in cell \(j\),
+\(p_{emig}\) is the probability that seeds produced in cell \(j\)
+emigrate, and \(p_{ji}\) is the probability that a seed emigrating from
+cell \(j\) is dispersed to cell \(i\).
+
+\subsection{Recruits}
+
+The number of recruits, \(n_{rcr,i}\) in cell \(i\) in time \(t\), may
+originate either from the seed bank, from seeds produced in cell \(i\)
+in year \(t\), or from immigrant seeds arriving in year \(t\), such
+that: \begin{align}
+n_{rcr,i} &= B_i p_{rcrB}p_{est} + \sum\limits_{n=1}^{N_i} \boldsymbol{d_i}(1-p_{emig})p_{rcrDirect}p_{est} + D_i p_{rcrDirect}p_{est}\\
+\boldsymbol{z^{\prime}_{rcr,i}} &\sim Norm(\mu_{rcr.z}, \sigma_{rcr.z})
+\end{align} where \(B_i\) is the number of seeds in the seed bank,
+\(p_{rcrB}\) is the probability that a seed germinates from the seed
+bank, \(p_{est}\) is the probability that a new seedling establishes,
+\(p_rcrDirect\) is the probability that a seed germinates in the year it
+was produced, \(z^{\prime}_{rcr,i}\) is the size distribution of new
+recruits in year \(t+1\), \(\mu_{rcr.z}\) is the mean recruit size, and
+\(\sigma_{rcr.z}\) is the standard deviation of recruit size.
+
+\subsection{Seed Bank}
+
+Finally, the seed bank for year \(t+1\) is calculated as the sum of the
+seeds remaining in the seed bank, the seeds produced in cell \(i\) and
+entering into the seed bank, and the immigrant seeds entering into the
+seed bank, such that: \begin{equation}
+B^{\prime}_i = B_i(1-p_{rcrB})s_B + \sum\limits_{n=1}^{N_i} \boldsymbol{d_i}(1-p_{emig})(1-p_{rcrDirect})s_B + D_i(1-p_{rcrDirect})s_B
+\end{equation} where \(s_B\) is the probability that a seed survives in
+the seed bank to the next year.
+
+\begin{center}\rule{0.5\linewidth}{\linethickness}\end{center}
+
+\newpage
+\section{Species Distribution Model details}
+
+This section of the appendix contains additional information regarding
+the structure of the species distribution models. The full R code is
+available from \url{https://github.com/Sz-Tim/sdmMethodComp}. Include
+more information on the CA\textsubscript{p} model and some on the
+CA\textsubscript{i} model.
+
+\begin{center}\rule{0.5\linewidth}{\linethickness}\end{center}
+
+\newpage
+\section{Scenario details}
+
+This section of the appendix contains additional information regarding
+the data and modelling scenarios. The full R code is available from
+\url{https://github.com/Sz-Tim/sdmMethodComp}. Include the table showing
+the exact implementation of each scenario.
+
+
+\end{document}

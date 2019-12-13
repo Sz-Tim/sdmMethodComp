@@ -1,0 +1,34 @@
+---
+title: 'Appendix 2: Supplemental Results'
+subtitle: 'The performance of presence-based and process-based species distribution models'
+author: 'Tim M. Szewczyk, Marek Petrik, Jenica M. Allen'
+output:
+  pdf_document: 
+    number_sections: yes
+    toc: yes
+    toc_depth: 1
+  html_document:
+    number_sections: yes
+    toc: yes
+    toc_depth: 1
+editor_options:
+  chunk_output_type: inline
+header-includes:
+  - \newcommand{\beginsupplement}{\setcounter{table}{0}  \renewcommand{\thetable}{A.\arabic{table}} \setcounter{figure}{0} \renewcommand{\thefigure}{A.\arabic{figure}}}  \usepackage{longtable}  \usepackage{caption}
+---
+
+\beginsupplement
+
+---
+
+This appendix contains supplemental tables and figures to provide additional detail for the results, including maps of $\lambda$ and $N$ for each species (true, predicted, difference), as well as figures and a table for sensitivity and specificity with the same structures as those for TSS in the main manuscript.
+
+\begin{figure}
+	\centering\includegraphics[width=\linewidth]{../../figs/Supp_SensvIdeal.jpg}
+	\caption{\label{fig:SensitivityvIdeal} Effect of scenario on median sensitivity relative to the '\emph{ideal}' scenario. Sensitivity represents the proportion of true presences that were correctly predicted as presences.}
+\end{figure}
+
+\begin{figure}
+	\centering\includegraphics[width=\linewidth]{../../figs/Supp_SpecvIdeal.jpg}
+	\caption{\label{fig:SpecificityvIdeal} Effect of scenario on median specificity relative to the '\emph{ideal}' scenario. Specificity represents the proportion of true absences that were correctly predicted as absences.}
+\end{figure}
