@@ -5,11 +5,26 @@
 # This script plots the output from `3_fitModels.R` and `4_analysis.R`.
 
 ########
+## Make appendixes
+########
+
+rmarkdown::render("ms/supp/App_1.Rmd", 
+                  output_file="App_1.pdf",
+                  knit_root_dir="../")
+
+rmarkdown::render("ms/supp/App_2.Rmd", 
+                  output_file="App_2.pdf",
+                  knit_root_dir="../")
+
+
+
+########
 ## Setup
 ########
 
 # load workspace
-pkgs <- c("tidyverse", "magrittr", "stringr", "here", "viridis", "grid", "gtable")
+pkgs <- c("tidyverse", "magrittr", "stringr", "here", "viridis",
+          "grid", "gtable", "ggnewscale")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
 walk(dir("code", "fn", full.names=T), source)
 theme_set(theme_bw())
@@ -292,6 +307,21 @@ ggsave("figs/Fig_TSS_mn+CI.jpg", width=5, height=5)
 ggplot(TSS.ci, aes(x=issue, y=mn, colour=SDM, group=SDM)) + 
   geom_hline(yintercept=seq(0.7, 1, 0.1), colour="gray90", linetype=2, size=0.2) +
   geom_line(size=0.2, position=position_dodge(width=0.4)) +
+  geom_errorbar(aes(ymin=mn-.196*sd, ymax=mn+.196*sd), size=0.3, width=0.75, 
+                position=position_dodge(width=0.4)) + 
+  facet_grid(Boundary~sp, labeller=labeller(Boundary=label_parsed)) +
+  scale_colour_manual("SDM", values=SDM_col, 
+                      labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
+  theme(panel.grid=element_blank(), 
+        legend.text.align=0,
+        legend.key.size=unit(0.3, 'cm')) + 
+  labs(#title="TSS across 100 sampled datasets", 
+    x="Scenario", y="TSS") + coord_flip()
+ggsave("figs/Fig_TSS_mn+CI_flip.jpg", width=6, height=4)
+
+ggplot(TSS.ci, aes(x=issue, y=mn, colour=SDM, group=SDM)) + 
+  geom_hline(yintercept=seq(0.7, 1, 0.1), colour="gray90", linetype=2, size=0.2) +
+  geom_line(size=0.2, position=position_dodge(width=0.4)) +
   geom_errorbar(aes(ymin=q25, ymax=q75), size=0.3, width=0.75, 
                 position=position_dodge(width=0.4)) + 
   facet_grid(Boundary~sp, labeller=labeller(Boundary=label_parsed)) +
@@ -468,9 +498,19 @@ ggsave("figs/Supp_LogLik.jpg", width=7, height=4)
 ########
 ## Prediction maps
 ########
+P.df <- P.df %>% 
+  mutate(lam_err=lambda.f-lambda,
+         llam_err=log(lambda.f)-log(lambda),
+         N_err=Surv.S.f-Surv.S,
+         lN_err=log(Surv.S.f+1)-log(Surv.S+1)) %>%
+  group_by(SDM, issue, sp) %>%
+  mutate(lam_err_Z=scale(lam_err),
+         llam_err_Z=scale(llam_err),
+         N_err_Z=scale(N_err),
+         lN_err_Z=scale(lN_err))
 # Lambda
 lam.p <- ggplot(filter(P.df, SDM=="IPM")) + 
-  geom_tile(aes(lon, lat, fill=lambda.f - lambda)) + 
+  geom_tile(aes(lon, lat, fill=llam_err_Z)) + 
   theme(axis.text=element_blank(),
         axis.ticks=element_blank(),
         axis.title=element_blank(),
@@ -480,14 +520,15 @@ lam.p <- ggplot(filter(P.df, SDM=="IPM")) +
         panel.spacing.y=unit(-0.1, "cm"),
         legend.position="bottom",
         legend.key.height=unit(0.25, "cm")) + 
-  scale_fill_gradient2(expression(lambda:Predicted-True), midpoint=0) + 
+  scale_fill_gradient2(expression(lambda:Predicted-True~(z-transformed~log-scale)), 
+                       midpoint=0) + 
   facet_grid(sp~issue, labeller=labeller(issue=label_wrap_gen(11))) +
   labs(title=expression(Error~'in'~lambda~predictions))
-ggsave("figs/Fig_lambda_S.jpg", lam.p, width=9, height=4)
+ggsave("figs/map_llam_err_Z.jpg", lam.p, width=9, height=4)
 
 # N
 N.p <- ggplot(filter(P.df, grepl("CA", SDM))) + 
-  geom_tile(aes(lon, lat, fill=Surv.S.f - Surv.S)) + 
+  geom_tile(aes(lon, lat, fill=lN_err_Z)) + 
   theme(axis.text=element_blank(),
         axis.ticks=element_blank(),
         axis.title=element_blank(),
@@ -497,21 +538,45 @@ N.p <- ggplot(filter(P.df, grepl("CA", SDM))) +
         panel.spacing.y=unit(c(-0.1, 0.1, -0.1), "cm"),
         legend.position="bottom",
         legend.key.height=unit(0.25, "cm")) + 
-  scale_fill_gradient2("N: Predicted - True", midpoint=0, 
-                       breaks=c(-5000,0,5000)) + 
+  scale_fill_gradient2("N: Predicted - True (z-transformed log scale)", midpoint=0) + 
   facet_nested(SDM + sp ~ issue, scales="free_x", 
                labeller=labeller(issue=label_wrap_gen(11), SDM=label_parsed)) +
   labs(title="Error in abundance predictions")
-ggsave("figs/Fig_N_S.jpg", N.p, width=11, height=7)
+ggsave("figs/map_lN_err_Z.jpg", N.p, width=11, height=7)
 
 
 
 
-
-
-
-
-
+p <- ggplot() + 
+  geom_tile(data=filter(P.df, SDM %in% c("CA[p]", "CA[i]")), 
+            aes(lon, lat, fill=Surv.S.f - Surv.S)) +
+  scale_fill_gradient2("N: Predicted - True", midpoint=0, na.value="black",
+                       breaks=c(-5000,0,5000), limits=c(-5000,5000),
+                       low="#40004b", high="#00441b", mid="white",
+                       guide=guide_colourbar(title.position="top", 
+                                             title.hjust=0.5,
+                                             barheight=unit(0.3, "cm"),
+                                             barwidth=unit(5, "cm"))) +
+  new_scale("fill") +
+  geom_tile(data=filter(P.df, SDM=="IPM"),
+            aes(lon, lat, fill=lambda.f - lambda)) +
+  scale_fill_gradient2(expression(lambda:Predicted-True), midpoint=0, 
+                       breaks=c(-3,0,3), limits=c(-3,3), na.value="black",
+                       low="#67001f", high="#053061", mid="white",
+                       guide=guide_colourbar(title.position="top", 
+                                             title.hjust=0.5,
+                                             barheight=unit(0.3, "cm"),
+                                             barwidth=unit(5, "cm"))) +
+  facet_nested(SDM + sp ~ issue, scales="free_x", 
+               labeller=labeller(issue=label_wrap_gen(11), SDM=label_parsed)) +
+  theme(panel.grid=element_blank(), axis.text=element_blank(), 
+        axis.ticks=element_blank(), axis.title=element_blank(),
+        panel.spacing.x=unit(0, "mm"),
+        panel.spacing.y=unit(c(0, 0.5, 0, 0.5, 0), "mm"),
+        legend.position="bottom", 
+        legend.box.margin=margin(0, 0, 0, 0, "cm"),
+        panel.background=element_rect(fill="gray35"))
+ggsave("figs/map_N_Lambda.jpg", p, width=7.25, height=6, dpi=500)
 
 
 
