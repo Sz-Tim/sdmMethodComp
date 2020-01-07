@@ -6,4 +6,5 @@ There is a general assumption [citation needed] that the mechanistic models shou
 We use simulated data to assess the predictive accuracy of each approach under a variety of realistic scenarios and common sampling issues. 
 
 
-The outline for the project can be found [here](https://docs.google.com/document/d/1PXAzk2wWBItnL-C9uNSCKgS2VFb_y0k7RWcAFUQ5DA0/).
+The current draft of the manuscript is available [here](https://www.overleaf.com/read/rstwfgncymps
+), and the original outline for the project can be found [here](https://docs.google.com/document/d/1PXAzk2wWBItnL-C9uNSCKgS2VFb_y0k7RWcAFUQ5DA0/).
