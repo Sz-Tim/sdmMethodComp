@@ -9,11 +9,11 @@
 ########
 
 rmarkdown::render("ms/supp/App_1.Rmd", 
-                  output_file="App_1.pdf",
+                  output_file="App_A.pdf",
                   knit_root_dir="../")
 
 rmarkdown::render("ms/supp/App_2.Rmd", 
-                  output_file="App_2.pdf",
+                  output_file="App_B.pdf",
                   knit_root_dir="../")
 
 
@@ -24,7 +24,7 @@ rmarkdown::render("ms/supp/App_2.Rmd",
 
 # load workspace
 pkgs <- c("tidyverse", "magrittr", "stringr", "here", "viridis",
-          "grid", "gtable", "ggnewscale")
+          "grid", "gtable", "ggnewscale", "gridExtra")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
 walk(dir("code", "fn", full.names=T), source)
 theme_set(theme_bw())
@@ -67,12 +67,14 @@ TSS.ci <- TSS.df %>% group_by(sp, SDM, issue, Boundary) %>%
 senspe.ci <- TSS.df %>% group_by(sp, SDM, issue, Boundary) %>% 
   summarise(med.sen=median(sensitivity, na.rm=T), 
             mn.sen=mean(sensitivity, na.rm=T),
+            sd.sen=sd(sensitivity, na.rm=T),
             q025.sen=quantile(sensitivity, probs=0.025, na.rm=T), 
             q25.sen=quantile(sensitivity, probs=0.25, na.rm=T), 
             q75.sen=quantile(sensitivity, probs=0.75, na.rm=T), 
             q975.sen=quantile(sensitivity, probs=0.975, na.rm=T),
             med.spe=median(specificity, na.rm=T), 
             mn.spe=mean(specificity, na.rm=T),
+            sd.spe=sd(specificity, na.rm=T),
             q025.spe=quantile(specificity, probs=0.025, na.rm=T), 
             q25.spe=quantile(specificity, probs=0.25, na.rm=T), 
             q75.spe=quantile(specificity, probs=0.75, na.rm=T), 
@@ -335,6 +337,23 @@ ggplot(TSS.ci, aes(x=issue, y=mn, colour=SDM, group=SDM)) +
 ggsave("figs/Fig_TSS_mn+50.jpg", width=5, height=5)
 
 # Supplemental Figure: Sensitivity
+ggplot(senspe.ci, aes(x=issue, y=mn.sen, colour=SDM, group=SDM)) + 
+  geom_hline(yintercept=seq(0.7, 1, 0.1), colour="gray90", linetype=2, size=0.2) +
+  geom_line(size=0.2, position=position_dodge(width=0.4)) +
+  geom_errorbar(aes(ymin=mn.sen-.196*sd.sen, ymax=mn.sen+.196*sd.sen), 
+                size=0.3, width=0.75, 
+                position=position_dodge(width=0.4)) + 
+  facet_grid(Boundary~sp, labeller=labeller(Boundary=label_parsed)) +
+  scale_colour_manual("SDM", values=SDM_col, 
+                      labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
+  theme(panel.grid=element_blank(), 
+        legend.text.align=0,
+        axis.text.x=element_text(angle=270, vjust=0.5, hjust=0),
+        legend.key.size=unit(0.3, 'cm')) + 
+  labs(#title="TSS across 100 sampled datasets", 
+    x="Scenario", y="Sensitivity")
+ggsave("figs/Supp_Sens_mn+CI.jpg", width=5, height=5)
+
 ggplot(senspe.ci, aes(x=issue, y=med.sen, colour=SDM, group=SDM)) + 
   geom_hline(yintercept=seq(0.4, 1, 0.1), colour="gray90", linetype=2, size=0.2) +
   geom_line(size=0.2, position=position_dodge(width=0.4)) +
@@ -354,6 +373,23 @@ ggplot(senspe.ci, aes(x=issue, y=med.sen, colour=SDM, group=SDM)) +
 ggsave("figs/Supp_Sens_med.jpg", width=5, height=5)
 
 # Supplemental Figure: Specificity
+ggplot(senspe.ci, aes(x=issue, y=mn.spe, colour=SDM, group=SDM)) + 
+  geom_hline(yintercept=seq(0.7, 1, 0.1), colour="gray90", linetype=2, size=0.2) +
+  geom_line(size=0.2, position=position_dodge(width=0.4)) +
+  geom_errorbar(aes(ymin=mn.spe-.196*sd.spe, ymax=mn.spe+.196*sd.spe), 
+                size=0.3, width=0.75, 
+                position=position_dodge(width=0.4)) + 
+  facet_grid(Boundary~sp, labeller=labeller(Boundary=label_parsed)) +
+  scale_colour_manual("SDM", values=SDM_col, 
+                      labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
+  theme(panel.grid=element_blank(), 
+        legend.text.align=0,
+        axis.text.x=element_text(angle=270, vjust=0.5, hjust=0),
+        legend.key.size=unit(0.3, 'cm')) + 
+  labs(#title="TSS across 100 sampled datasets", 
+    x="Scenario", y="Specificity")
+ggsave("figs/Supp_Spec_mn+CI.jpg", width=5, height=5)
+
 ggplot(senspe.ci, aes(x=issue, y=med.spe, colour=SDM, group=SDM)) + 
   geom_hline(yintercept=seq(0.4, 1, 0.1), colour="gray90", linetype=2, size=0.2) +
   geom_line(size=0.2, position=position_dodge(width=0.4)) +
@@ -582,6 +618,64 @@ ggsave("figs/map_N_Lambda.jpg", p, width=7.25, height=6, dpi=500)
 
 
 
+
+
+
+
+########
+## Covariates
+########
+lam.df <- readRDS(here("vs", "sp2", "lam_df.rds"))
+p1 <- ggplot(lam.df, aes(bio10_1, bio10_6)) +
+  geom_point(alpha=0.05) + ggtitle("(a)") +
+  annotate("text", x=-2, y=2, 
+           label=paste("r:", round(cor(lam.df$bio10_1, lam.df$bio10_6), 3))) +
+  labs(x="Mean Annual Temperature\n(z-transformed)", 
+       y="Minimum Temperature of the Coldest Month\n(z-transformed)")
+ggsave("figs/Supp_TempScatter.jpg", p1, width=5, height=5)
+
+p2 <- ggplot(lam.df, aes(lon, lat, fill=bio10_1-bio10_6)) + 
+  geom_tile() + ggtitle("(a)") +
+  scale_fill_gradient2("MAT - MinColdMo") +
+  theme(axis.text=element_blank(), axis.ticks=element_blank(), 
+        legend.position="bottom") +
+  labs(x="", y="")
+ggsave("figs/Supp_TempMap.jpg", p2, width=5.5, height=4)
+
+p3 <- ggplot(lam.df, aes(bio10_12, bio10_prMay)) +
+  geom_point(alpha=0.05) + ylim(-3,6) + ggtitle("(b)") +
+  annotate("text", x=-2, y=4, 
+           label=paste("r:", round(cor(lam.df$bio10_12, lam.df$bio10_prMay), 3))) +
+  labs(x="Annual Precipitation\n(z-transformed)", 
+       y="Precipitation in May\n(z-transformed)")
+ggsave("figs/Supp_PrecScatter.jpg", p3, width=5, height=5)
+
+p4 <- ggplot(lam.df, aes(lon, lat, fill=bio10_12-bio10_prMay)) + 
+  geom_tile() +
+  ggtitle("(b)") +
+  scale_fill_gradient2("AP - PrecMay") +
+  theme(axis.text=element_blank(), axis.ticks=element_blank(), 
+        legend.position="bottom") +
+  labs(x="", y="")
+ggsave("figs/Supp_PrecMap.jpg", p4, width=5.5, height=4)
+
+p.scatt <- grid.arrange(p1, p3, nrow=1, widths=c(1,1))
+ggsave("figs/Supp_CovScat.jpg", p.scatt, width=8, height=4)
+
+p.map <- grid.arrange(p2, p4, nrow=1, widths=c(1,1))
+ggsave("figs/Supp_CovMap.jpg", p.map, width=7, height=4)
+
+
+
+
+
+
+
+
+
+
+
+
 dunn.list <- filter(TSS.df, issue == "Ideal" & sp == "shrub" &
                       Boundary == "True~range:~lambda > 1") %>%
   list(CAp=filter(., SDM=="CA[p]")$TSS,
@@ -590,6 +684,12 @@ dunn.list <- filter(TSS.df, issue == "Ideal" & sp == "shrub" &
        CAp=filter(., SDM=="MaxEnt")$TSS)
 dunn.test(dunn.list[-1])
 # For N > 0, 
+
+
+
+
+
+
 
 
 
