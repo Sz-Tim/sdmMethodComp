@@ -228,7 +228,7 @@ simulate_data <- function(n.cell, lo, hi, p, X, n_z, sdd.ji, p.ji, N_init, sp,
       p_est.i[,yr_k] <- p_est1
     }
     
-    # debug
+    ## debug
     # k <- k+1
     # length(occupied)
     # summary(N)
