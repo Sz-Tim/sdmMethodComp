@@ -515,6 +515,42 @@ plot_sdm_reg <- function(p, sdm.diag, pars, par.v, X, X.mx, cols,
 
 
 
+
+##-- plot distribution of predicted slopes
+#' Compare vital rate regression slopes
+#' @param p True parameters
+#' @param sdm.diag List of diagnostic outputs
+#' @param pars Parameter to plot
+#' @param par.v Indexes of parameters
+#' @param cols Color for each element in \code{ipm.diag}
+#' @param xlab x-axis label
+#' @param ylab y-axis label
+#' @param xlim x-axis limits
+#' @param ylim y-axis limits
+plot_sdm_slopes <- function(p, sdm.diag, pars) {
+  library(tidyverse); theme_set(theme_bw())
+  slope.df <- imap(sdm.diag[1:4], ~map(.x, ~pluck(., pars)) %>% 
+                     do.call(rbind, .) %>% 
+                     as.data.frame %>% mutate(scenario=.y)) %>%
+    do.call(rbind, .) %>%
+    pivot_longer(cols=1:(ncol(.)-1), names_to="variable")
+  true.df <- data.frame(value=p[[pars]], 
+                        variable=names(sdm.diag[[1]][[1]][[pars]]))
+  p_dens <- ggplot(slope.df, aes(x=value, colour=scenario)) + geom_density() + 
+    geom_vline(data=true.df, aes(xintercept=value)) + 
+    facet_wrap(~variable, scales="free")
+  p_box <- ggplot(slope.df, aes(x=scenario, y=value, colour=scenario)) + 
+    geom_boxplot() + geom_hline(data=true.df, aes(yintercept=value)) + 
+    facet_wrap(~variable, scales="free")
+  return(list(p_dens=p_dens, p_box=p_box, slope.df=slope.df, true.df=true.df))
+}
+
+
+
+
+
+
+
 #' @title Layout panels in a grid with nested strips
 #'
 #' @description \code{facet_nest()} form a matrix of panels defined by row and
