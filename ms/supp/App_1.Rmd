@@ -1,6 +1,6 @@
 ---
-title: 'Appendix 1: Supplemental Methods'
-subtitle: 'The performance of presence-based and process-based species distribution models'
+title: 'Appendix A: Supplemental Methods'
+subtitle: 'The performance of presence-based and process-based species distribution models under realistic conditions'
 author: 'Tim M. Szewczyk, Marek Petrik, Jenica M. Allen'
 output:
   pdf_document: 
@@ -21,7 +21,7 @@ header-includes:
 
 ---
 
-This appendix contains supplemental methods pertaining to the virtual species generation, species distribution model specifics, and scenario particulars.
+This appendix contains supplemental methods pertaining to the virtual species, species distribution models, and scenarios.
 
 ---
 
@@ -79,15 +79,15 @@ n_{i,t+1}(z^{\prime}) = \enspace
 \end{equation}
 for each cell $i$ which is a target cell of each cell $j$ of $J$ cells, where the integral describes the seed production in each cell $j$ and $p_{SDD,ji}$ is the probability that a seed dispersed from $j$ lands in $i$. Note that, as above, seeds added to the seed bank must survive overwinter as well as fail to recruit directly.
 
----
 
+---
 
 
 
 
 \newpage
 \section{Regression equations for the virtual species}
-We used the above IPM structure, including a seed bank and dispersal, as the basis for the virtual species. Thus, the population in each cell $i$ has size distribution $z$, where $z^{\prime}$ is the size distribution the next year, and $\boldsymbol{z_i}$ is a matrix with columns for: 1, $z$, $z^2$, and $z^3$.  
+We used the above IPM structure, including a seed bank and dispersal, as the basis for the virtual species. Thus, the population in each cell $i$ has size distribution $z$, where $z^{\prime}$ is the size distribution the next year, and $\boldsymbol{z_i}$ is a matrix with columns of 1 (intercept) and $z$.
 
 \subsection{Survival}   
 Annual survival, $\boldsymbol{s_i}$, was modelled for each individual in cell $i$ as a binary outcome (0: mortality; 1: survival) following a Bernoulli distribution with probability $\boldsymbol{\psi_{si}}$ such that:
@@ -143,6 +143,7 @@ B^{\prime}_i = B_i(1-p_{rcrB})s_B + \sum\limits_{n=1}^{N_i} \boldsymbol{d_i}(1-p
 \end{equation}
 where $s_B$ is the probability that a seed survives in the seed bank to the next year.
 
+
 ---
 
 
@@ -151,7 +152,48 @@ where $s_B$ is the probability that a seed survives in the seed bank to the next
 
 \newpage
 \section{Species Distribution Model details}
-This section of the appendix contains additional information regarding the structure of the species distribution models. The full R code is available from https://github.com/Sz-Tim/sdmMethodComp. Include more information on the CA\textsubscript{p} model and some on the CA\textsubscript{i} model.
+This section of the appendix contains additional information regarding the structure of the species distribution models. The full R code is available from https://github.com/Sz-Tim/sdmMethodComp. 
+
+\subsection{IPM}
+The Integral Projection Models for each species followed the structure described in the previous section. For each dataset (100 datasets x 2 species x 4 data scenarios), we fit regressions for each vital rate regression using the R package \emph{MuMIn} to compare all combinations of climatic variables. The full models were: 
+```{r, eval=F}
+# pr(survival)
+glm(surv ~ size + temp + temp_sq + precip + precip_sq, family="binomial")
+# growth | survival
+lm(size_next ~ size + temp + temp_sq + precip + precip_sq)
+# pr(flowering | survival)
+glm(flower ~ size + temp + temp_sq + precip + precip_sq, family="binomial")
+# number of seeds | flowering
+glm(n_seed ~ size + temp + temp_sq + precip + precip_sq, family="poisson")
+# pr(germination)
+glm(germ ~ temp + temp_sq + precip + precip_sq, family="binomial")
+```
+The size distribution for recruits was taken as the sample mean and standard deviation of recruits in each cell. Parameters relating to seed bank dynamics and dispersal were assumed to be known, and the effects of this assumption were evaluated in the modelling mis-specification scenarios. 
+
+
+\subsection{CA\textsubscript{i}}
+The individual-level cellular automaton model (CA\textsubscript{i}) simulates individuals in each cell of the landscape using the structure of the IPM. Effectively, the fitted regressions are used to generate expected values for each individual, accounting for size and environment, and random values are then drawn from the corresponding distributions to simulate outcomes. For example, to assign survival, a value is drawn from a binomial distribution with the probability calculated from the fitted survival GLM. Thus, we simulated local processes within each cell. Regional processes were represented as the dispersal of seeds both within short distance dispersal neighborhoods and to a pre-determined number of random cells in the landscape. The CA\textsubscript{i} model is thus a simulation-based adaptation of the IPM. However, this requires imposing density dependence to both maintain realism and to work within the confines of modern computing capabilities. We implemented density dependent seedling establishment such that $p_{est,i,t} = min(p_{est,i}, N_{rcr}/(p_{germ}(D_i+B_i+d_i(1-p_{emig}))))$, following the naming convention described above, effectively placing a cap on the number of new recruits (Ellner & Rees 2006). 
+
+
+\subsection{CA\textsubscript{p}}
+The population-level cellular automaton model (CA\textsubscript{p}) simulates stage-structured populations in each cell of the landscape using population-level values for demographic rates. Thus, rather than simulating, for example, the survival of each individual, the CA\textsubscript{p} model simulates the total expected number of surviving individuals in each cell. We follow the model structure and sequence from a previously published model focused on the invasive shrub glossy buckthorn (\emph{Frangula alnus}) in the northeastern United States (Szewczyk et al. 2019). This includes the same life cycle processes as in the IPM and CA\textsubscript{i}: survival, growth (=aging), flowering, seed production, short and long distance dispersal, seed bank dynamics, and germination. However, individuals were not tracked or predicted, but rather averages or totals within age categories (shrub: 4 age categories; biennial: 2 age categories). We implemented density dependence as a ceiling-type carrying capacity, where the carrying capacity $K$ was predicted for each cell. In the samples used to parameterize the regressions (consisting of 3 years of data), cells were assumed to be approximately at carrying capacity if the calculated $lambda_t = N_t/N_{t-1}$ changed less than 5\% between consecutive years. Thus, we parameterized the following full models, including year as a random effect:
+```{r, eval=F}
+# carrying capacity
+glmer(K ~ temp + temp_sq + precip + precip_sq + (1|yr), family="poisson")
+# adult survival (shrub only)
+glmer(surv_adult ~ temp + temp_sq + precip + precip_sq + (1|yr), family="binomial")
+# juvenile survival
+glmer(surv_juv ~ temp + temp_sq + precip + precip_sq + (1|yr), family="binomial")
+# pr(flowering | survival)
+glmer(flower ~ size + temp + temp_sq + precip + precip_sq + (1|yr), family="binomial")
+# number of seeds | flowering
+glmer(n_seed ~ size + temp + temp_sq + precip + precip_sq + (1|yr), family="poisson")
+# pr(germination)
+glm(germ ~ temp + temp_sq + precip + precip_sq, family="binomial")
+```
+As in the IPM and CA\textsubscript{i}, dispersal included long distance and short distance dispersal of seeds. Identical assumptions and implementations were used for the CA\textsubscript{p} model as described above. 
+
+
 
 ---
 
@@ -162,3 +204,60 @@ This section of the appendix contains additional information regarding the struc
 \newpage
 \section{Scenario details}
 This section of the appendix contains additional information regarding the data and modelling scenarios. The full R code is available from https://github.com/Sz-Tim/sdmMethodComp. Include the table showing the exact implementation of each scenario.
+
+\subsection{Data scenarios}
+\subsubsection{Ideal}
+In the \emph{ideal} scenario, each data set consisted of cells sampled from the equilibrium distribution at the end of the virtual species simulation (tmax = 300). Cells with N > 5 were selected with uniform probability. For MaxEnt, 300 occupied cells were drawn for each data set. For the process-based SDMs, 25 cells were drawn. Within each of the 25 cells, up to 100 (CA\textsubscript{i}, IPM) or 1000 (CA\textsubscript{p}) individuals were randomly selected to be used in the vital rate regressions, with stratification among small, medium, and large individuals (CA\textsubscript{i}, IPM) or juveniles and adults (CA\textsubscript{p}). For cells with fewer individuals than the maximum, all individuals were included regardless of size. The final three years of the simulation were used to parameterize the CA\textsubscript{p} model, while only the final two years were used for the CA\textsubscript{i} model and IPM. The data available included abundance, survival, size, flowering status, fruit production, and germination rates. For estimating carrying capacity in the CA\textsubscript{p} model, we assumed cells where N changed less than 5\% between years were approximately at carrying capacity, and used the average abundance across years for those cells.
+
+\subsubsection{Non-equilibrium}
+The sampling regime under the \emph{non-equilibrium} scenario was identical to that of the \emph{ideal} scenario, except that samples were drawn from the distribution 100 years after introduction rather than the equilibrium distribution of 300 years. 
+
+\subsubsection{Geographic bias}
+The \emph{geographic bias} sampling scenario represents the bias in sampling locations common in ecological studies, where data are more likely to be acquired in locations that are easier to reach. To establish realistic patterns of data collection, we used previously published data on invasive plant occurrences in the United States (Allen & Bradley 2016) along with human population density (Manson et al. 2017) and the primary road network (US Census Bureau 2017). In each cell of the landscape, we binarized invasive plant observation (0: no observations, 1: at least 1 observation), the total human population density, and the total length of primary roads. We fit a logistic regression including quadratic terms for each covariate. Finally, we used the predicted probability of observation from the regression as the probability that each cell was sampled from the virtual species distributions.
+
+\subsubsection{Measurement error}
+The \emph{measurement error} sampling scenario added noise to the observations used to fit each SDM. Because the type of data required differs drastically between SDM methods, we adjusted the mechanism for adding error accordingly. In each case, datasets were first generated as described in the \emph{ideal} scenario. To mimic errors in geolocation or identification for MaxEnt, we randomly selected 3\% of the cells in each dataset, replacing them with cells chosen randomly from the landscape regardless of occupancy status. To mimic error in field measurements for the population-level datasets (i.e., CA\textsubscript{p}), we added noise to the observations of abundance ($N_{obs} = Norm(N_{true}, N_{true}*0.02)$) and seed production ($seed_{obs} = Norm(seed_{true}, seed_{true}*0.05)$). To mimic error in field measurements for the individual-level datasets (i.e., CA\textsubscript{i}, IPM), we added noise to the observations of growth ($g_{obs} = Norm(g_{true}, 0.1)$) and seed production ($seed_{obs} = Norm(seed_{true}, seed_{true}*0.05)$). Thus, counting error for seeds and individuals increased proportionally to the true values, while measurement error for size was constant.
+
+\subsection{Modelling scenarios}
+All modelling scenarios were performed using the \emph{ideal} data sets. Rather than addressing common issues with the data used to inform the SDMs, the focus was on the structure and implementation of the SDMs themselves.
+
+\subsubsection{Incorrect covariates}
+In the \emph{incorrect covariates} modelling scenario, we fit all SDMs with correlated but more general climatic variables than were used in the generative process for the virtual species. We used Mean Annual Temperature in place of the Minimum Temperature of the Coldest Month (r: 0.978; Fig. \ref{fig:CovScatter}a), and Annual Precipitation in place of the Precipitation in May (r: 0.624; Fig. \ref{fig:CovScatter}b). Though correlated, the geographic distribution of the difference is highly structured for both temperature and precipitation (Fig. \ref{fig:CovMap}).
+\begin{figure}
+	\centering
+	\captionsetup{width=\linewidth}
+	\includegraphics[width=\linewidth]{../../figs/Supp_CovScat.jpg}
+	\caption{\label{fig:CovScatter} Scatter plots of z-transformed environmental covariates. (a) Mean Annual Temperature and Minimum Temperature of the Coldest Month, and (b) Annual Precipitation and Precipitation in May. The more general variables are highly correlated with the more specific variables across the eastern United States at a 5x5km resolution. The true demographic rates were related to the more specific variables, while the more general were used in the \emph{incorrect covariates} modelling scenario.}
+\end{figure}
+\begin{figure}
+	\centering
+	\captionsetup{width=\linewidth}
+	\includegraphics[width=\linewidth]{../../figs/Supp_CovMap.jpg}
+	\caption{\label{fig:CovMap} Map of the difference between z-transformed environmental covariates. (a) Mean Annual Temperature and Minimum Temperature of the Coldest Month and (b) Annual Precipitation and Precipitation in May. Though highly correlated, the residuals show strong spatial patterning in each case.}
+\end{figure}
+
+\subsubsection{No seed bank}
+This scenario applied only to the process-based SDMs. Seed bank dynamics are difficult to quantify, and are poorly known in general relative to other aspects of species' life cycles and ecology. A simple solution to this problem is to assume negligible effects of the seed bank on species' distributions or that any important effects are compensated for by being implicitly included in estimates of related processes such as direct germination. In this modelling scenario, we assume in each process-based SDM that seed bank mortality is complete such that all seedlings in year $t$ originate from seeds produced in year $t-1$.
+
+\subsubsection{Under dispersal}
+This scenario applied only to the process-based SDMs. Dispersal occurred via both short distance and long distance processes, and both were reduced in the \emph{under dispersal} scenario. Because two virtual species had different dispersal strategies, where the shrub had more effective short distance dispersal while the biennial relied more heavily on long distance dispersal, we modified dispersal proportionally. For long distance dispersal, the number of annual events was decreased to 20\% of the true value. For short distance dispersal, the rate of the exponential kernel was decreased by 50\%. Consequently, the total number of seeds produced was unaffected, but chance dispersal events to new regions were less likely, and seeds were more likely to be dispersed to nearby cells within the short distance dispersal neighborhood.
+
+\subsubsection{Over dispersal}
+This scenario applied only to the process-based SDMs. For the \emph{over dispersal} scenario, the model mis-specification was reversed compared to the \emph{under dispersal} scenario. Thus, for long distance dispersal, the number of annual events was increased to 5 times the true value. For short distance dispersal, the rate of the exponential kernel was increased to 2 times the true value. Consequently, the total number of seeds produced was unaffected, but chance dispersal events to new regions were more likely, and cells toward the periphery of the short distance dispersal neighborhood were more likely to receive seeds.
+
+
+
+
+---
+
+
+\section{References}
+Allen, J. M., & Bradley, B. A. (2016). Out of the weeds? Reduced plant invasion risk with climate change in the continental United States. Biological Conservation, 203(November), 306–312. https://doi.org/10.1016/j.biocon.2016.09.015
+
+Ellner, S. P., & Rees, M. (2006). Integral Projection Models for Species with Complex Demography. The American Naturalist, 167(3), 410–428. https://doi.org/10.1086/499438
+
+Manson, S., Schroeder, J., Van Riper, D., & Ruggles, S. (2017). IPUMS National Historical Geographic Information System: Version 12.0 [Database]. https://doi.org/http://doi.org/10.18128/D050.V12.0
+
+Szewczyk, T. M., Lee, T., Ducey, M. J., Aiello-Lammens, M. E., Bibaud, H., & Allen, J. M. (2019). Local management in a regional context : Simulations with process-based species distribution models. Ecological Modelling, 413(August), 108827. https://doi.org/10.1016/j.ecolmodel.2019.108827
+
+U.S. Census Bureau. (2017). 2017 TIGER/Line Shapefiles Technical Documentation. Retrieved from https://www.census.gov/geo/maps-data/data/pdfs/tiger/tgrshp2012/TGRSHP2012_TechDoc.pdf

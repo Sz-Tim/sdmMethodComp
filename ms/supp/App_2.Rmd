@@ -1,6 +1,6 @@
 ---
-title: 'Appendix 2: Supplemental Results'
-subtitle: 'The performance of presence-based and process-based species distribution models'
+title: 'Appendix B: Supplemental Results'
+subtitle: 'The performance of presence-based and process-based species distribution models under realistic conditions'
 author: 'Tim M. Szewczyk, Marek Petrik, Jenica M. Allen'
 output:
   pdf_document: 
@@ -14,21 +14,62 @@ output:
 editor_options:
   chunk_output_type: inline
 header-includes:
-  - \newcommand{\beginsupplement}{\setcounter{table}{0}  \renewcommand{\thetable}{A.\arabic{table}} \setcounter{figure}{0} \renewcommand{\thefigure}{A.\arabic{figure}}}  \usepackage{longtable}  \usepackage{caption}
+  - \newcommand{\beginsupplement}{\setcounter{table}{0}  \renewcommand{\thetable}{B.\arabic{table}} \setcounter{figure}{0} \renewcommand{\thefigure}{B.\arabic{figure}}}  \usepackage{longtable}  \usepackage{caption}
 ---
 
 \beginsupplement
 
 ---
 
-This appendix contains supplemental tables and figures to provide additional detail for the results, including maps of $\lambda$ and $N$ for each species (true, predicted, difference), as well as figures and a table for sensitivity and specificity with the same structures as those for TSS in the main manuscript.
+This appendix contains supplemental figures to provide additional detail for the results, including figures for sensitivity and specificity, and additional detail on predicted slopes for the IPM and CA\textsubscript{i} models.
+
+
+
+
+---
+
+\newpage
+\section{Sensitivity and specificity}
+
+\subsection{Overall averages}
+The True Skill Statistic (TSS) evaluates the combined ability of a model to predict the presences and the absences. While TSS is useful for comparing overall performance, the individual components can provide insight as well. Here, we show summary plots for the effect of each scenario on the sensitivity (the proportion of true presences correctly predicted as presences) and specificity (the proportion of true absences correctly predicted as absences). 
 
 \begin{figure}
-	\centering\includegraphics[width=\linewidth]{../../figs/Supp_SensvIdeal.jpg}
-	\caption{\label{fig:SensitivityvIdeal} Effect of scenario on median sensitivity relative to the '\emph{ideal}' scenario. Sensitivity represents the proportion of true presences that were correctly predicted as presences.}
+	\centering\includegraphics[width=.75\linewidth]{../../figs/Supp_Sens_mn+CI.jpg}
+	\caption{\label{fig:SensitivityMed} Sensitivity mean and 95\% confidence intervals across 100 sampled data sets for each SDM and scenario, compared to true distributions defined by $\lambda > 1$ and $N > 0$. Scenarios include: no sampling or modeling issues (ideal), sampling issues (measurement error, sampling bias, non-equilibrium), and modeling issues (incorrect covariates, no seed bank, under dispersal, over dispersal). Sensitivity represents the proportion of true presences that were correctly predicted as presences.}
 \end{figure}
 
 \begin{figure}
-	\centering\includegraphics[width=\linewidth]{../../figs/Supp_SpecvIdeal.jpg}
-	\caption{\label{fig:SpecificityvIdeal} Effect of scenario on median specificity relative to the '\emph{ideal}' scenario. Specificity represents the proportion of true absences that were correctly predicted as absences.}
+	\centering\includegraphics[width=.75\linewidth]{../../figs/Supp_Spec_mn+CI.jpg}
+	\caption{\label{fig:SpecificityMed} Specificity mean and 95\% confidence intervals across 100 sampled data sets for each SDM and scenario, compared to true distributions defined by $\lambda > 1$ and $N > 0$. Scenarios include: no sampling or modeling issues (ideal), sampling issues (measurement error, sampling bias, non-equilibrium), and modeling issues (incorrect covariates, no seed bank, under dispersal, over dispersal). Specificity represents the proportion of true absences that were correctly predicted as absences.}
+\end{figure}
+
+\newpage
+\subsection{Scenario effects}
+Some scenarios, such as \emph{non-equilibrium} for MaxEnt or \emph{under-dispersal} for the process-based models, result in consistent under-prediction, as seen by a decline in sensitivity and an increase in specificity. In contrast, \emph{incorrect covariates} has more complex effects, leading to a decline in both sensitivity and specificity in the process-based models. In this case, not only are presences more poorly predicted, but absences are more poorly predicted as well.
+
+\begin{figure}
+	\centering\includegraphics[width=.9\linewidth]{../../figs/Supp_SensvIdeal.jpg}
+	\caption{\label{fig:SensitivityvIdeal} Effect of scenario on median sensitivity relative to the \emph{ideal} scenario. Sensitivity represents the proportion of true presences that were correctly predicted as presences.}
+\end{figure}
+
+\begin{figure}
+	\centering\includegraphics[width=.9\linewidth]{../../figs/Supp_SpecvIdeal.jpg}
+	\caption{\label{fig:SpecificityvIdeal} Effect of scenario on median specificity relative to the \emph{ideal} scenario. Specificity represents the proportion of true absences that were correctly predicted as absences.}
+\end{figure}
+
+
+---
+
+\newpage
+\section{Estimated slopes}
+The IPM and CA\textsubscript{i} models fit regressions of the same form as the generative models, and so error in the estimated slopes can be directly compared. The pattern of accuracy across scenarios reflects the observed trends in TSS. The effect of data scenario is minimal, with the exception of non-equilibrium for the shrub. The slopes clearly show the improvement from sampling newer populations with a broader age distribution, relative to all other scenarios where populations tended to be older. This effect is absent from the biennial regressions, as individuals are not long-lived.
+\begin{figure}
+	\centering\includegraphics[width=.8\linewidth]{../../figs/diag/slope_box_shrub.pdf}
+	\caption{\label{fig:slopesShrub} Effect of data scenario on slope estimates for the shrub. Regressions are parameterized more accurately when using \emph{non-equilibrium} populations which contain a more even size distribution.}
+\end{figure}
+
+\begin{figure}
+	\centering\includegraphics[width=.8\linewidth]{../../figs/diag/slope_box_biennial.pdf}
+	\caption{\label{fig:slopesBiennial} Effect of data scenario on slope estimates for the biennial Regressions are parameterized consistently with minimal differences among data scenarios.}
 \end{figure}
