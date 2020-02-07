@@ -98,15 +98,10 @@ models under realistic conditions}
 
 \begin{center}\rule{0.5\linewidth}{\linethickness}\end{center}
 
-This appendix contains supplemental tables and figures to provide
-additional detail for the results, including maps of \(\lambda\) and
-\(N\) for each species (true, predicted, difference), figures and tables
-for sensitivity and specificity, and additional detail on predicted
-slopes for the IPM and CA\textsubscript{i} models.
-
-\begin{center}\rule{0.5\linewidth}{\linethickness}\end{center}
-
-\section{Prediction maps}
+This appendix contains supplemental figures to provide additional detail
+for the results, including figures for sensitivity and specificity, and
+additional detail on predicted slopes for the IPM and
+CA\textsubscript{i} models.
 
 \begin{center}\rule{0.5\linewidth}{\linethickness}\end{center}
 
@@ -123,13 +118,11 @@ scenario on the sensitivity (the proportion of true presences correctly
 predicted as presences) and specificity (the proportion of true absences
 correctly predicted as absences).
 
-\newpage
 \begin{figure}
     \centering\includegraphics[width=.75\linewidth]{../../figs/Supp_Sens_mn+CI.jpg}
     \caption{\label{fig:SensitivityMed} Sensitivity mean and 95\% confidence intervals across 100 sampled data sets for each SDM and scenario, compared to true distributions defined by $\lambda > 1$ and $N > 0$. Scenarios include: no sampling or modeling issues (ideal), sampling issues (measurement error, sampling bias, non-equilibrium), and modeling issues (incorrect covariates, no seed bank, under dispersal, over dispersal). Sensitivity represents the proportion of true presences that were correctly predicted as presences.}
 \end{figure}
 
-\newpage
 \begin{figure}
     \centering\includegraphics[width=.75\linewidth]{../../figs/Supp_Spec_mn+CI.jpg}
     \caption{\label{fig:SpecificityMed} Specificity mean and 95\% confidence intervals across 100 sampled data sets for each SDM and scenario, compared to true distributions defined by $\lambda > 1$ and $N > 0$. Scenarios include: no sampling or modeling issues (ideal), sampling issues (measurement error, sampling bias, non-equilibrium), and modeling issues (incorrect covariates, no seed bank, under dispersal, over dispersal). Specificity represents the proportion of true absences that were correctly predicted as absences.}
@@ -152,7 +145,6 @@ as well.
     \caption{\label{fig:SensitivityvIdeal} Effect of scenario on median sensitivity relative to the \emph{ideal} scenario. Sensitivity represents the proportion of true presences that were correctly predicted as presences.}
 \end{figure}
 
-\newpage
 \begin{figure}
     \centering\includegraphics[width=.9\linewidth]{../../figs/Supp_SpecvIdeal.jpg}
     \caption{\label{fig:SpecificityvIdeal} Effect of scenario on median specificity relative to the \emph{ideal} scenario. Specificity represents the proportion of true absences that were correctly predicted as absences.}
@@ -174,13 +166,13 @@ to be older. This effect is absent from the biennial regressions, as
 individuals are not long-lived.
 
 \begin{figure}
-    \centering\includegraphics[width=.8\linewidth]{../../figs/diag/slope_box_shrub.pdf}
-    \caption{\label{fig:slopesShrub} Effect of data scenario on slope estimates for the shrub. Regressions are parameterized more accurately when using \emph{non-equilibrium} populations which contain a more even size distribution.}
+    \centering\includegraphics[width=\linewidth]{../../figs/diag/slope_dens_shrub.pdf}
+    \caption{\label{fig:slopesShrub} Effect of data scenario on slope estimates for the shrub. Survival regressions for the shrub are parameterized more accurately when using \emph{non-equilibrium} populations which contain a more even size distribution. Note that the axes vary among panels.}
 \end{figure}
 
 \begin{figure}
-    \centering\includegraphics[width=.8\linewidth]{../../figs/diag/slope_box_biennial.pdf}
-    \caption{\label{fig:slopesBiennial} Effect of data scenario on slope estimates for the biennial Regressions are parameterized consistently with minimal differences among data scenarios.}
+    \centering\includegraphics[width=\linewidth]{../../figs/diag/slope_dens_biennial.pdf}
+    \caption{\label{fig:slopesBiennial} Effect of data scenario on slope estimates for the biennial Regressions are parameterized consistently with minimal differences among data scenarios. Peaks at 0 represent data sets where the optimal model did not include that term. Note that the axes vary among panels.}
 \end{figure}
 
 

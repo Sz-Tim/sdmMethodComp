@@ -1,8 +1,9 @@
 
 sp <- c("barberry", "garlic_mustard")[2]
+spType <- c("shrub", "biennial")[(sp=="garlic_mustard")+1]
 write.plots <- TRUE
 by.issue <- FALSE
-pkgs <- c("tidyverse", "magrittr", "stringr", "here", "viridis")
+pkgs <- c("tidyverse", "magrittr", "stringr", "here", "viridis", "gridExtra")
 suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
 walk(dir("code", "fn", full.names=T), source)
 sp_i <- read.csv("data/species_3km.csv") %>% filter(Name==sp)
@@ -39,6 +40,54 @@ x2.mx <- cbind(x2, x2^2)
 
 
 ########-------------------------------
+## IPM: Slope comparisons
+########
+
+param.ls <- list(c("s_z", "s_x"), c("g_z", "g_x"), 
+                 c("fl_z", "fl_x"), c("seed_z", "seed_x"), 
+                 c("germ_x"))
+ipm.slopes.ls <- ipm.true.ls <- gg.p <- vector("list", length(param.ls))
+reg_vars <- c("(Intercept)"="(Intercept)", "size"="size",
+              "minTemp"="bio10_6", "minTemp^2"="bio10_6_sq", 
+              "precMay"="bio10_prMay", "precMay^2"="bio10_prMay_sq")
+paramTypes <- c("(a) survival", "(b) growth", "(c) flowering", 
+                "(d) seeds", "(e) germination")
+for(i in seq_along(param.ls)) {
+  params <- param.ls[[i]]
+  params <- setNames(params, str_split_fixed(params, "_", 2)[,2])
+  paramType <- paramTypes[i]
+  ipm.slopes <- map_dfr(params, ~plot_sdm_slopes(p, ipm.diag, .)$slope.df) %>%
+    mutate(variable=factor(variable, levels=reg_vars, labels=names(reg_vars)),
+           param=paramType,
+           scenario=factor(scenario, 
+                           levels=c("none", "noise", "sampBias", "nonEq"),
+                           labels=c("Ideal", "Measurement error",
+                                    "Sampling bias", "Non-equilibrium")))
+  ipm.true <- map_dfr(params, ~plot_sdm_slopes(p, ipm.diag, .)$true.df) %>%
+    mutate(variable=factor(variable, levels=reg_vars, labels=names(reg_vars)),
+           param=paramType)
+  ipm.slopes.ls[[i]] <- ipm.slopes
+  ipm.true.ls[[i]] <- ipm.true 
+  gg.p[[i]] <- ggplot() + 
+    scale_colour_manual(values=iss.COL) + 
+    scale_fill_manual(values=iss.col) + 
+    geom_density(data=ipm.slopes, aes(x=value, colour=scenario, fill=scenario)) +
+    geom_vline(data=ipm.true, aes(xintercept=value), linetype=2) +
+    facet_wrap(~variable, scales="free", drop=F, nrow=1, labeller=label_parsed) +
+    theme(panel.grid=element_blank(),
+          axis.text=element_text(size=5),
+          axis.title=element_text(size=8)) + 
+    ggtitle(paste0(paramType, ": ", spType))
+}
+gg.grid <- grid.arrange(grobs=gg.p, ncol=1)
+ggsave(paste0("figs/diag/slope_dens_", spType, ".pdf"), gg.grid, width=9, height=10)
+
+
+
+
+
+
+########-------------------------------
 ## IPM: Size
 ########
 if(by.issue) {
@@ -56,9 +105,9 @@ if(by.issue) {
                  xlim=p$z.rng, ylim=c(0,1))
     plot_sdm_reg(p, ipm.diag[i], "seed_z", 1:length(p$seed_z), z.seq, z.mx, iss.col[i], 
                  xlab="Size (t)", ylab="Seed production", 
-                 xlim=p$z.rng, ylim=c(0,6e3))
+                 xlim=p$z.rng, ylim=c(0,1e3))
     plot_sdm_reg(p, ipm.diag[i], "rcr_z", 1:length(p$rcr_z), z.seq, z.mx, iss.col[i], 
-                 xlab="Recruit size", ylab="Density", xlim=p$z.rng, ylim=c(0,0.4))
+                 xlab="Recruit size", ylab="Density", xlim=p$z.rng, ylim=c(0,0.5))
     plot(NA, NA, xlab="", ylab="", xlim=c(-1,1), ylim=c(-1,1), axes=F, main=sp)
     legend("center", lty=c(rep(1, length(iss.col)), 3), col=c(iss.COL, 1), cex=1.5,
            lwd=c(rep(3, length(iss.col)+1)), legend=c(names(ipm.diag), "True"))
@@ -80,7 +129,7 @@ if(by.issue) {
                xlab="Size (t)", ylab="Seed production", 
                xlim=p$z.rng, ylim=c(0,6e3))
   plot_sdm_reg(p, ipm.diag, "rcr_z", 1:length(p$rcr_z), z.seq, z.mx, iss.col, 
-               xlab="Recruit size", ylab="Density", xlim=p$z.rng, ylim=c(0,0.4))
+               xlab="Recruit size", ylab="Density", xlim=p$z.rng, ylim=c(0,0.5))
   plot(NA, NA, xlab="", ylab="", xlim=c(-1,1), ylim=c(-1,1), axes=F, main=sp)
   legend("center", lty=c(rep(1, length(iss.col)), 3), col=c(iss.COL, 1), cex=1.5,
          lwd=c(rep(3, length(iss.col)+1)), legend=c(names(ipm.diag), "True"))
@@ -202,7 +251,7 @@ if(by.issue) {
                  xlim=range(x1), ylim=c(0,1))
     plot_sdm_reg(p, cad.diag[i], "mu", 1:3, x1, cbind(1, x1.mx), iss.col[i], 
                  xlab="Min Temp: bio6", ylab="Seed production", 
-                 xlim=range(x1), ylim=c(0,6e3))
+                 xlim=range(x1), ylim=c(0,1e3))
     plot_sdm_reg(p, cad.diag[i], "g.D", 1:3, x1, cbind(1, x1.mx), iss.col[i], 
                  xlab="Min Temp: bio6", ylab="Germination probability", 
                  xlim=range(x1), ylim=c(0,1))
@@ -226,7 +275,7 @@ if(by.issue) {
                xlim=range(x1), ylim=c(0,1))
   plot_sdm_reg(p, cad.diag, "mu", 1:3, x1, cbind(1, x1.mx), iss.col, 
                xlab="Min Temp: bio6", ylab="Seed production", 
-               xlim=range(x1), ylim=c(0,6e3))
+               xlim=range(x1), ylim=c(0,3e2))
   plot_sdm_reg(p, cad.diag, "g.D", 1:3, x1, cbind(1, x1.mx), iss.col, 
                xlab="Min Temp: bio6", ylab="Germination probability", 
                xlim=range(x1), ylim=c(0,1))
@@ -281,7 +330,7 @@ if(by.issue) {
                xlim=range(x2), ylim=c(0,1))
   plot_sdm_reg(p, cad.diag, "mu", c(1,4,5), x2, cbind(1, x2.mx), iss.col, 
                xlab="May Precip", ylab="Seed production", 
-               xlim=range(x2), ylim=c(0,6e3))
+               xlim=range(x2), ylim=c(0,3e2))
   plot_sdm_reg(p, cad.diag, "g.D", c(1,4,5), x2, cbind(1, x2.mx), iss.col, 
                xlab="May Precip", ylab="Germination probability", 
                xlim=range(x2), ylim=c(0,1))

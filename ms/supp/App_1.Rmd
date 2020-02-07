@@ -27,10 +27,10 @@ This appendix contains supplemental methods pertaining to the virtual species, s
 
 
 \section{General model structure}
-\subsection{Integral Projection Model overview}
-To generate fully-known true distributions for the virtual species, we used the general structure of an Integral Projection Model (IPM) to calculate the intrinsic growth rate $\lambda$ in each cell of the gridded landscape, and adapted the regression-based structure of an IPM into an individual-level, simulation-based cellular automata (CA) model to produce spatiotemporally dynamic abundance distributions. The equations below apply to both models. 
+\subsection{Integral Projection Models (IPMs)}
+To generate fully-known true distributions for the virtual species, we used the general structure of an Integral Projection Model (IPM) to calculate the intrinsic growth rate $\lambda$ in each cell of the gridded landscape, and adapted the regression-based structure of an IPM into an individual-level, simulation-based cellular automata (CA) model to produce spatiotemporally dynamic abundance distributions. 
 
-IPMs use the size distribution, $z$, of individuals at time $t$, along with a kernel $K(z^{\prime}, z)$, to predict the size distribution, $z^{\prime}$, at time $t+1$:
+IPMs (Easterling 2000; Merow et al. 2014, 2017) use the size distribution, $z$, of individuals at time $t$, along with a kernel $K(z^{\prime}, z)$, to predict the size distribution, $z^{\prime}$, at time $t+1$:
 \begin{equation}
 n_{t+1}(z^{\prime}) = \int_{\Omega} K(z^{\prime}, z) n_t(z) dz
 \end{equation}
@@ -87,7 +87,7 @@ for each cell $i$ which is a target cell of each cell $j$ of $J$ cells, where th
 
 \newpage
 \section{Regression equations for the virtual species}
-We used the above IPM structure, including a seed bank and dispersal, as the basis for the virtual species. Thus, the population in each cell $i$ has size distribution $z$, where $z^{\prime}$ is the size distribution the next year, and $\boldsymbol{z_i}$ is a matrix with columns of 1 (intercept) and $z$.
+We used the above IPM structure, including a seed bank and dispersal, as the basis for the virtual species. Thus, the population in each cell $i$ has size distribution $z$, where $z^{\prime}$ is the size distribution the next year, and $\boldsymbol{z_i}$ is a matrix with columns of 1 (intercept) and $z$. For the IPMs, we used the following regression equations to populate discretized transition matrices for each cell to then calculate the deterministic intrinsic growth rate $\lambda$. For the CA\textsubscript{i} models, we used the same regression equations to generate expected values for each individual, and then drew simulated outcomes from the specified distribtutions.
 
 \subsection{Survival}   
 Annual survival, $\boldsymbol{s_i}$, was modelled for each individual in cell $i$ as a binary outcome (0: mortality; 1: survival) following a Bernoulli distribution with probability $\boldsymbol{\psi_{si}}$ such that:
@@ -254,9 +254,15 @@ This scenario applied only to the process-based SDMs. For the \emph{over dispers
 \section{References}
 Allen, J. M., & Bradley, B. A. (2016). Out of the weeds? Reduced plant invasion risk with climate change in the continental United States. Biological Conservation, 203(November), 306–312. https://doi.org/10.1016/j.biocon.2016.09.015
 
+Easterling, M. R., Ellner, S. P., & Dixon, P. M. (2000). Size-specific sensitivity: Applying a new structured population model. Ecology, 81(3), 694–708. https://doi.org/10.1890/0012-9658(2000)081[0694:SSSAAN]2.0.CO;2
+
 Ellner, S. P., & Rees, M. (2006). Integral Projection Models for Species with Complex Demography. The American Naturalist, 167(3), 410–428. https://doi.org/10.1086/499438
 
 Manson, S., Schroeder, J., Van Riper, D., & Ruggles, S. (2017). IPUMS National Historical Geographic Information System: Version 12.0 [Database]. https://doi.org/http://doi.org/10.18128/D050.V12.0
+
+Merow, C., Dahlgren, J. P., Metcalf, C. J. E., Childs, D. Z., Evans, M. E. K., Jongejans, E., … Mcmahon, S. M. (2014). Advancing population ecology with integral projection models: A practical guide. Methods in Ecology and Evolution, 5(2), 99–110. https://doi.org/10.1111/2041-210X.12146
+
+Merow, C., Bois, S. T., Allen, J. M., Xie, Y., & Silander, J. A. (2017). Climate change both facilitates and inhibits invasive plant ranges in New England. Proceedings of the National Academy of Sciences, 114(16), E3276–E3284. https://doi.org/10.1073/pnas.1609633114
 
 Szewczyk, T. M., Lee, T., Ducey, M. J., Aiello-Lammens, M. E., Bibaud, H., & Allen, J. M. (2019). Local management in a regional context : Simulations with process-based species distribution models. Ecological Modelling, 413(August), 108827. https://doi.org/10.1016/j.ecolmodel.2019.108827
 

@@ -65,11 +65,11 @@ Some scenarios, such as \emph{non-equilibrium} for MaxEnt or \emph{under-dispers
 \section{Estimated slopes}
 The IPM and CA\textsubscript{i} models fit regressions of the same form as the generative models, and so error in the estimated slopes can be directly compared. The pattern of accuracy across scenarios reflects the observed trends in TSS. The effect of data scenario is minimal, with the exception of non-equilibrium for the shrub. The slopes clearly show the improvement from sampling newer populations with a broader age distribution, relative to all other scenarios where populations tended to be older. This effect is absent from the biennial regressions, as individuals are not long-lived.
 \begin{figure}
-	\centering\includegraphics[width=.8\linewidth]{../../figs/diag/slope_box_shrub.pdf}
-	\caption{\label{fig:slopesShrub} Effect of data scenario on slope estimates for the shrub. Regressions are parameterized more accurately when using \emph{non-equilibrium} populations which contain a more even size distribution.}
+	\centering\includegraphics[width=\linewidth]{../../figs/diag/slope_dens_shrub.pdf}
+	\caption{\label{fig:slopesShrub} Effect of data scenario on slope estimates for the vital rate regressions for the shrub. Each density curve shows the distribution of fitted slope values across 100 data sets used in the IPM and CA\textsubscript{i} models. The true value is indicated by the vertical dashed line. For (a) survival probability, the slopes are estimated more accurately when using \emph{non-equilibrium} populations which contain a more even size distribution. In contrast, (b) growth, (c) flowering probability, and (e) germination probability show little variation among scenarios, while for (d) seed production, added \emph{measurement error} increased variability. Note that the axes vary among panels.}
 \end{figure}
 
 \begin{figure}
-	\centering\includegraphics[width=.8\linewidth]{../../figs/diag/slope_box_biennial.pdf}
-	\caption{\label{fig:slopesBiennial} Effect of data scenario on slope estimates for the biennial Regressions are parameterized consistently with minimal differences among data scenarios.}
+	\centering\includegraphics[width=\linewidth]{../../figs/diag/slope_dens_biennial.pdf}
+	\caption{\label{fig:slopesBiennial} Effect of data scenario on slope estimates for the vital rate regressions for the biennial. Each density curve shows the distribution of fitted slope values across 100 data sets used in the IPM and CA\textsubscript{i} models. The true value is indicated by the vertical dashed line. The fitted slopes were consistent with minimal differences among data scenarios for (a) survival probability, (b) growth, (c) flowering probability, (d) seed production, and (e) germination probability. Peaks at 0 represent data sets where the optimal model did not include that term. Note that the axes vary among panels.}
 \end{figure}
