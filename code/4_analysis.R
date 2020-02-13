@@ -8,7 +8,7 @@
 ## Setup
 ########
 # file specifications
-sp <- "sp2"
+sp <- "sp1"
 overwrite <- TRUE
 
 # load workspace
@@ -33,6 +33,13 @@ out_P <- map2(f_P, i_P, ~readRDS(.x) %>% mutate(SDM=.y[1], issue=.y[2])) %>%
                             lambda<1 & prP>=0.5 ~ "S:0 P:1",
                             lambda>=1 & prP<0.5 ~ "S:1 P:0",
                             lambda<1 & prP<0.5 ~ "S:0 P:0"))
+out_P$B.f[out_P$issue=="noSB"] <- NA
+
+# Compare issues to none
+out_P <- full_join(out_P, 
+                   filter(out_P, issue=="none") %>% select(-c(1:79, 92)), 
+                   by=c("id", "SDM"), suffix=c("", ".none")) %>%
+  mutate(sp=sp)
 
 # Calculate log likelihood
 out_LL <- out_P %>% 
@@ -43,7 +50,8 @@ out_LL <- out_P %>%
   group_by(SDM, issue) %>%
   summarise(LL.N=sum(logP.N),
             LL.lam=sum(logP.lam)) %>%
-  gather(Boundary, LogLik, 3:4)
+  gather(Boundary, LogLik, 3:4) %>%
+  mutate(sp=sp)
 out_LL$Boundary <- factor(out_LL$Boundary, labels=c("lambda > 1", "N > 0"))
 
 # Aggregate TSS
@@ -62,7 +70,8 @@ out_TSS <- rbind(map(f_TSS, ~readRDS(.)[[1]]) %>%
                                     sensitivity=map_dbl(.x, ~.$sensitivity), 
                                     specificity=map_dbl(.x, ~.$specificity), 
                                     Boundary="lambda > 1", 
-                                    SDM=.y[1], issue=.y[2])))
+                                    SDM=.y[1], issue=.y[2]))) %>%
+  mutate(sp=sp)
 
 # Calculate MaxEnt diagnostics
 f_MxE <- list.files(here("out", sp), pattern="Diag_MxE", full.names=T)
@@ -72,7 +81,8 @@ AUC_MxE <- map2_dfr(diagRaw_MxE, i_MxE,
                      ~tibble(AUC=c(map_dbl(.x[[1]], ~.@auc), 
                                    map_dbl(.x[[2]], ~.@auc)),
                              Boundary=rep(c("N > 0", "lambda > 1"), each=100),
-                             issue=.y[2]))
+                             issue=.y[2])) %>%
+  mutate(sp=sp)
 ROC_MxE <- rbind(map2_dfr(diagRaw_MxE, i_MxE,
                           ~tibble(TPR=unlist(map(.x[[1]], ~.@TPR)),
                                   FPR=unlist(map(.x[[1]], ~.@FPR)),
@@ -86,7 +96,8 @@ ROC_MxE <- rbind(map2_dfr(diagRaw_MxE, i_MxE,
                                   obs=rep(1:100, times=map_int(.x[[2]], 
                                                                ~length(.@TPR))),
                                   issue=.y[2],
-                                  Boundary="lambda > 1")))
+                                  Boundary="lambda > 1"))) %>%
+  mutate(sp=sp)
 
 
 if(overwrite) {
