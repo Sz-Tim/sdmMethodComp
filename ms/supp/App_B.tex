@@ -105,7 +105,6 @@ CA\textsubscript{i} models.
 
 \begin{center}\rule{0.5\linewidth}{\linethickness}\end{center}
 
-\newpage
 \section{Sensitivity and specificity}
 
 \subsection{Overall averages}
@@ -116,7 +115,7 @@ comparing overall performance, the individual components can provide
 insight as well. Here, we show summary plots for the effect of each
 scenario on the sensitivity (the proportion of true presences correctly
 predicted as presences) and specificity (the proportion of true absences
-correctly predicted as absences).
+correctly predicted as absences). \clearpage
 
 \begin{figure}
     \centering\includegraphics[width=.75\linewidth]{../../figs/Supp_Sens_mn+CI.jpg}
@@ -128,7 +127,7 @@ correctly predicted as absences).
     \caption{\label{fig:SpecificityMed} Specificity mean and 95\% confidence intervals across 100 sampled data sets for each SDM and scenario, compared to true distributions defined by $\lambda > 1$ and $N > 0$. Scenarios include: no sampling or modeling issues (ideal), sampling issues (measurement error, sampling bias, non-equilibrium), and modeling issues (incorrect covariates, no seed bank, under dispersal, over dispersal). Specificity represents the proportion of true absences that were correctly predicted as absences.}
 \end{figure}
 
-\newpage
+\clearpage
 \subsection{Scenario effects}
 
 Some scenarios, such as \emph{non-equilibrium} for MaxEnt or
@@ -140,6 +139,7 @@ specificity in the process-based models. In this case, not only are
 presences more poorly predicted, but absences are more poorly predicted
 as well.
 
+\clearpage
 \begin{figure}
     \centering\includegraphics[width=.9\linewidth]{../../figs/Supp_SensvIdeal.jpg}
     \caption{\label{fig:SensitivityvIdeal} Effect of scenario on median sensitivity relative to the \emph{ideal} scenario. Sensitivity represents the proportion of true presences that were correctly predicted as presences.}
@@ -150,29 +150,30 @@ as well.
     \caption{\label{fig:SpecificityvIdeal} Effect of scenario on median specificity relative to the \emph{ideal} scenario. Specificity represents the proportion of true absences that were correctly predicted as absences.}
 \end{figure}
 
-\begin{center}\rule{0.5\linewidth}{\linethickness}\end{center}
-
-\newpage
+\clearpage
 \section{Estimated slopes}
 
 The IPM and CA\textsubscript{i} models fit regressions of the same form
 as the generative models, and so error in the estimated slopes can be
 directly compared. The pattern of accuracy across scenarios reflects the
 observed trends in TSS. The effect of data scenario is minimal, with the
-exception of non-equilibrium for the shrub. The slopes clearly show the
-improvement from sampling newer populations with a broader age
-distribution, relative to all other scenarios where populations tended
-to be older. This effect is absent from the biennial regressions, as
-individuals are not long-lived.
+exception of \emph{non-equilibrium} for the shrub survival probability
+regressions. The slopes clearly show the improvement from sampling newer
+populations with a broader age distribution, relative to all other
+scenarios where populations tended to be older. This effect is absent
+from the biennial regressions, as individuals are not long-lived.
+Additionally, slopes for the growth regression were poorly estimated for
+the shrub, resulting from the imposition of a size maximum in the
+virtual species.
 
 \begin{figure}
     \centering\includegraphics[width=\linewidth]{../../figs/diag/slope_dens_shrub.pdf}
-    \caption{\label{fig:slopesShrub} Effect of data scenario on slope estimates for the shrub. Survival regressions for the shrub are parameterized more accurately when using \emph{non-equilibrium} populations which contain a more even size distribution. Note that the axes vary among panels.}
+    \caption{\label{fig:slopesShrub} Effect of data scenario on slope estimates for the vital rate regressions for the shrub. Each density curve shows the distribution of fitted slope values across 100 data sets used in the IPM and CA\textsubscript{i} models. The true value is indicated by the vertical dashed line. For (a) survival probability, the slopes are estimated more accurately when using \emph{non-equilibrium} populations which contain a more even size distribution. In contrast, (b) growth, (c) flowering probability, and (e) germination probability show little variation among scenarios, while for (d) seed production, added \emph{measurement error} increased variability. Note that the axes vary among panels.}
 \end{figure}
 
 \begin{figure}
     \centering\includegraphics[width=\linewidth]{../../figs/diag/slope_dens_biennial.pdf}
-    \caption{\label{fig:slopesBiennial} Effect of data scenario on slope estimates for the biennial Regressions are parameterized consistently with minimal differences among data scenarios. Peaks at 0 represent data sets where the optimal model did not include that term. Note that the axes vary among panels.}
+    \caption{\label{fig:slopesBiennial} Effect of data scenario on slope estimates for the vital rate regressions for the biennial. Each density curve shows the distribution of fitted slope values across 100 data sets used in the IPM and CA\textsubscript{i} models. The true value is indicated by the vertical dashed line. The fitted slopes were consistent with minimal differences among data scenarios for (a) survival probability, (b) growth, (c) flowering probability, (d) seed production, and (e) germination probability. Peaks at 0 represent data sets where the optimal model did not include that term. Note that the axes vary among panels.}
 \end{figure}
 
 

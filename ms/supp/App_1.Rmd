@@ -26,8 +26,8 @@ This appendix contains supplemental methods pertaining to the virtual species, s
 ---
 
 
-\section{General model structure}
-\subsection{Integral Projection Models (IPMs)}
+\section{Integral Projection Model structure}
+\subsection{Overview}
 To generate fully-known true distributions for the virtual species, we used the general structure of an Integral Projection Model (IPM) to calculate the intrinsic growth rate $\lambda$ in each cell of the gridded landscape, and adapted the regression-based structure of an IPM into an individual-level, simulation-based cellular automata (CA) model to produce spatiotemporally dynamic abundance distributions. 
 
 IPMs (Easterling 2000; Merow et al. 2014, 2017) use the size distribution, $z$, of individuals at time $t$, along with a kernel $K(z^{\prime}, z)$, to predict the size distribution, $z^{\prime}$, at time $t+1$:
@@ -86,7 +86,7 @@ for each cell $i$ which is a target cell of each cell $j$ of $J$ cells, where th
 
 
 \newpage
-\section{Regression equations for the virtual species}
+\section{Virtual species simulation}
 We used the above IPM structure, including a seed bank and dispersal, as the basis for the virtual species. Thus, the population in each cell $i$ has size distribution $z$, where $z^{\prime}$ is the size distribution the next year, and $\boldsymbol{z_i}$ is a matrix with columns of 1 (intercept) and $z$. For the IPMs, we used the following regression equations to populate discretized transition matrices for each cell to then calculate the deterministic intrinsic growth rate $\lambda$. For the CA\textsubscript{i} models, we used the same regression equations to generate expected values for each individual, and then drew simulated outcomes from the specified distribtutions.
 
 \subsection{Survival}   
