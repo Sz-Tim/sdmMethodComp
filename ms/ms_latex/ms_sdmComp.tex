@@ -141,25 +141,6 @@ To compare TSS among SDM types overall, we used the R package \emph{dunn.test} t
 
 \section{Results}
 \label{S:3}
-% Talk results
-% 1. Across all scenarios, IPM is best for lambda, CAi/p are best for N, with Maxent in the middle for both
-% 2. Under ideal conditions, process-based outperform Maxent
-% 3. For non-equilibrium distributions, process-based outperform Maxent
-% 4. Process-based are much, much more sensitive to covariate choice -- implies sensitivity to regression accuracy
-% 5. Dispersal is critical for CA models
-% 6. Structural errors seem to have erratic effects
-% 0. Process-based are better IF you are confident of the process, but Maxent is more robust to error and uncertainty
-
-% Possible paragraphs:
-% Rankings:
-%	Ideal & mean(all scenarios): corresponding process-based is best on average
-%	lambda = IPM, MxE, CA (avgs)
-%	N = CA, MxE, IPM (avgs)
-%	Maxent somewhat better for lambda
-% Effect of data issues
-%	Measurement error
-% Effect of modelling issues
-% Differences in output
 
 % Rankings (overall, ideal)
 All models performed well in recovering the true $\lambda$-based ($\lambda > 1$) and $N$-based distributions ($N>0$) for both species across all scenarios (all TSS medians $>$ 0.77), though no single model performed best universally (Fig. \ref{fig:TSSmn}). Across scenarios applicable to all four SDMs (Table \ref{table:ranks}), the IPM best predicted the $\lambda$-based distributions (\emph{P\textsubscript{IPM-CA\textsubscript{i}}}: 0.02, \emph{P\textsubscript{IPM-CA\textsubscript{p}}}: 0.01, \emph{P\textsubscript{IPM-Maxent}}: 0.01), with no significant difference between the CA models and Maxent. Similarly, the CA models best predicted the $N$-based distributions (\emph{P\textsubscript{IPM-CA\textsubscript{i}}}: \textless0.01, \emph{P\textsubscript{IPM-CA\textsubscript{p}}}: \textless0.01, \emph{P\textsubscript{Maxent-CA\textsubscript{i}}}: \textless0.01, \emph{P\textsubscript{Maxent-CA\textsubscript{p}}}: 0.02) with no significant difference between the CA models. Maxent was intermediate for both range boundaries on average (mean rank: $\lambda$-based=2.7, $N$-based=2.9), though its rank was not significantly different from the process-based model(s) that performed most poorly for each range boundary.
@@ -191,7 +172,6 @@ All models performed well in recovering the true $\lambda$-based ($\lambda > 1$)
 % Effect of data issues
 For Maxent, TSS decreased when fit using samples from \emph{non-equilibrium} populations, driven by smaller predicted ranges as indicated by a decrease in sensitivity (Fig. B.1) and a smaller increase in specificity (Fig. B.2). In contrast, \emph{non-equilibrium} samples had minimal effect on TSS for the CA\textsubscript{p} model, with a modest improvement for the long-lived shrub in the IPM and CA\textsubscript{i} models driven by increases in sensitivity (Fig. B.1). \emph{Measurement error} and \emph{sampling bias} had negligible effects on the process-based models, and small to moderate effects on the performance of Maxent (Fig. \ref{fig:TSSmn}, Fig. B.1, Fig. B.2). 
 
-
 \begin{figure}
 	\centering\includegraphics[width=5in]{figs/fig_TSS_mn+CI.jpg}
 	\caption{\label{fig:TSSmn} True skill statistic (TSS) mean and 95\% confidence intervals across 100 sampled data sets for each SDM and scenario, compared to true distributions defined by $\lambda > 1$ and $N > 0$. Scenarios include: no sampling or modelling issues (ideal), sampling issues (measurement error, sampling bias, non-equilibrium), and modelling issues (incorrect covariates, no seedbank, under dispersal, over dispersal).}
@@ -201,7 +181,6 @@ For Maxent, TSS decreased when fit using samples from \emph{non-equilibrium} pop
 	\centering\includegraphics[width=\linewidth]{figs/fig_TSSvIdeal.jpg}
 	\caption{\label{fig:TSSvIdeal} Effect of scenario on median true skill statistic (TSS) relative to the '\emph{ideal}' scenario. Positive values indicate improved predictive ability, while negative values indicate decreased predictive ability.}
 \end{figure}
-
 
 % Effect of modelling issues
 modelling with \emph{incorrect covariates} was universally problematic for model performance, though it had a greater impact on TSS in the shrub than the biennial species (Fig. \ref{fig:TSSvIdeal}). \emph{Incorrect covariates} did not lead to systematic over-prediction or under-prediction, but rather a decrease in both sensitivity and specificity, particularly for the process-based models (Fig. B.3, Fig. B.4). Excluding the seedbank in the process-based models had minimal effect on TSS for the shrub, but variable effects on TSS for the biennial. Relative to \emph{ideal}, all process-based models showed reduced sensitivity and increased specificity for the biennial, indicating a smaller predicted range. The IPM was generally more resistant to mis-characterized dispersal compared to the simulation-based CA\textsubscript{i} and CA\textsubscript{p} models. Underestimation of dispersal parameters led to decreased predicted ranges, and overestimation to increased predicted ranges relative to ‘ideal’. The effects were more extreme for the biennial than for the shrub.
@@ -219,15 +198,6 @@ Similarly, the CA models predict the abundance $N$ for each species. Discrepanci
 
 \section{Discussion}
 \label{S:4}
-
-% Talk Discussion
-% 1. Across all scenarios, IPM is best for lambda, CAi/p are best for N, with Maxent in the middle for both
-% 2. Under ideal conditions, process-based outperform Maxent
-% 3. For non-equilibrium distributions, process-based outperform Maxent
-% 4. Process-based are much, much more sensitive to covariate choice -- implies sensitivity to regression accuracy
-% 5. Dispersal was critical for CA models, but had essentially no effect for IPMs
-% 6. Structural errors seem to have erratic effects
-% 0. Process-based are better IF you are confident of the process, but Maxent is more robust to error and uncertainty
 
 % Overview
 Overall, the virtual species distributions were predicted best by the process-based models when the range boundary definitions were appropriately matched. The $\lambda$-based ranges were best predicted by the IPM, and the $N$-based ranges were best predicted by the CA models, with Maxent typically intermediate in each case. Maxent showed highest sensitivity to \emph{non-equilibrium} samples. In contrast, the process-based models were relatively unaffected by \emph{non-equilibrium} samples, with moderate improvements for the longer-lived shrub. However, the process-based models were much more sensitive to the use of \emph{incorrect covariates} than Maxent. The simulation-based CA models were influenced by modelling mis-specifications, with the magnitude of the effect varying across species. While process-based SDMs indeed have many benefits over simpler occurrence-based SDMs, our results highlight the importance of accurately describing the environmental drivers impacting each vital rate. 
@@ -259,6 +229,53 @@ There are a bunch of reasons you might want to build a process-based model aside
 % Conclusions
 Process-based models provide a great deal more information that can make SDMs more directly useful to management decisions. In our simulations, the well-specified process-based SDMs predicted the true distributions better. Our results also support the assertion in the literature that process-based SDMs are less susceptible to non-equilibrium, suggesting that they're a good option for alien species and climate change scenarios. However, easy-to-make modelling errors, assumptions, and mis-specifications may have a big impact on their accuracy, so caution should be taken to ensure that the environmental drivers in the model match the true biology of the species as closely as possible. It's also a good idea to run global sensitivity analyses to identify the parameters and processes that are most likely to shape the distribution \citep{Prowse2016,Aiello-Lammens2017}. For species of particular concern, process-based SDMs are tools that can provide more accurate and more applicable predictions.
 
+
+
+\section{Acknowledgments}
+This project was funded through National Science Foundation award IIS-1717368. 
+
+
+\section{Bibliography}
+\bibliography{ms/ms_latex/sdmMethodComp}
+
+\end{document}
+
+
+
+
+
+%% RESULTS
+% Talk results
+% 1. Across all scenarios, IPM is best for lambda, CAi/p are best for N, with Maxent in the middle for both
+% 2. Under ideal conditions, process-based outperform Maxent
+% 3. For non-equilibrium distributions, process-based outperform Maxent
+% 4. Process-based are much, much more sensitive to covariate choice -- implies sensitivity to regression accuracy
+% 5. Dispersal is critical for CA models
+% 6. Structural errors seem to have erratic effects
+% 0. Process-based are better IF you are confident of the process, but Maxent is more robust to error and uncertainty
+
+% Possible paragraphs:
+% Rankings:
+%	Ideal & mean(all scenarios): corresponding process-based is best on average
+%	lambda = IPM, MxE, CA (avgs)
+%	N = CA, MxE, IPM (avgs)
+%	Maxent somewhat better for lambda
+% Effect of data issues
+%	Measurement error
+% Effect of modelling issues
+% Differences in output
+
+
+%% DISCUSSION
+% Talk Discussion
+% 1. Across all scenarios, IPM is best for lambda, CAi/p are best for N, with Maxent in the middle for both
+% 2. Under ideal conditions, process-based outperform Maxent
+% 3. For non-equilibrium distributions, process-based outperform Maxent
+% 4. Process-based are much, much more sensitive to covariate choice -- implies sensitivity to regression accuracy
+% 5. Dispersal was critical for CA models, but had essentially no effect for IPMs
+% 6. Structural errors seem to have erratic effects
+% 0. Process-based are better IF you are confident of the process, but Maxent is more robust to error and uncertainty
+
 % So: Why or when to use each?
 %	- Maxent is probably best for most species: fairly robust, already know about non-equilibrium, etc
 %		- But what about climate change? Isn't everything at disequilibrium now? Shit...
@@ -270,17 +287,3 @@ Process-based models provide a great deal more information that can make SDMs mo
 %	- dispersal: critical for CA models
 % 	- structural errors seem to have erratic effects
 % Range boundaries: What is each SDM predicting?
-
-
-
-
-
-
-\section{Acknowledgments}
-This project was funded through National Science Foundation award IIS-1717368. 
-
-
-\section{Bibliography}
-\bibliography{ms/ms_latex/sdmMethodComp}
-
-\end{document}
