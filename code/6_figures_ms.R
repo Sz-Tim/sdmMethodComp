@@ -29,7 +29,7 @@ suppressMessages(invisible(lapply(pkgs, library, character.only=T)))
 walk(dir("code", "fn", full.names=T), source)
 theme_set(theme_bw())
 sp.names <- c("shrub", "biennial")
-SDM_col <- c(MaxEnt="#fd8d3c", IPM="#08306b", 
+SDM_col <- c(Maxent="#fd8d3c", IPM="#08306b", 
              'CA[i]'="#2171b5", 'CA[p]'="#6baed6")
 
 # TSS
@@ -48,7 +48,7 @@ TSS.df$issue <- factor(TSS.df$issue,
                                 "Over dispersal"))
 TSS.df$sp <- factor(TSS.df$sp, levels=c("sp1", "sp2"), labels=sp.names)
 TSS.df$Boundary <- paste0("True~range:~", TSS.df$Boundary)
-TSS.df$SDM <- lvls_revalue(TSS.df$SDM, c("CA[p]", "CA[i]", "IPM", "MaxEnt"))
+TSS.df$SDM <- lvls_revalue(TSS.df$SDM, c("CA[p]", "CA[i]", "IPM", "Maxent"))
 TSS.ci <- TSS.df %>% group_by(sp, SDM, issue, Boundary) %>% 
   summarise(med=median(TSS, na.rm=T), 
             mn=mean(TSS, na.rm=T),
@@ -98,7 +98,7 @@ LL.df$issue <- factor(LL.df$issue,
                                 "Over dispersal"))
 LL.df$sp <- factor(LL.df$sp, levels=c("sp1", "sp2"), labels=sp.names)
 LL.df$Boundary <- paste0("True~range:~", LL.df$Boundary)
-LL.df$SDM <- lvls_revalue(LL.df$SDM, c("CA[p]", "CA[i]", "IPM", "MaxEnt"))
+LL.df$SDM <- lvls_revalue(LL.df$SDM, c("CA[p]", "CA[i]", "IPM", "Maxent"))
 
 # Predictions
 P.df <- rbind(read.csv("out/sp1/out_P.csv"),
@@ -122,14 +122,14 @@ P.df$issue <- factor(P.df$issue,
                               "No Seedbank", "Under dispersal",
                               "Over dispersal"))
 P.df$sp <- factor(P.df$sp, levels=c("sp1", "sp2"), labels=sp.names)
-P.df$SDM <- lvls_revalue(P.df$SDM, c("CA[p]", "CA[i]", "IPM", "MaxEnt"))
+P.df$SDM <- lvls_revalue(P.df$SDM, c("CA[p]", "CA[i]", "IPM", "Maxent"))
 P.sum <- P.df %>% group_by(sp, SDM, issue) %>%
   summarise(propDisputedCells=sum(prP>0 & prP<1)/n(),
             propSinCI=sum(S_in_CI)/n(),
             mean95CI=mean(CI_95, na.rm=T),
             median95CI=median(CI_95, na.rm=T))
 P.sum <- rbind(ungroup(P.sum), 
-               expand.grid(sp=unique(P.sum$sp), SDM="MaxEnt", 
+               expand.grid(sp=unique(P.sum$sp), SDM="Maxent", 
                            issue=c("No Seedbank", 
                                    "Under dispersal", "Over dispersal"),
                            propDisputedCells=NA, propSinCI=NA,
@@ -159,7 +159,7 @@ SDM.ranks <- TSS.ci %>% ungroup %>%
 
 # Scenario ranks within SDMs
 scenario.ranks <- TSS.ci %>% ungroup %>% 
-  # filter(SDM!="MaxEnt") %>%
+  # filter(SDM!="Maxent") %>%
   # filter(!issue %in% c("No Seedbank", "Under dispersal", "Over dispersal")) %>% 
   arrange(Boundary, SDM, sp, desc(med)) %>%
   group_by(Boundary, SDM, sp) %>%
@@ -205,12 +205,22 @@ TSS.ci %>% ungroup %>%
             med_rank=median(rank_SDM), max_rank=max(rank_SDM)) %>%
   arrange(Boundary, mean_rank)
 
+TSS.lmer <- TSS.df %>% 
+  filter(!issue %in% c("No Seedbank", "Under dispersal", "Over dispersal")) %>% 
+  group_by(Boundary) %>%
+  summarise(mod=list(lme4::lmer(TSS ~ SDM * issue + (1|sp))))
+TSS.dunn <- TSS.ci %>% ungroup %>% 
+  filter(!issue %in% c("No Seedbank", "Under dispersal", "Over dispersal")) %>%
+  group_by(Boundary) %>%
+  summarise(dunn_out=list(dunn.test::dunn.test(x=med, g=SDM)))
+
+
 # Supplemental figure: Mean ranks (med TSS) across all scenarios BY species
 ggplot(SDM.ranks, aes(x=Boundary, y=mean_rank, colour=SDM, shape=sp)) + 
   geom_hline(yintercept=seq(1, 4, 1), colour="gray90", linetype=2, size=0.2) +
   geom_point(position=position_jitter(width=0.1, height=0)) + 
   scale_colour_manual("SDM\nMethod", values=SDM_col, 
-                      labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
+                      labels=c(expression(CA[p], CA[i], IPM, Maxent))) +
   scale_x_discrete("True range", labels=expression(lambda>1, N>0)) +
   labs(y="Mean rank across scenarios") +
   theme(panel.grid=element_blank(), 
@@ -229,9 +239,14 @@ ggsave("figs/Supp_Fig_Ranks.jpg", width=3, height=3)
 tss.none <- filter(TSS.df, issue=="Ideal")
 tss.none.ci <- filter(TSS.ci, issue=="Ideal")
 
-TukeyHSD(aov(TSS ~ SDM*sp, 
+filter(tss.none, Boundary=="True~range:~lambda > 1") %>%
+  dunn.test::dunn.test(x=.$TSS, g=.$SDM)
+filter(tss.none, Boundary=="True~range:~N > 0") %>%
+  dunn.test::dunn.test(x=.$TSS, g=.$SDM)
+
+TukeyHSD(aov(TSS ~ SDM+sp, 
              data=filter(tss.none, Boundary=="True~range:~lambda > 1")))
-TukeyHSD(aov(TSS ~ SDM*sp, 
+TukeyHSD(aov(TSS ~ SDM+sp, 
              data=filter(tss.none, Boundary=="True~range:~N > 0")))
 
 ggplot(tss.none.ci, aes(x=SDM, y=mn, min=mn-.196*sd, ymax=mn+.196*sd)) +
@@ -265,7 +280,7 @@ ggplot(TSS.df, aes(x=issue, y=TSS, colour=SDM)) +
   geom_boxplot(outlier.shape=NA) + ylim(.7, 1) +
   facet_grid(Boundary~., labeller=labeller(Boundary=label_parsed)) +
   scale_colour_manual("SDM", values=SDM_col, 
-                      labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
+                      labels=c(expression(CA[p], CA[i], IPM, Maxent))) +
   theme(panel.grid=element_blank(), 
         legend.text.align=0,
         axis.text.x=element_text(angle=270, vjust=0.5, hjust=0),
@@ -282,7 +297,7 @@ ggplot(TSS.ci, aes(x=issue, y=med, colour=SDM, group=SDM)) +
                  position=position_dodge(width=0.4)) + 
   facet_grid(Boundary~sp, labeller=labeller(Boundary=label_parsed)) +
   scale_colour_manual("SDM", values=SDM_col, 
-                      labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
+                      labels=c(expression(CA[p], CA[i], IPM, Maxent))) +
   theme(panel.grid=element_blank(), 
         legend.text.align=0,
         axis.text.x=element_text(angle=270, vjust=0.5, hjust=0),
@@ -297,7 +312,7 @@ ggplot(TSS.ci, aes(x=issue, y=mn, colour=SDM, group=SDM)) +
                 position=position_dodge(width=0.4)) + 
   facet_grid(Boundary~sp, labeller=labeller(Boundary=label_parsed)) +
   scale_colour_manual("SDM", values=SDM_col, 
-                      labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
+                      labels=c(expression(CA[p], CA[i], IPM, Maxent))) +
   theme(panel.grid=element_blank(), 
         legend.text.align=0,
         axis.text.x=element_text(angle=270, vjust=0.5, hjust=0),
@@ -313,7 +328,7 @@ ggplot(TSS.ci, aes(x=issue, y=mn, colour=SDM, group=SDM)) +
                 position=position_dodge(width=0.4)) + 
   facet_grid(Boundary~sp, labeller=labeller(Boundary=label_parsed)) +
   scale_colour_manual("SDM", values=SDM_col, 
-                      labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
+                      labels=c(expression(CA[p], CA[i], IPM, Maxent))) +
   theme(panel.grid=element_blank(), 
         legend.text.align=0,
         legend.key.size=unit(0.3, 'cm')) + 
@@ -328,7 +343,7 @@ ggplot(TSS.ci, aes(x=issue, y=mn, colour=SDM, group=SDM)) +
                 position=position_dodge(width=0.4)) + 
   facet_grid(Boundary~sp, labeller=labeller(Boundary=label_parsed)) +
   scale_colour_manual("SDM", values=SDM_col, 
-                      labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
+                      labels=c(expression(CA[p], CA[i], IPM, Maxent))) +
   theme(panel.grid=element_blank(), 
         legend.text.align=0,
         axis.text.x=element_text(angle=270, vjust=0.5, hjust=0),
@@ -345,7 +360,7 @@ ggplot(senspe.ci, aes(x=issue, y=mn.sen, colour=SDM, group=SDM)) +
                 position=position_dodge(width=0.4)) + 
   facet_grid(Boundary~sp, labeller=labeller(Boundary=label_parsed)) +
   scale_colour_manual("SDM", values=SDM_col, 
-                      labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
+                      labels=c(expression(CA[p], CA[i], IPM, Maxent))) +
   theme(panel.grid=element_blank(), 
         legend.text.align=0,
         axis.text.x=element_text(angle=270, vjust=0.5, hjust=0),
@@ -363,7 +378,7 @@ ggplot(senspe.ci, aes(x=issue, y=med.sen, colour=SDM, group=SDM)) +
                  position=position_dodge(width=0.4)) + 
   facet_grid(Boundary~sp, labeller=labeller(Boundary=label_parsed)) +
   scale_colour_manual("SDM", values=SDM_col, 
-                      labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
+                      labels=c(expression(CA[p], CA[i], IPM, Maxent))) +
   theme(panel.grid=element_blank(), 
         legend.text.align=0,
         axis.text.x=element_text(angle=270, vjust=0.5, hjust=0),
@@ -381,7 +396,7 @@ ggplot(senspe.ci, aes(x=issue, y=mn.spe, colour=SDM, group=SDM)) +
                 position=position_dodge(width=0.4)) + 
   facet_grid(Boundary~sp, labeller=labeller(Boundary=label_parsed)) +
   scale_colour_manual("SDM", values=SDM_col, 
-                      labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
+                      labels=c(expression(CA[p], CA[i], IPM, Maxent))) +
   theme(panel.grid=element_blank(), 
         legend.text.align=0,
         axis.text.x=element_text(angle=270, vjust=0.5, hjust=0),
@@ -399,7 +414,7 @@ ggplot(senspe.ci, aes(x=issue, y=med.spe, colour=SDM, group=SDM)) +
                  position=position_dodge(width=0.4)) + 
   facet_grid(Boundary~sp, labeller=labeller(Boundary=label_parsed)) +
   scale_colour_manual("SDM\nMethod", values=SDM_col, 
-                      labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
+                      labels=c(expression(CA[p], CA[i], IPM, Maxent))) +
   theme(panel.grid=element_blank(), 
         legend.text.align=0,
         axis.text.x=element_text(angle=270, vjust=0.5, hjust=0),
@@ -433,9 +448,9 @@ ggplot(filter(TSS.ci, issue != "Ideal"),
   facet_grid(Boundary~issue, scales="free", 
              labeller=labeller(Boundary=label_parsed, issue=label_wrap_gen(11))) +
   scale_colour_manual("SDM:", values=SDM_col, 
-                      labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
+                      labels=c(expression(CA[p], CA[i], IPM, Maxent))) +
   scale_fill_manual("SDM:", values=SDM_col, 
-                      labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
+                      labels=c(expression(CA[p], CA[i], IPM, Maxent))) +
   scale_shape_manual("Species:", values=c(21,24)) +
   # scale_shape_manual("Species", values=1:2) +
   theme(panel.grid=element_blank(), 
@@ -463,9 +478,9 @@ ggplot(filter(senspe.ci, issue != "Ideal"),
   facet_grid(Boundary~issue, scales="free", 
              labeller=labeller(Boundary=label_parsed, issue=label_wrap_gen(11))) +
   scale_colour_manual("SDM:", values=SDM_col, 
-                      labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
+                      labels=c(expression(CA[p], CA[i], IPM, Maxent))) +
   scale_fill_manual("SDM:", values=SDM_col, 
-                    labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
+                    labels=c(expression(CA[p], CA[i], IPM, Maxent))) +
   scale_shape_manual("Species:", values=c(21,24)) +
   theme(panel.grid=element_blank(), 
         axis.text.x=element_blank(),
@@ -491,9 +506,9 @@ ggplot(filter(senspe.ci, issue != "Ideal"),
   facet_grid(Boundary~issue, scales="free", 
              labeller=labeller(Boundary=label_parsed, issue=label_wrap_gen(11))) +
   scale_colour_manual("SDM:", values=SDM_col, 
-                      labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
+                      labels=c(expression(CA[p], CA[i], IPM, Maxent))) +
   scale_fill_manual("SDM:", values=SDM_col, 
-                    labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
+                    labels=c(expression(CA[p], CA[i], IPM, Maxent))) +
   scale_shape_manual("Species:", values=c(21,24)) +
   theme(panel.grid=element_blank(), 
         axis.text.x=element_blank(),
@@ -521,7 +536,7 @@ ggplot(LL.df, aes(x=LogLik, y=fct_rev(issue), colour=SDM)) +
   facet_grid(Boundary~sp, labeller=labeller(Boundary=label_parsed)) +
   geom_point(alpha=0.75, size=3) + 
   scale_colour_manual("SDM\nMethod", values=SDM_col, 
-                      labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
+                      labels=c(expression(CA[p], CA[i], IPM, Maxent))) +
   theme(legend.text.align=0) +
   labs(title="Log Likelihood", x="Log likelihood: S ~ Binom(prP)", y="")
 ggsave("figs/Supp_LogLik.jpg", width=7, height=4)
@@ -681,7 +696,7 @@ dunn.list <- filter(TSS.df, issue == "Ideal" & sp == "shrub" &
   list(CAp=filter(., SDM=="CA[p]")$TSS,
        CAp=filter(., SDM=="CA[i]")$TSS,
        CAp=filter(., SDM=="IPM")$TSS,
-       CAp=filter(., SDM=="MaxEnt")$TSS)
+       CAp=filter(., SDM=="Maxent")$TSS)
 dunn.test(dunn.list[-1])
 # For N > 0, 
 
@@ -747,7 +762,7 @@ ggplot(TSS.ci, aes(x=SDM, y=q975-q025, colour=SDM, shape=sp)) +
              labeller=labeller(Boundary=label_parsed, 
                                issue=label_wrap_gen(width=11))) +
   scale_colour_manual("SDM\nMethod", values=SDM_col, 
-                      labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
+                      labels=c(expression(CA[p], CA[i], IPM, Maxent))) +
   scale_shape_manual("Species", values=c(19,1)) +
   theme(panel.grid=element_blank(), 
         axis.text.x=element_blank(),
@@ -766,7 +781,7 @@ ggplot(P.sum, aes(x=SDM, y=propDisputedCells, fill=SDM)) +
   geom_hline(yintercept=0, colour="gray30") + 
   geom_bar(stat="identity", position="dodge", colour="gray30") + 
   scale_fill_manual("SDM\nMethod", values=SDM_col, 
-                    labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
+                    labels=c(expression(CA[p], CA[i], IPM, Maxent))) +
   facet_grid(sp~issue, labeller=labeller(issue=label_wrap_gen(width=11))) + 
   ylim(0, 0.6) + 
   labs(x="SDM", y="Proportion of cells with\ndisagreement among samples") +
@@ -782,7 +797,7 @@ ggplot(P.sum, aes(x=sp, y=propDisputedCells, fill=SDM)) +
   geom_hline(yintercept=0, colour="gray30") + 
   geom_bar(stat="identity", position="dodge", colour="gray30") + 
   scale_fill_manual("SDM\nMethod", values=SDM_col, 
-                    labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
+                    labels=c(expression(CA[p], CA[i], IPM, Maxent))) +
   facet_grid(.~issue, labeller=labeller(issue=label_wrap_gen(width=11))) + 
   ylim(0, NA) + 
   labs(x="Species", y="Proportion of cells with\ndisagreement among samples") +
@@ -827,7 +842,7 @@ ggplot(P.sum, aes(x=SDM, y=propSinCI, fill=SDM)) +
   geom_hline(yintercept=0, colour="gray30") + 
   geom_bar(stat="identity", position="dodge", colour="gray30") + 
   scale_fill_manual("SDM\nMethod", values=SDM_col, 
-                    labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
+                    labels=c(expression(CA[p], CA[i], IPM, Maxent))) +
   facet_grid(sp~issue, labeller=labeller(issue=label_wrap_gen(width=11))) + 
   ylim(0, 1) + 
   labs(x="SDM", y="Proportion of cells with\nS in 95% CIs") +
@@ -854,7 +869,7 @@ ggplot(P.sum, aes(x=sp, y=propSinCI, fill=issue)) +
 ggplot(P.sum, aes(x=SDM, y=mean95CI, fill=SDM)) + 
   geom_bar(stat="identity", position="dodge", colour="gray30") + 
   scale_fill_manual("SDM\nMethod", values=SDM_col, 
-                    labels=c(expression(CA[p], CA[i], IPM, MaxEnt))) +
+                    labels=c(expression(CA[p], CA[i], IPM, Maxent))) +
   facet_grid(sp~issue, labeller=labeller(issue=label_wrap_gen(width=11)), 
              scales="free_y") + 
   labs(x="SDM", y="Mean 95% CI width") +
